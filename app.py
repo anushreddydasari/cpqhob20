@@ -3,19 +3,29 @@ from flask_cors import CORS
 from datetime import datetime
 import os
 from dotenv import load_dotenv
-from cpq.db import quotes_collection, clients_collection, hubspot_contacts_collection, quote_status_collection
+from mongodb_collections import (
+    EmailCollection, SMTPCollection, QuoteCollection,
+    ClientCollection, PricingCollection, 
+    HubSpotContactCollection, HubSpotIntegrationCollection
+)
 from cpq.pricing_logic import calculate_quote
-from reportlab.lib.pagesizes import letter, A4
-from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.lib.units import inch
-from reportlab.lib import colors
-from reportlab.lib.enums import TA_CENTER, TA_LEFT
-import io
 from flask import send_file
+from templates import PDFGenerator
 
 app = Flask(__name__)
 CORS(app)
+
+# Initialize collections
+quotes = QuoteCollection()
+clients = ClientCollection()
+hubspot_contacts = HubSpotContactCollection()
+hubspot_integration = HubSpotIntegrationCollection()
+email_collection = EmailCollection()
+smtp_collection = SMTPCollection()
+pricing = PricingCollection()
+
+# Initialize PDF generator
+pdf_generator = PDFGenerator()
 
 @app.route('/')
 def serve_frontend():
@@ -52,8 +62,8 @@ def save_client():
         data['created_at'] = datetime.now()
         data['updated_at'] = datetime.now()
         
-        # Save to MongoDB
-        result = clients_collection.insert_one(data)
+        # Save to MongoDB using collection
+        result = clients.create_client(data)
         
         return jsonify({
             "success": True,
@@ -71,10 +81,10 @@ def save_client():
 def get_all_clients():
     """Get all clients from MongoDB"""
     try:
-        clients = list(clients_collection.find({}, {'_id': 0}))
+        clients_data = clients.get_all_clients()
         return jsonify({
             "success": True,
-            "clients": clients
+            "clients": clients_data
         }), 200
         
     except Exception as e:
@@ -87,8 +97,6 @@ def get_all_clients():
 def update_client(client_id):
     """Update an existing client"""
     try:
-        from bson import ObjectId
-        
         data = request.get_json()
         data['updated_at'] = datetime.now()
         
@@ -96,10 +104,7 @@ def update_client(client_id):
         if '_id' in data:
             del data['_id']
         
-        result = clients_collection.update_one(
-            {"_id": ObjectId(client_id)},
-            {"$set": data}
-        )
+        result = clients.update_client(client_id, data)
         
         if result.matched_count == 0:
             return jsonify({
@@ -122,9 +127,7 @@ def update_client(client_id):
 def delete_client(client_id):
     """Delete a client"""
     try:
-        from bson import ObjectId
-        
-        result = clients_collection.delete_one({"_id": ObjectId(client_id)})
+        result = clients.delete_client(client_id)
         
         if result.deleted_count == 0:
             return jsonify({
@@ -223,10 +226,9 @@ def generate_quote():
         # Use the pricing logic from separate file
         results = calculate_quote(users, instance_type, instances, duration, migration_type, data_size)
 
-        # Save quote to MongoDB with client details
+        # Save quote to MongoDB using collection
         try:
-            result = quotes_collection.insert_one({
-                "timestamp": datetime.now(),
+            quote_data = {
                 "client": {
                     "name": client_name,
                     "phone": phone_number,
@@ -244,7 +246,8 @@ def generate_quote():
                     "dataSize": data_size
                 },
                 "quote": results
-            })
+            }
+            result = quotes.create_quote(quote_data)
             
             # Return the quote ID for email sending
             return jsonify({
@@ -280,8 +283,8 @@ def generate_pdf():
         quote_data = data.get('quote', {})
         configuration = data.get('configuration', {})
         
-        # Create PDF
-        pdf_buffer = create_quote_pdf(client_data, quote_data, configuration)
+        # Create PDF using template
+        pdf_buffer = pdf_generator.create_quote_pdf(client_data, quote_data, configuration)
         pdf_buffer.seek(0)
         
         return send_file(
@@ -295,174 +298,7 @@ def generate_pdf():
         print(f"Error generating PDF: {str(e)}")
         return jsonify({"success": False, "message": f"PDF generation failed: {str(e)}"}), 500
 
-def create_quote_pdf(client_data, quote_data, configuration):
-    """Create a professional PDF quote"""
-    
-    # Create buffer for PDF
-    buffer = io.BytesIO()
-    doc = SimpleDocTemplate(buffer, pagesize=A4)
-    
-    # Get styles
-    styles = getSampleStyleSheet()
-    title_style = ParagraphStyle(
-        'CustomTitle',
-        parent=styles['Heading1'],
-        fontSize=24,
-        spaceAfter=30,
-        alignment=TA_CENTER,
-        textColor=colors.HexColor('#007BFF')
-    )
-    
-    heading_style = ParagraphStyle(
-        'CustomHeading',
-        parent=styles['Heading2'],
-        fontSize=16,
-        spaceAfter=12,
-        textColor=colors.HexColor('#007BFF')
-    )
-    
-    # Build PDF content
-    story = []
-    
-    # Title
-    story.append(Paragraph("PROFESSIONAL QUOTE", title_style))
-    story.append(Paragraph("Migration Services & Solutions", styles['Normal']))
-    story.append(Spacer(1, 20))
-    
-    # Client Information
-    story.append(Paragraph("Client Information", heading_style))
-    client_info = [
-        ['Name:', client_data.get('name', 'N/A')],
-        ['Company:', client_data.get('company', 'N/A')],
-        ['Email:', client_data.get('email', 'N/A')],
-        ['Phone:', client_data.get('phone', 'N/A')],
-        ['Service Type:', client_data.get('serviceType', 'N/A')]
-    ]
-    
-    client_table = Table(client_info, colWidths=[2*inch, 4*inch])
-    client_table.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (0, -1), colors.HexColor('#f8f9fa')),
-        ('TEXTCOLOR', (0, 0), (0, -1), colors.HexColor('#495057')),
-        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
-        ('FONTNAME', (0, 0), (-1, -1), 'Helvetica-Bold'),
-        ('FONTSIZE', (0, 0), (-1, -1), 10),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
-        ('GRID', (0, 0), (-1, -1), 1, colors.HexColor('#dee2e6'))
-    ]))
-    story.append(client_table)
-    story.append(Spacer(1, 20))
-    
-    # Quote Details
-    story.append(Paragraph("Quote Details", heading_style))
-    quote_info = [
-        ['Quote Date:', datetime.now().strftime('%B %d, %Y')],
-        ['Migration Type:', configuration.get('migrationType', 'N/A')],
-        ['Project Duration:', f"{configuration.get('duration', 0)} months"],
-        ['Number of Users:', str(configuration.get('users', 0))],
-        ['Instance Type:', configuration.get('instanceType', 'N/A')],
-        ['Number of Instances:', str(configuration.get('instances', 0))],
-        ['Data Size:', f"{configuration.get('dataSize', 0)} GB"]
-    ]
-    
-    quote_table = Table(quote_info, colWidths=[2*inch, 4*inch])
-    quote_table.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (0, -1), colors.HexColor('#f8f9fa')),
-        ('TEXTCOLOR', (0, 0), (0, -1), colors.HexColor('#495057')),
-        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
-        ('FONTNAME', (0, 0), (-1, -1), 'Helvetica-Bold'),
-        ('FONTSIZE', (0, 0), (-1, -1), 10),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
-        ('GRID', (0, 0), (-1, -1), 1, colors.HexColor('#dee2e6'))
-    ]))
-    story.append(quote_table)
-    story.append(Spacer(1, 20))
-    
-    # Pricing Table
-    story.append(Paragraph("Pricing Breakdown", heading_style))
-    
-    if quote_data:
-        pricing_data = [
-            ['Service Details', 'Basic Plan', 'Standard Plan', 'Advanced Plan']
-        ]
-        
-        # Add pricing rows
-        if 'basic' in quote_data:
-            pricing_data.extend([
-                ['Per User Cost', f"${quote_data['basic'].get('perUserCost', 0):.2f}", 
-                 f"${quote_data['standard'].get('perUserCost', 0):.2f}", 
-                 f"${quote_data['advanced'].get('perUserCost', 0):.2f}"],
-                ['Total User Cost', f"${quote_data['basic'].get('totalUserCost', 0):.2f}", 
-                 f"${quote_data['standard'].get('totalUserCost', 0):.2f}", 
-                 f"${quote_data['advanced'].get('totalUserCost', 0):.2f}"],
-                ['Data Cost', f"${quote_data['basic'].get('dataCost', 0):.2f}", 
-                 f"${quote_data['standard'].get('dataCost', 0):.2f}", 
-                 f"${quote_data['advanced'].get('dataCost', 0):.2f}"],
-                ['Migration Cost', f"${quote_data['basic'].get('migrationCost', 0):.2f}", 
-                 f"${quote_data['standard'].get('migrationCost', 0):.2f}", 
-                 f"${quote_data['advanced'].get('migrationCost', 0):.2f}"],
-                ['Instance Cost', f"${quote_data['basic'].get('instanceCost', 0):.2f}", 
-                 f"${quote_data['standard'].get('instanceCost', 0):.2f}", 
-                 f"${quote_data['advanced'].get('instanceCost', 0):.2f}"],
-                ['TOTAL COST', f"${quote_data['basic'].get('totalCost', 0):.2f}", 
-                 f"${quote_data['standard'].get('totalCost', 0):.2f}", 
-                 f"${quote_data['advanced'].get('totalCost', 0):.2f}"]
-            ])
-        
-        pricing_table = Table(pricing_data, colWidths=[2*inch, 1.5*inch, 1.5*inch, 1.5*inch])
-        pricing_table.setStyle(TableStyle([
-            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#007BFF')),
-            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
-            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-            ('FONTNAME', (0, 0), (-1, -1), 'Helvetica-Bold'),
-            ('FONTSIZE', (0, 0), (-1, -1), 10),
-            ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
-            ('GRID', (0, 0), (-1, -1), 1, colors.black),
-            ('BACKGROUND', (0, -1), (-1, -1), colors.HexColor('#e3f2fd')),
-            ('FONTSIZE', (0, -1), (-1, -1), 12)
-        ]))
-        story.append(pricing_table)
-    
-    story.append(Spacer(1, 20))
-    
-    # Terms and Conditions
-    story.append(Paragraph("Terms & Conditions", heading_style))
-    terms = [
-        "• This quote is valid for 30 days from the date of issue",
-        "• Payment terms: 50% upfront, 50% upon completion",
-        "• Project timeline will be finalized upon acceptance",
-        "• Any changes to scope may affect pricing",
-        "• Support and maintenance included for 3 months post-migration"
-    ]
-    
-    for term in terms:
-        story.append(Paragraph(term, styles['Normal']))
-        story.append(Spacer(1, 6))
-    
-    story.append(Spacer(1, 20))
-    
-    # Contact Information
-    story.append(Paragraph("Contact Information", heading_style))
-    contact_info = [
-        ['Email:', 'sales@yourcompany.com'],
-        ['Phone:', '+1 (555) 123-4567'],
-        ['Website:', 'www.yourcompany.com']
-    ]
-    
-    contact_table = Table(contact_info, colWidths=[1*inch, 5*inch])
-    contact_table.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (0, -1), colors.HexColor('#343a40')),
-        ('TEXTCOLOR', (0, 0), (0, -1), colors.white),
-        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
-        ('FONTNAME', (0, 0), (-1, -1), 'Helvetica-Bold'),
-        ('FONTSIZE', (0, 0), (-1, -1), 10),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
-        ('GRID', (0, 0), (-1, -1), 1, colors.HexColor('#495057'))
-    ]))
-    story.append(contact_table)
-    
-    # Build PDF
-    doc.build(story)
-    return buffer
+
 
 # HubSpot Integration APIs
 @app.route('/api/hubspot/test-connection', methods=['GET'])
@@ -501,28 +337,16 @@ def fetch_hubspot_contacts():
                     "name": contact.get('name', ''),
                     "email": contact.get('email', ''),
                     "phone": contact.get('phone', ''),
-                    "company": contact.get('company', ''),
                     "job_title": contact.get('job_title', ''),
+                    "company": contact.get('company', ''),
                     "source": "HubSpot",
                     "fetched_at": datetime.now(),
                     "status": "new"
                 }
                 
-                # Check if contact already exists (by HubSpot ID)
-                existing_contact = hubspot_contacts_collection.find_one({"hubspot_id": contact.get('id')})
-                
-                if existing_contact:
-                    # Update existing contact
-                    hubspot_contacts_collection.update_one(
-                        {"hubspot_id": contact.get('id')},
-                        {"$set": contact_data}
-                    )
-                    contact_data['action'] = 'updated'
-                else:
-                    # Insert new contact
-                    hubspot_contacts_collection.insert_one(contact_data)
-                    contact_data['action'] = 'inserted'
-                
+                # Store contact using collection
+                store_result = hubspot_contacts.store_contact(contact_data)
+                # The store_contact method already sets the action in contact_data
                 stored_contacts.append(contact_data)
             
             # Add storage info to result
@@ -553,11 +377,8 @@ def update_quote_status():
                 "message": "Quote ID and status are required"
             }), 400
         
-        # Update quote status
-        result = quotes_collection.update_one(
-            {"_id": quote_id},
-            {"$set": {"status": new_status, "updated_at": datetime.now()}}
-        )
+        # Update quote status using collection
+        result = quotes.update_quote_status(quote_id, new_status, notes)
         
         if result.matched_count == 0:
             return jsonify({
@@ -565,16 +386,13 @@ def update_quote_status():
                 "message": "Quote not found"
             }), 404
         
-        # Log status change
-        status_log = {
+        # Log status change using collection
+        hubspot_integration.log_api_call({
             "quote_id": quote_id,
             "status": new_status,
             "notes": notes,
-            "changed_at": datetime.now(),
-            "changed_by": "system"  # You can add user authentication later
-        }
-        
-        quote_status_collection.insert_one(status_log)
+            "changed_by": "system"
+        })
         
         return jsonify({
             "success": True,
@@ -603,8 +421,8 @@ def send_quote_email():
                 "message": "Quote ID, recipient email, name, and company are required"
             }), 500
         
-        # Get quote data
-        quote = quotes_collection.find_one({"_id": quote_id})
+        # Get quote data using collection
+        quote = quotes.get_quote_by_id(quote_id)
         if not quote:
             return jsonify({
                 "success": False,
@@ -622,19 +440,14 @@ def send_quote_email():
         
         if email_result['success']:
             # Update quote status to 'sent'
-            quotes_collection.update_one(
-                {"_id": quote_id},
-                {"$set": {"status": "sent", "email_sent_at": datetime.now()}}
-            )
+            quotes.update_quote_status(quote_id, "sent")
             
             # Log email sent
-            email_log = {
+            email_collection.log_email_sent({
                 "quote_id": quote_id,
                 "recipient_email": recipient_email,
-                "sent_at": datetime.now(),
                 "email_result": email_result
-            }
-            quote_status_collection.insert_one(email_log)
+            })
             
             return jsonify({
                 "success": True,
@@ -703,16 +516,13 @@ def send_quote_email_direct():
         
         if email_result['success']:
             # Log email sent (optional - for tracking)
-            email_log = {
+            email_collection.log_email_sent({
                 "recipient_email": recipient_email,
                 "recipient_name": recipient_name,
                 "company_name": company_name,
-                "sent_at": datetime.now(),
-                "email_result": email_result,
                 "quote_data": quote_data,
                 "sent_without_saving": True
-            }
-            quote_status_collection.insert_one(email_log)
+            })
             
             return jsonify({
                 "success": True,
