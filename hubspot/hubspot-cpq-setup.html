@@ -361,6 +361,24 @@
         <div id="quoteResults" class="quote-results">
             <h3>💰 Quote Results</h3>
             <div id="pricingTable"></div>
+            
+            <!-- NEW EMAIL SECTION -->
+            <div class="email-section" style="margin-top: 20px; padding: 20px; background: #f8f9fa; border-radius: 8px; border: 1px solid #dee2e6;">
+                <h4 style="color: #333; margin-bottom: 15px;">📧 Send Quote via Email</h4>
+                <div class="email-form" style="display: grid; gap: 15px; max-width: 400px; margin: 0 auto;">
+                    <input type="email" id="recipientEmail" placeholder="Client Email Address" required 
+                           style="padding: 12px; border: 2px solid #dee2e6; border-radius: 6px; font-size: 1rem;">
+                    <input type="text" id="recipientName" placeholder="Client Name" required 
+                           style="padding: 12px; border: 2px solid #dee2e6; border-radius: 6px; font-size: 1rem;">
+                    <input type="text" id="recipientCompany" placeholder="Company Name" required 
+                           style="padding: 12px; border: 2px solid #dee2e6; border-radius: 6px; font-size: 1rem;">
+                    <button class="btn" onclick="sendQuoteEmail()" style="width: 100%;">
+                        🚀 Send Quote Email
+                    </button>
+                </div>
+                <div id="emailStatus" style="margin-top: 15px;"></div>
+            </div>
+            
             <div style="text-align: center; margin-top: 20px;">
                 <button class="btn" onclick="generatePDF()">📄 Generate PDF Quote</button>
                 <button class="btn btn-secondary" onclick="saveQuote()">💾 Save Quote</button>
@@ -604,24 +622,18 @@
             showStatus('🔄 Saving quote...', 'info');
 
             const quoteData = {
-                client: {
-                    name: currentContact.name,
-                    email: currentContact.email,
-                    company: currentContact.company,
-                    phone: '',
-                    serviceType: 'Migration Services',
-                    requirements: document.getElementById('requirements').value
-                },
-                configuration: {
-                    users: parseInt(document.getElementById('users').value),
-                    instanceType: document.getElementById('instanceType').value,
-                    instances: parseInt(document.getElementById('instances').value),
-                    duration: parseInt(document.getElementById('duration').value),
-                    migrationType: document.getElementById('migrationType').value,
-                    dataSize: parseInt(document.getElementById('dataSize').value)
-                },
-                quote: quoteResults,
-                hubspotContactId: currentContact.hubspotId
+                clientName: currentContact.name,
+                email: currentContact.email,
+                companyName: currentContact.company,
+                phoneNumber: '',
+                serviceType: 'Migration Services',
+                requirements: document.getElementById('requirements').value,
+                users: parseInt(document.getElementById('users').value),
+                instanceType: document.getElementById('instanceType').value,
+                instances: parseInt(document.getElementById('instances').value),
+                duration: parseInt(document.getElementById('duration').value),
+                migrationType: document.getElementById('migrationType').value,
+                dataSize: parseInt(document.getElementById('dataSize').value)
             };
 
             try {
@@ -643,6 +655,76 @@
             } catch (error) {
                 showStatus(`❌ Error: ${error.message}`, 'error');
             }
+        }
+
+        async function sendQuoteEmail() {
+            if (!quoteResults) {
+                showEmailStatus('❌ No quote available. Generate a quote first.', 'error');
+                return;
+            }
+
+            const recipientEmail = document.getElementById('recipientEmail').value;
+            const recipientName = document.getElementById('recipientName').value;
+            const recipientCompany = document.getElementById('recipientCompany').value;
+
+            if (!recipientEmail || !recipientName || !recipientCompany) {
+                showEmailStatus('❌ Please fill in all email fields.', 'error');
+                return;
+            }
+
+            showEmailStatus('🔄 Sending quote email...', 'info');
+
+            try {
+                // Send email directly without saving quote first
+                const emailData = {
+                    recipient_email: recipientEmail,
+                    recipient_name: recipientName,
+                    company_name: recipientCompany,
+                    quote_data: {
+                        clientName: recipientName,
+                        email: recipientEmail,
+                        companyName: recipientCompany,
+                        phoneNumber: '',
+                        serviceType: 'Migration Services',
+                        requirements: document.getElementById('requirements').value,
+                        users: parseInt(document.getElementById('users').value),
+                        instanceType: document.getElementById('instanceType').value,
+                        instances: parseInt(document.getElementById('instances').value),
+                        duration: parseInt(document.getElementById('duration').value),
+                        migrationType: document.getElementById('migrationType').value,
+                        dataSize: parseInt(document.getElementById('dataSize').value)
+                    },
+                    quote_results: quoteResults
+                };
+
+                // Send email directly
+                const emailResponse = await fetch('/api/quote/send-email-direct', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(emailData)
+                });
+
+                const emailResult = await emailResponse.json();
+
+                if (emailResult.success) {
+                    showEmailStatus('✅ Quote email sent successfully!', 'success');
+                    // Clear form
+                    document.getElementById('recipientEmail').value = '';
+                    document.getElementById('recipientName').value = '';
+                    document.getElementById('recipientCompany').value = '';
+                } else {
+                    showEmailStatus(`❌ Failed to send email: ${emailResult.message}`, 'error');
+                }
+            } catch (error) {
+                showEmailStatus(`❌ Error: ${error.message}`, 'error');
+            }
+        }
+
+        function showEmailStatus(message, type = 'info') {
+            const emailStatusDiv = document.getElementById('emailStatus');
+            emailStatusDiv.innerHTML = `<div class="status ${type}">${message}</div>`;
         }
 
         // Load contact data when page loads

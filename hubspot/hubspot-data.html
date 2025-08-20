@@ -277,6 +277,7 @@
             <button class="btn" onclick="testConnection()">Test Connection</button>
             <button class="btn" onclick="fetchHubSpotData()">Fetch Client Data</button>
             <button class="btn" onclick="clearData()">Clear Data</button>
+            <button class="btn" onclick="testEmailConnection()" style="background: #28a745;">🔗 Test Email Connection</button>
         </div>
 
         <div id="selectionControls" class="selection-controls" style="display: none;">
@@ -464,6 +465,23 @@
                 
                 // Navigate to CPQ setup page
                 window.location.href = '/hubspot-cpq-setup';
+            }
+        }
+
+        async function testEmailConnection() {
+            showStatus('🔄 Testing email connection...', 'info');
+            
+            try {
+                const response = await fetch('/api/email/test-connection');
+                const result = await response.json();
+                
+                if (result.success) {
+                    showStatus('✅ Email connection successful! Gmail SMTP is working.', 'success');
+                } else {
+                    showStatus(`❌ Email connection failed: ${result.error}`, 'error');
+                }
+            } catch (error) {
+                showStatus(`❌ Error testing email: ${error.message}`, 'error');
             }
         }
 

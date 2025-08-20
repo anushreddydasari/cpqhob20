@@ -3,8 +3,8 @@ from flask_cors import CORS
 from datetime import datetime
 import os
 from dotenv import load_dotenv
-from db import quotes_collection, clients_collection, hubspot_contacts_collection
-from pricing_logic import calculate_quote
+from cpq.db import quotes_collection, clients_collection, hubspot_contacts_collection, quote_status_collection
+from cpq.pricing_logic import calculate_quote
 from reportlab.lib.pagesizes import letter, A4
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
@@ -19,27 +19,27 @@ CORS(app)
 
 @app.route('/')
 def serve_frontend():
-    return send_from_directory('.', 'index.html')
+    return send_from_directory('cpq', 'index.html')
 
 @app.route('/quote-calculator')
 def serve_quote_calculator():
-    return send_from_directory('.', 'quote-calculator.html')
+    return send_from_directory('cpq', 'quote-calculator.html')
 
 @app.route('/quote-template')
 def serve_quote_template():
-    return send_from_directory('.', 'quote-template.html')
+    return send_from_directory('cpq', 'quote-template.html')
 
 @app.route('/client-management')
 def serve_client_management():
-    return send_from_directory('.', 'client-management.html')
+    return send_from_directory('cpq', 'client-management.html')
 
 @app.route('/hubspot-data')
 def serve_hubspot_data():
-    return send_from_directory('..', 'hubspot/hubspot-data.html')
+    return send_from_directory('hubspot', 'hubspot-data.html')
 
 @app.route('/hubspot-cpq-setup')
 def serve_hubspot_cpq_setup():
-    return send_from_directory('..', 'hubspot/hubspot-cpq-setup.html')
+    return send_from_directory('hubspot', 'hubspot-cpq-setup.html')
 
 # Client Management APIs
 @app.route('/api/clients', methods=['POST'])
@@ -148,6 +148,9 @@ def generate_quote():
     try:
         data = request.get_json()
         
+        # Debug logging
+        print(f"Received data: {data}")
+        
         if not data:
             return jsonify({
                 "success": False,
@@ -168,10 +171,15 @@ def generate_quote():
             instances = int(data.get('instances', 0))
             duration = int(data.get('duration', 0))
             data_size = int(data.get('dataSize', 0))
-        except (ValueError, TypeError):
+            
+            # Debug logging for numeric values
+            print(f"Parsed values - users: {users}, instances: {instances}, duration: {duration}, data_size: {data_size}")
+            
+        except (ValueError, TypeError) as e:
+            print(f"Validation error: {e}")
             return jsonify({
                 "success": False,
-                "message": "Invalid numeric values provided"
+                "message": f"Invalid numeric values provided: {str(e)}"
             }), 400
         
         # Validate required fields
@@ -217,7 +225,7 @@ def generate_quote():
 
         # Save quote to MongoDB with client details
         try:
-            quotes_collection.insert_one({
+            result = quotes_collection.insert_one({
                 "timestamp": datetime.now(),
                 "client": {
                     "name": client_name,
@@ -237,14 +245,20 @@ def generate_quote():
                 },
                 "quote": results
             })
+            
+            # Return the quote ID for email sending
+            return jsonify({
+                "success": True,
+                "quote": results,
+                "quote_id": str(result.inserted_id)
+            })
         except Exception as e:
             print(f"Warning: Failed to save quote to database: {str(e)}")
             # Continue without saving if database fails
-
-        return jsonify({
-            "success": True,
-            "quote": results
-        })
+            return jsonify({
+                "success": True,
+                "quote": results
+            })
         
     except Exception as e:
         print(f"Error in generate_quote: {str(e)}")
@@ -455,13 +469,6 @@ def create_quote_pdf(client_data, quote_data, configuration):
 def test_hubspot_connection():
     """Test HubSpot API connection"""
     try:
-        import sys
-        import os
-        # Add parent directory to path for HubSpot import
-        current_dir = os.path.dirname(os.path.abspath(__file__))
-        parent_dir = os.path.dirname(current_dir)
-        if parent_dir not in sys.path:
-            sys.path.insert(0, parent_dir)
         from hubspot.hubspot_basic import HubSpotBasic
         
         hubspot = HubSpotBasic()
@@ -479,13 +486,6 @@ def test_hubspot_connection():
 def fetch_hubspot_contacts():
     """Fetch contacts from HubSpot and store in MongoDB"""
     try:
-        import sys
-        import os
-        # Add parent directory to path for HubSpot import
-        current_dir = os.path.dirname(os.path.abspath(__file__))
-        parent_dir = os.path.dirname(current_dir)
-        if parent_dir not in sys.path:
-            sys.path.insert(0, parent_dir)
         from hubspot.hubspot_basic import HubSpotBasic
         
         hubspot = HubSpotBasic()
@@ -537,5 +537,206 @@ def fetch_hubspot_contacts():
             "error": f"Failed to fetch HubSpot contacts: {str(e)}"
         }), 500
 
+# Quote Status Tracking & Email APIs
+@app.route('/api/quote/status', methods=['POST'])
+def update_quote_status():
+    """Update quote status"""
+    try:
+        data = request.get_json()
+        quote_id = data.get('quote_id')
+        new_status = data.get('status')
+        notes = data.get('notes', '')
+        
+        if not quote_id or not new_status:
+            return jsonify({
+                "success": False,
+                "message": "Quote ID and status are required"
+            }), 400
+        
+        # Update quote status
+        result = quotes_collection.update_one(
+            {"_id": quote_id},
+            {"$set": {"status": new_status, "updated_at": datetime.now()}}
+        )
+        
+        if result.matched_count == 0:
+            return jsonify({
+                "success": False,
+                "message": "Quote not found"
+            }), 404
+        
+        # Log status change
+        status_log = {
+            "quote_id": quote_id,
+            "status": new_status,
+            "notes": notes,
+            "changed_at": datetime.now(),
+            "changed_by": "system"  # You can add user authentication later
+        }
+        
+        quote_status_collection.insert_one(status_log)
+        
+        return jsonify({
+            "success": True,
+            "message": f"Quote status updated to {new_status}"
+        })
+        
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "error": f"Failed to update quote status: {str(e)}"
+        }), 500
+
+@app.route('/api/quote/send-email', methods=['POST'])
+def send_quote_email():
+    """Send quote via email"""
+    try:
+        data = request.get_json()
+        quote_id = data.get('quote_id')
+        recipient_email = data.get('recipient_email')
+        recipient_name = data.get('recipient_name')
+        company_name = data.get('company_name')
+        
+        if not all([quote_id, recipient_email, recipient_name, company_name]):
+            return jsonify({
+                "success": False,
+                "message": "Quote ID, recipient email, name, and company are required"
+            }), 500
+        
+        # Get quote data
+        quote = quotes_collection.find_one({"_id": quote_id})
+        if not quote:
+            return jsonify({
+                "success": False,
+                "message": "Quote not found"
+            }), 404
+        
+        # Import email service
+        from cpq.email_service import EmailService
+        
+        # Send email
+        email_service = EmailService()
+        email_result = email_service.send_quote_email(
+            recipient_email, recipient_name, company_name, quote.get('quote', {})
+        )
+        
+        if email_result['success']:
+            # Update quote status to 'sent'
+            quotes_collection.update_one(
+                {"_id": quote_id},
+                {"$set": {"status": "sent", "email_sent_at": datetime.now()}}
+            )
+            
+            # Log email sent
+            email_log = {
+                "quote_id": quote_id,
+                "recipient_email": recipient_email,
+                "sent_at": datetime.now(),
+                "email_result": email_result
+            }
+            quote_status_collection.insert_one(email_log)
+            
+            return jsonify({
+                "success": True,
+                "message": "Quote email sent successfully",
+                "email_result": email_result
+            })
+        else:
+            return jsonify({
+                "success": False,
+                "message": "Failed to send email",
+                "email_result": email_result
+            }), 500
+        
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "error": f"Failed to send quote email: {str(e)}"
+        }), 500
+
+@app.route('/api/email/test-connection', methods=['GET'])
+def test_email_connection():
+    """Test Gmail SMTP connection"""
+    try:
+        from cpq.email_service import EmailService
+        
+        email_service = EmailService()
+        result = email_service.test_connection()
+        
+        return jsonify({
+            "success": True,
+            "message": "Email connection test successful",
+            "result": result
+        })
+        
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "error": f"Email connection test failed: {str(e)}"
+        }), 500
+
+@app.route('/api/quote/send-email-direct', methods=['POST'])
+def send_quote_email_direct():
+    """Send quote email directly without saving quote first"""
+    try:
+        data = request.get_json()
+        recipient_email = data.get('recipient_email')
+        recipient_name = data.get('recipient_name')
+        company_name = data.get('company_name')
+        quote_data = data.get('quote_data', {})
+        quote_results = data.get('quote_results', {})
+        
+        if not all([recipient_email, recipient_name, company_name]):
+            return jsonify({
+                "success": False,
+                "message": "Recipient email, name, and company are required"
+            }), 400
+        
+        # Import email service
+        from cpq.email_service import EmailService
+        
+        # Send email directly
+        email_service = EmailService()
+        email_result = email_service.send_quote_email(
+            recipient_email, recipient_name, company_name, quote_results
+        )
+        
+        if email_result['success']:
+            # Log email sent (optional - for tracking)
+            email_log = {
+                "recipient_email": recipient_email,
+                "recipient_name": recipient_name,
+                "company_name": company_name,
+                "sent_at": datetime.now(),
+                "email_result": email_result,
+                "quote_data": quote_data,
+                "sent_without_saving": True
+            }
+            quote_status_collection.insert_one(email_log)
+            
+            return jsonify({
+                "success": True,
+                "message": "Quote email sent successfully",
+                "email_result": email_result
+            })
+        else:
+            return jsonify({
+                "success": False,
+                "message": "Failed to send email",
+                "email_result": email_result
+            }), 500
+        
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "error": f"Failed to send quote email: {str(e)}"
+        }), 500
+
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(
+        debug=True,
+        host='127.0.0.1',
+        port=5000,  # Back to port 5000 since we're in root
+        use_reloader=False,  # Prevents duplicate processes
+        threaded=True
+    )
