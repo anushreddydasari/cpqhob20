@@ -82,3 +82,5 @@ class PDFStyles:
             ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
             ('GRID', (0, 0), (-1, -1), 1, colors.HexColor('#495057'))
         ]
+    
+

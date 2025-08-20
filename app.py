@@ -6,7 +6,8 @@ from dotenv import load_dotenv
 from mongodb_collections import (
     EmailCollection, SMTPCollection, QuoteCollection,
     ClientCollection, PricingCollection, 
-    HubSpotContactCollection, HubSpotIntegrationCollection
+    HubSpotContactCollection, HubSpotIntegrationCollection,
+    PDFTrackingCollection
 )
 from cpq.pricing_logic import calculate_quote
 from flask import send_file
@@ -23,6 +24,7 @@ hubspot_integration = HubSpotIntegrationCollection()
 email_collection = EmailCollection()
 smtp_collection = SMTPCollection()
 pricing = PricingCollection()
+
 
 # Initialize PDF generator
 pdf_generator = PDFGenerator()

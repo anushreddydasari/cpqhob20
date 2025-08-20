@@ -1,0 +1,310 @@
+{
+  "database_name": "cpq_system",
+  "description": "CPQ (Configure, Price, Quote) system with PDF tracking and HubSpot integration",
+  "version": "1.0.0",
+  "created_date": "2024-01-15",
+  "collections": {
+    "pdf_tracking": {
+      "description": "Tracks PDF interactions including opens, page views, signatures, and downloads",
+      "fields": {
+        "_id": {
+          "type": "ObjectId",
+          "description": "MongoDB auto-generated unique identifier",
+          "required": true
+        },
+        "quote_id": {
+          "type": "string",
+          "description": "Reference to the quote being tracked",
+          "required": true,
+          "index": true
+        },
+        "tracking_id": {
+          "type": "string",
+          "description": "Unique 8-character tracking identifier for PDF URLs",
+          "required": true,
+          "unique": true,
+          "index": true
+        },
+        "client": {
+          "type": "object",
+          "description": "Client information for the quote",
+          "fields": {
+            "name": {"type": "string", "required": true},
+            "email": {"type": "string", "required": true},
+            "company": {"type": "string", "required": true}
+          }
+        },
+        "pdf_url": {
+          "type": "string",
+          "description": "URL where the PDF is hosted",
+          "required": true
+        },
+        "status": {
+          "type": "string",
+          "description": "Current status of the PDF tracking",
+          "enum": ["sent", "opened", "viewed", "signed", "downloaded"],
+          "default": "sent",
+          "index": true
+        },
+        "interactions": {
+          "type": "object",
+          "description": "All interaction data for the PDF",
+          "fields": {
+            "opens": {
+              "type": "array",
+              "description": "Array of PDF open events",
+              "items": {
+                "timestamp": {"type": "date"},
+                "type": {"type": "string", "enum": ["open"]},
+                "user_agent": {"type": "string"},
+                "ip_address": {"type": "string"}
+              }
+            },
+            "page_views": {
+              "type": "array",
+              "description": "Array of page view events",
+              "items": {
+                "timestamp": {"type": "date"},
+                "type": {"type": "string", "enum": ["page_view"]},
+                "page_number": {"type": "integer"},
+                "time_on_page": {"type": "integer"}
+              }
+            },
+            "time_spent": {
+              "type": "integer",
+              "description": "Total time spent viewing PDF in seconds",
+              "default": 0
+            },
+            "signatures": {
+              "type": "array",
+              "description": "Array of signature events",
+              "items": {
+                "timestamp": {"type": "date"},
+                "type": {"type": "string", "enum": ["signature"]},
+                "signature_data": {"type": "object"}
+              }
+            },
+            "downloads": {
+              "type": "array",
+              "description": "Array of download events",
+              "items": {
+                "timestamp": {"type": "date"},
+                "type": {"type": "string", "enum": ["download"]},
+                "user_agent": {"type": "string"}
+              }
+            }
+          }
+        },
+        "created_at": {
+          "type": "date",
+          "description": "When tracking record was created",
+          "required": true,
+          "index": true
+        },
+        "updated_at": {
+          "type": "date",
+          "description": "When tracking record was last updated",
+          "required": true
+        },
+        "last_activity": {
+          "type": "date",
+          "description": "Last interaction with the PDF",
+          "index": true
+        }
+      },
+      "indexes": [
+        {"fields": {"tracking_id": 1}, "unique": true},
+        {"fields": {"quote_id": 1}},
+        {"fields": {"status": 1}},
+        {"fields": {"created_at": -1}},
+        {"fields": {"last_activity": -1}}
+      ]
+    },
+    "quotes": {
+      "description": "Stores all generated quotes with configurations and pricing",
+      "fields": {
+        "_id": {"type": "ObjectId", "required": true},
+        "client": {
+          "type": "object",
+          "fields": {
+            "name": {"type": "string", "required": true},
+            "phone": {"type": "string"},
+            "email": {"type": "string", "required": true},
+            "company": {"type": "string"},
+            "serviceType": {"type": "string"},
+            "requirements": {"type": "string"}
+          }
+        },
+        "configuration": {
+          "type": "object",
+          "fields": {
+            "users": {"type": "integer", "required": true},
+            "instanceType": {"type": "string", "enum": ["small", "standard", "large", "extra_large"]},
+            "instances": {"type": "integer", "required": true},
+            "duration": {"type": "integer", "required": true},
+            "migrationType": {"type": "string", "enum": ["content", "email", "messaging"]},
+            "dataSize": {"type": "integer", "required": true}
+          }
+        },
+        "quote": {
+          "type": "object",
+          "description": "Calculated pricing results"
+        },
+        "status": {
+          "type": "string",
+          "enum": ["draft", "sent", "viewed", "signed", "accepted", "rejected"],
+          "default": "draft",
+          "index": true
+        },
+        "created_at": {"type": "date", "required": true, "index": true},
+        "updated_at": {"type": "date", "required": true}
+      },
+      "indexes": [
+        {"fields": {"status": 1}},
+        {"fields": {"created_at": -1}},
+        {"fields": {"client.email": 1}}
+      ]
+    },
+    "clients": {
+      "description": "Stores client information and contact details",
+      "fields": {
+        "_id": {"type": "ObjectId", "required": true},
+        "name": {"type": "string", "required": true, "index": true},
+        "email": {"type": "string", "required": true, "unique": true, "index": true},
+        "phone": {"type": "string"},
+        "company": {"type": "string", "index": true},
+        "job_title": {"type": "string"},
+        "address": {"type": "string"},
+        "created_at": {"type": "date", "required": true, "index": true},
+        "updated_at": {"type": "date", "required": true}
+      },
+      "indexes": [
+        {"fields": {"email": 1}, "unique": true},
+        {"fields": {"name": 1}},
+        {"fields": {"company": 1}},
+        {"fields": {"created_at": -1}}
+      ]
+    },
+    "email_logs": {
+      "description": "Tracks all email communications and delivery status",
+      "fields": {
+        "_id": {"type": "ObjectId", "required": true},
+        "quote_id": {"type": "string", "index": true},
+        "recipient_email": {"type": "string", "required": true, "index": true},
+        "recipient_name": {"type": "string", "required": true},
+        "company_name": {"type": "string"},
+        "email_result": {"type": "object"},
+        "sent_at": {"type": "date", "required": true, "index": true},
+        "status": {"type": "string", "enum": ["sent", "delivered", "failed"], "default": "sent"},
+        "sent_without_saving": {"type": "boolean", "default": false}
+      },
+      "indexes": [
+        {"fields": {"quote_id": 1}},
+        {"fields": {"recipient_email": 1}},
+        {"fields": {"sent_at": -1}},
+        {"fields": {"status": 1}}
+      ]
+    },
+    "smtp_logs": {
+      "description": "Logs SMTP connection tests and email service status",
+      "fields": {
+        "_id": {"type": "ObjectId", "required": true},
+        "test_type": {"type": "string", "enum": ["connection", "authentication", "send"]},
+        "status": {"type": "string", "enum": ["success", "failed"]},
+        "details": {"type": "string"},
+        "tested_at": {"type": "date", "required": true, "index": true}
+      },
+      "indexes": [
+        {"fields": {"tested_at": -1}},
+        {"fields": {"status": 1}},
+        {"fields": {"test_type": 1}}
+      ]
+    },
+    "pricing_configs": {
+      "description": "Stores pricing configurations and rules for CPQ calculations",
+      "fields": {
+        "_id": {"type": "ObjectId", "required": true},
+        "name": {"type": "string", "required": true},
+        "description": {"type": "string"},
+        "pricing_rules": {"type": "object"},
+        "is_active": {"type": "boolean", "default": true, "index": true},
+        "created_at": {"type": "date", "required": true},
+        "updated_at": {"type": "date", "required": true}
+      },
+      "indexes": [
+        {"fields": {"is_active": 1}},
+        {"fields": {"name": 1}}
+      ]
+    },
+    "hubspot_contacts": {
+      "description": "Stores contacts fetched from HubSpot CRM",
+      "fields": {
+        "_id": {"type": "ObjectId", "required": true},
+        "hubspot_id": {"type": "string", "required": true, "unique": true, "index": true},
+        "name": {"type": "string", "required": true, "index": true},
+        "email": {"type": "string", "required": true, "index": true},
+        "phone": {"type": "string"},
+        "company": {"type": "string", "index": true},
+        "job_title": {"type": "string"},
+        "source": {"type": "string", "default": "HubSpot"},
+        "fetched_at": {"type": "date", "required": true, "index": true},
+        "status": {"type": "string", "enum": ["new", "contacted", "qualified", "converted"], "default": "new", "index": true},
+        "created_at": {"type": "date"},
+        "updated_at": {"type": "date"}
+      },
+      "indexes": [
+        {"fields": {"hubspot_id": 1}, "unique": true},
+        {"fields": {"email": 1}},
+        {"fields": {"status": 1}},
+        {"fields": {"fetched_at": -1}},
+        {"fields": {"company": 1}}
+      ]
+    },
+    "hubspot_integrations": {
+      "description": "Logs HubSpot API calls, errors, and integration activities",
+      "fields": {
+        "_id": {"type": "ObjectId", "required": true},
+        "quote_id": {"type": "string", "index": true},
+        "status": {"type": "string", "enum": ["success", "error", "pending"]},
+        "notes": {"type": "string"},
+        "changed_by": {"type": "string"},
+        "api_call_data": {"type": "object"},
+        "created_at": {"type": "date", "required": true, "index": true}
+      },
+      "indexes": [
+        {"fields": {"quote_id": 1}},
+        {"fields": {"status": 1}},
+        {"fields": {"created_at": -1}}
+      ]
+    }
+  },
+  "relationships": {
+    "quotes_to_pdf_tracking": {
+      "description": "One quote can have one PDF tracking record",
+      "from": "quotes._id",
+      "to": "pdf_tracking.quote_id",
+      "type": "one_to_one"
+    },
+    "quotes_to_clients": {
+      "description": "One quote belongs to one client",
+      "from": "quotes.client.email",
+      "to": "clients.email",
+      "type": "many_to_one"
+    },
+    "quotes_to_email_logs": {
+      "description": "One quote can have multiple email logs",
+      "from": "quotes._id",
+      "to": "email_logs.quote_id",
+      "type": "one_to_many"
+    }
+  },
+  "data_retention": {
+    "pdf_tracking": "7 years",
+    "quotes": "7 years",
+    "clients": "7 years",
+    "email_logs": "3 years",
+    "smtp_logs": "1 year",
+    "hubspot_contacts": "5 years",
+    "hubspot_integrations": "3 years"
+  }
+}
