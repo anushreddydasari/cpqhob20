@@ -7,7 +7,7 @@ from mongodb_collections import (
     EmailCollection, SMTPCollection, QuoteCollection,
     ClientCollection, PricingCollection, 
     HubSpotContactCollection, HubSpotIntegrationCollection,
-    PDFTrackingCollection
+    FormTrackingCollection
 )
 from cpq.pricing_logic import calculate_quote
 from flask import send_file
@@ -24,6 +24,7 @@ hubspot_integration = HubSpotIntegrationCollection()
 email_collection = EmailCollection()
 smtp_collection = SMTPCollection()
 pricing = PricingCollection()
+form_tracking = FormTrackingCollection()
 
 
 # Initialize PDF generator
@@ -52,6 +53,10 @@ def serve_hubspot_data():
 @app.route('/hubspot-cpq-setup')
 def serve_hubspot_cpq_setup():
     return send_from_directory('hubspot', 'hubspot-cpq-setup.html')
+
+@app.route('/signature-form')
+def serve_signature_form():
+    return send_from_directory('templates', 'signature_form.html')
 
 # Client Management APIs
 @app.route('/api/clients', methods=['POST'])
@@ -300,7 +305,239 @@ def generate_pdf():
         print(f"Error generating PDF: {str(e)}")
         return jsonify({"success": False, "message": f"PDF generation failed: {str(e)}"}), 500
 
+# Form Tracking APIs
+@app.route('/api/form/create-session', methods=['POST'])
+def create_form_session():
+    """Create a new form tracking session"""
+    try:
+        data = request.get_json()
+        quote_id = data.get('quote_id')
+        client_data = data.get('client_data')
+        form_type = data.get('form_type', 'signature')
+        
+        if not quote_id or not client_data:
+            return jsonify({"success": False, "message": "Quote ID and client data required"}), 400
+        
+        # Create form session
+        session_id = form_tracking.create_form_session(
+            quote_id=quote_id,
+            client_data=client_data,
+            form_type=form_type
+        )
+        
+        return jsonify({
+            "success": True,
+            "session_id": session_id,
+            "message": "Form session created successfully"
+        }), 200
+        
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "message": f"Error creating form session: {str(e)}"
+        }), 500
 
+@app.route('/api/form/track/interaction', methods=['POST'])
+def track_form_interaction():
+    """Track form field interactions"""
+    try:
+        data = request.get_json()
+        session_id = data.get('session_id')
+        
+        print(f"🔍 Tracking interaction - Session ID: {session_id}")
+        print(f"🔍 Data received: {data}")
+        
+        if not session_id:
+            return jsonify({"success": False, "message": "Session ID required"}), 400
+        
+        # Log the interaction
+        result = form_tracking.log_field_interaction(
+            session_id=session_id,
+            action=data.get('action'),
+            field_name=data.get('field_name'),
+            details=data.get('details')
+        )
+        
+        print(f"✅ Interaction tracked successfully: {result}")
+        
+        return jsonify({"success": True, "message": "Interaction tracked"}), 200
+        
+    except Exception as e:
+        print(f"❌ Error tracking interaction: {str(e)}")
+        print(f"❌ Exception type: {type(e)}")
+        import traceback
+        print(f"❌ Full traceback: {traceback.format_exc()}")
+        return jsonify({
+            "success": False,
+            "message": f"Error tracking interaction: {str(e)}"
+        }), 500
+
+@app.route('/api/form/track/error', methods=['POST'])
+def track_form_error():
+    """Track form errors"""
+    try:
+        data = request.get_json()
+        session_id = data.get('session_id')
+        
+        if not session_id:
+            return jsonify({"success": False, "message": "Session ID required"}), 400
+        
+        # Log the error
+        form_tracking.log_error(
+            session_id=session_id,
+            error_type=data.get('error_type'),
+            error_details=data.get('error_details'),
+            stack_trace=data.get('stack_trace')
+        )
+        
+        return jsonify({"success": True, "message": "Error tracked"}), 200
+        
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "message": f"Error tracking error: {str(e)}"
+        }), 500
+
+@app.route('/api/form/track/page-exit', methods=['POST'])
+def track_page_exit():
+    """Track when user leaves the form page"""
+    try:
+        data = request.get_json()
+        session_id = data.get('session_id')
+        quote_id = data.get('quote_id')
+        
+        if not quote_id:
+            return jsonify({"success": False, "message": "Quote ID required"}), 400
+        
+        # Create session if not exists
+        session_id = form_tracking.create_form_session(
+            quote_id=quote_id,
+            client_data={'email': 'unknown@example.com'}
+        )
+        
+        # Log the page exit
+        form_tracking.log_page_exit(
+            session_id=session_id,
+            time_spent=data.get('time_spent', 0),
+            final_stats=data.get('final_stats', {})
+        )
+        
+        return jsonify({"success": True, "message": "Page exit tracked"}), 200
+        
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "message": f"Error tracking page exit: {str(e)}"
+        }), 500
+
+@app.route('/api/form/submit-signature', methods=['POST'])
+def submit_signature():
+    """Submit signature form and track approval"""
+    try:
+        data = request.get_json()
+        
+        # Create form session if not exists
+        quote_id = data.get('quote_id', 'unknown')
+        session_id = form_tracking.create_form_session(
+            quote_id=quote_id,
+            client_data={
+                'name': data.get('approverName'),
+                'email': data.get('approverEmail'),
+                'title': data.get('approverTitle')
+            }
+        )
+        
+        # Log the form submission
+        approval_data = {
+            'approver_name': data.get('approverName'),
+            'approver_title': data.get('approverTitle'),
+            'approver_email': data.get('approverEmail'),
+            'approver_phone': data.get('approverPhone'),
+            'terms_accepted': data.get('termsAccepted'),
+            'budget_approved': data.get('budgetApproved'),
+            'timeline_accepted': data.get('timelineAccepted'),
+            'signature_data': data.get('signatureData'),
+            'signature_text': data.get('signatureText'),
+            'comments': data.get('comments'),
+            'tracking': data.get('tracking', {})
+        }
+        
+        form_tracking.log_form_submission(
+            session_id=session_id,
+            approval_data=approval_data,
+            success=True
+        )
+        
+        # Send confirmation email
+        try:
+            email_collection.send_email(
+                to_email=data.get('approverEmail'),
+                subject="Quote Approval Confirmation",
+                body=f"""
+                Thank you for approving the quote!
+                
+                Approver: {data.get('approverName')}
+                Title: {data.get('approverTitle')}
+                Company: {data.get('companyName', 'N/A')}
+                
+                Your approval has been recorded and the project team has been notified.
+                
+                Best regards,
+                Migration Services Team
+                """
+            )
+        except Exception as email_error:
+            print(f"Email sending failed: {email_error}")
+        
+        return jsonify({
+            "success": True,
+            "message": "Signature submitted successfully",
+            "session_id": session_id
+        }), 200
+        
+    except Exception as e:
+        print(f"Error submitting signature: {str(e)}")
+        return jsonify({
+            "success": False,
+            "message": f"Error submitting signature: {str(e)}"
+        }), 500
+
+@app.route('/api/form/analytics/<session_id>', methods=['GET'])
+def get_form_analytics(session_id):
+    """Get analytics for a specific form session"""
+    try:
+        session_data = form_tracking.get_session_by_id(session_id)
+        
+        if not session_data:
+            return jsonify({"success": False, "message": "Session not found"}), 500
+        
+        return jsonify({
+            "success": True,
+            "analytics": session_data
+        }), 200
+        
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "message": f"Error fetching analytics: {str(e)}"
+        }), 500
+
+@app.route('/api/form/analytics', methods=['GET'])
+def get_all_form_analytics():
+    """Get analytics for all form sessions"""
+    try:
+        analytics_data = form_tracking.get_tracking_stats()
+        
+        return jsonify({
+            "success": True,
+            "analytics": analytics_data
+        }), 200
+        
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "message": f"Error fetching analytics: {str(e)}"
+        }), 500
 
 # HubSpot Integration APIs
 @app.route('/api/hubspot/test-connection', methods=['GET'])
@@ -544,11 +781,117 @@ def send_quote_email_direct():
             "error": f"Failed to send quote email: {str(e)}"
         }), 500
 
+@app.route('/api/quote/send-signature-form', methods=['POST'])
+def send_signature_form_email():
+    """Send signature form link via email to client"""
+    try:
+        data = request.get_json()
+        recipient_email = data.get('recipient_email')
+        recipient_name = data.get('recipient_name')
+        company_name = data.get('company_name')
+        signature_url = data.get('signature_url')
+        quote_data = data.get('quote_data', {})
+        
+        if not all([recipient_email, recipient_name, company_name, signature_url]):
+            return jsonify({
+                "success": False,
+                "message": "Recipient email, name, company, and signature URL are required"
+            }), 400
+        
+        # Import email service
+        from cpq.email_service import EmailService
+        
+        # Create professional email content
+        subject = f"Action Required: Please Sign Your Migration Service Quote - {company_name}"
+        
+        # Safely format the total amount
+        try:
+            total_amount = quote_data.get('total', 0)
+            if total_amount is None:
+                total_amount = 0
+            formatted_total = f"${float(total_amount):,.2f}"
+        except (ValueError, TypeError):
+            formatted_total = "$0.00"
+        
+        body = f"""
+Dear {recipient_name},
+
+Thank you for your interest in our Migration Services. We've prepared a detailed quote for your project and need your approval to proceed.
+
+**Quote Summary:**
+- Service Type: {quote_data.get('service_type', 'Migration Services')}
+- Total Amount: {formatted_total}
+
+**Next Steps:**
+1. Click the link below to access your digital signature form
+2. Review the quote details
+3. Fill out the approval form
+4. Sign digitally or type your signature
+5. Submit your approval
+
+**🔗 Click Here to Sign Your Quote:**
+{signature_url}
+
+**What Happens After Approval:**
+- Your approval will be recorded in our system
+- Our project team will be notified immediately
+- You'll receive a confirmation email
+- Project planning will begin within 24 hours
+
+**Need Help?**
+If you have any questions or need assistance, please reply to this email or contact our support team.
+
+**Security Note:**
+This link is unique to you and your quote. Please do not share it with others.
+
+Best regards,
+Migration Services Team
+
+---
+This is an automated message. Please do not reply to this email address.
+        """
+        
+        # Send email using email service
+        email_service = EmailService()
+        email_result = email_service.send_signature_form_email(
+            recipient_email, recipient_name, company_name, body
+        )
+        
+        if email_result['success']:
+            # Log email sent
+            email_collection.log_email_sent({
+                "recipient_email": recipient_email,
+                "recipient_name": recipient_name,
+                "company_name": company_name,
+                "email_type": "signature_form",
+                "signature_url": signature_url,
+                "quote_data": quote_data
+            })
+            
+            return jsonify({
+                "success": True,
+                "message": "Signature form email sent successfully",
+                "email_result": email_result
+            })
+        else:
+            return jsonify({
+                "success": False,
+                "message": "Failed to send email",
+                "email_result": email_result
+            }), 500
+        
+    except Exception as e:
+        print(f"Error sending signature form email: {str(e)}")
+        return jsonify({
+            "success": False,
+            "error": f"Failed to send signature form email: {str(e)}"
+        }), 500
+
 if __name__ == '__main__':
     app.run(
         debug=True,
         host='127.0.0.1',
-        port=5000,  # Back to port 5000 since we're in root
+        port=5010,  # Back to port 5000 since we're in root
         use_reloader=False,  # Prevents duplicate processes
         threaded=True
     )

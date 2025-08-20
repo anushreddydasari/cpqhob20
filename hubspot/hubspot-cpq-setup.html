@@ -372,9 +372,15 @@
                            style="padding: 12px; border: 2px solid #dee2e6; border-radius: 6px; font-size: 1rem;">
                     <input type="text" id="recipientCompany" placeholder="Company Name" required 
                            style="padding: 12px; border: 2px solid #dee2e6; border-radius: 6px; font-size: 1rem;">
-                    <button class="btn" onclick="sendQuoteEmail()" style="width: 100%;">
-                        🚀 Send Quote Email
-                    </button>
+                    <!-- Email Options -->
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                        <button class="btn" onclick="sendQuoteEmail()" style="width: 100%;">
+                            🚀 Send Quote Email
+                        </button>
+                        <button class="btn" onclick="sendSignatureFormTemplate()" style="width: 100%; background: #28a745;">
+                            ✍️ Send Signature Form
+                        </button>
+                    </div>
                 </div>
                 <div id="emailStatus" style="margin-top: 15px;"></div>
             </div>
@@ -382,6 +388,12 @@
             <div style="text-align: center; margin-top: 20px;">
                 <button class="btn" onclick="generatePDF()">📄 Generate PDF Quote</button>
                 <button class="btn btn-secondary" onclick="saveQuote()">💾 Save Quote</button>
+                <button class="btn" style="background: #28a745; margin-top: 10px;" onclick="getClientSignature()">
+                    ✍️ Get Client Signature
+                </button>
+                <button class="btn" style="background: #007bff; margin-top: 10px;" onclick="sendSignatureFormEmail()">
+                    📧 Send Signature Form via Email
+                </button>
             </div>
         </div>
     </div>
@@ -725,6 +737,163 @@
         function showEmailStatus(message, type = 'info') {
             const emailStatusDiv = document.getElementById('emailStatus');
             emailStatusDiv.innerHTML = `<div class="status ${type}">${message}</div>`;
+        }
+
+        async function getClientSignature() {
+            if (!quoteResults) {
+                showStatus('❌ No quote available. Generate a quote first.', 'error');
+                return;
+            }
+
+            // Create a unique signature link with quote data
+            const signatureData = {
+                clientName: currentContact.name,
+                companyName: currentContact.company,
+                clientEmail: currentContact.email,
+                serviceType: 'Migration Services',
+                totalQuote: quoteResults.total,
+                quoteId: Date.now().toString() // Generate a unique ID
+            };
+
+            // Store signature data in localStorage for the signature form
+            localStorage.setItem('signatureFormData', JSON.stringify(signatureData));
+
+            // Open signature form in new tab
+            const signatureUrl = `/signature-form?quote_id=${signatureData.quoteId}`;
+            window.open(signatureUrl, '_blank');
+
+            showStatus('✅ Signature form opened! Client can now sign and approve the quote.', 'success');
+        }
+
+        async function sendSignatureFormEmail() {
+            if (!quoteResults) {
+                showStatus('❌ No quote available. Generate a quote first.', 'error');
+                return;
+            }
+
+            // Create a unique signature link with quote data
+            const signatureData = {
+                clientName: currentContact.name,
+                companyName: currentContact.company,
+                clientEmail: currentContact.email,
+                serviceType: 'Migration Services',
+                totalQuote: quoteResults.total,
+                quoteId: Date.now().toString() // Generate a unique ID
+            };
+
+            // Store signature data in localStorage for the signature form
+            localStorage.setItem('signatureFormData', JSON.stringify(signatureData));
+
+            // Create the signature form URL
+            const signatureUrl = `${window.location.origin}/signature-form?quote_id=${signatureData.quoteId}`;
+
+            // Prepare email data
+            const emailData = {
+                recipient_email: currentContact.email,
+                recipient_name: currentContact.name,
+                company_name: currentContact.company || 'Your Company',
+                signature_url: signatureUrl,
+                quote_data: {
+                    total: quoteResults.total,
+                    breakdown: quoteResults.breakdown,
+                    service_type: 'Migration Services'
+                }
+            };
+
+            try {
+                showStatus('📧 Sending signature form email...', 'info');
+                
+                const response = await fetch('/api/quote/send-signature-form', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(emailData)
+                });
+
+                const result = await response.json();
+                
+                if (result.success) {
+                    showStatus('✅ Signature form email sent successfully!', 'success');
+                } else {
+                    showStatus(`❌ Failed to send email: ${result.message}`, 'error');
+                }
+            } catch (error) {
+                console.error('Error sending signature form email:', error);
+                showStatus('❌ Error sending email. Please try again.', 'error');
+            }
+        }
+
+        async function sendSignatureFormTemplate() {
+            if (!quoteResults) {
+                showEmailStatus('❌ No quote available. Generate a quote first.', 'error');
+                return;
+            }
+
+            const recipientEmail = document.getElementById('recipientEmail').value;
+            const recipientName = document.getElementById('recipientName').value;
+            const recipientCompany = document.getElementById('recipientCompany').value;
+
+            if (!recipientEmail || !recipientName || !recipientCompany) {
+                showEmailStatus('❌ Please fill in all email fields.', 'error');
+                return;
+            }
+
+            showEmailStatus('📧 Sending signature form template...', 'info');
+
+            try {
+                // Create a unique signature link with quote data
+                const signatureData = {
+                    clientName: recipientName,
+                    companyName: recipientCompany,
+                    clientEmail: recipientEmail,
+                    serviceType: 'Migration Services',
+                    totalQuote: quoteResults.total,
+                    quoteId: Date.now().toString()
+                };
+
+                // Store signature data in localStorage for the signature form
+                localStorage.setItem('signatureFormData', JSON.stringify(signatureData));
+
+                // Create the signature form URL
+                const signatureUrl = `${window.location.origin}/signature-form?quote_id=${signatureData.quoteId}`;
+
+                // Prepare email data
+                const emailData = {
+                    recipient_email: recipientEmail,
+                    recipient_name: recipientName,
+                    company_name: recipientCompany,
+                    signature_url: signatureUrl,
+                    quote_data: {
+                        total: quoteResults.total,
+                        breakdown: quoteResults.breakdown,
+                        service_type: 'Migration Services'
+                    }
+                };
+
+                const response = await fetch('/api/quote/send-signature-form', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(emailData)
+                });
+
+                const result = await response.json();
+                
+                if (result.success) {
+                    showEmailStatus('✅ Signature form template sent successfully!', 'success');
+                    // Clear form
+                    document.getElementById('recipientEmail').value = '';
+                    document.getElementById('recipientName').value = '';
+                    document.getElementById('recipientCompany').value = '';
+                } else {
+                    showEmailStatus(`❌ Failed to send template: ${result.message}`, 'error');
+                }
+            } catch (error) {
+                console.error('Error sending signature form template:', error);
+                showEmailStatus('❌ Error sending template. Please try again.', 'error');
+            }
         }
 
         // Load contact data when page loads

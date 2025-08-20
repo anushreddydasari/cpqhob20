@@ -61,3 +61,43 @@ class EmailCollection:
             }
         ]
         return list(self.collection.aggregate(pipeline))
+    
+    def send_email(self, to_email, subject, body):
+        """Send email using the email service"""
+        try:
+            from cpq.email_service import EmailService
+            
+            email_service = EmailService()
+            result = email_service.send_email(to_email, subject, body)
+            
+            # Log the email attempt
+            if result.get('success'):
+                self.log_email_sent({
+                    "to_email": to_email,
+                    "subject": subject,
+                    "body": body,
+                    "sent_at": datetime.now()
+                })
+            else:
+                self.log_email_failed({
+                    "to_email": to_email,
+                    "subject": subject,
+                    "body": body,
+                    "sent_at": datetime.now()
+                }, result.get('message', 'Unknown error'))
+            
+            return result
+            
+        except Exception as e:
+            # Log the error
+            self.log_email_failed({
+                "to_email": to_email,
+                "subject": subject,
+                "body": body,
+                "sent_at": datetime.now()
+            }, str(e))
+            
+            return {
+                "success": False,
+                "message": f"Email sending failed: {str(e)}"
+            }

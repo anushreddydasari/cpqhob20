@@ -176,3 +176,48 @@ class EmailService:
                 "success": False,
                 "message": f"Gmail SMTP connection failed: {str(e)}"
             }
+
+    def send_signature_form_email(self, recipient_email, recipient_name, company_name, body):
+        """
+        Send signature form email to client
+        
+        Args:
+            recipient_email (str): Client's email address
+            recipient_name (str): Client's name
+            company_name (str): Client's company name
+            body (str): Custom email body content
+        
+        Returns:
+            dict: Success status and message
+        """
+        try:
+            # Create message
+            msg = MIMEMultipart()
+            msg['From'] = self.sender_email
+            msg['To'] = recipient_email
+            msg['Subject'] = f"Action Required: Please Sign Your Migration Service Quote - {company_name}"
+            
+            # Email body
+            msg.attach(MIMEText(body, 'plain'))
+            
+            # Send email
+            server = smtplib.SMTP(self.smtp_server, self.smtp_port)
+            server.starttls()
+            server.login(self.sender_email, self.sender_password)
+            
+            text = msg.as_string()
+            server.sendmail(self.sender_email, recipient_email, text)
+            server.quit()
+            
+            return {
+                "success": True,
+                "message": f"Signature form email sent successfully to {recipient_email}",
+                "timestamp": datetime.now().isoformat()
+            }
+            
+        except Exception as e:
+            return {
+                "success": False,
+                "message": f"Failed to send email: {str(e)}",
+                "timestamp": datetime.now().isoformat()
+            }

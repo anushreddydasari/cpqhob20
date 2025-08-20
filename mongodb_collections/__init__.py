@@ -8,6 +8,7 @@ from .client_collection import ClientCollection
 from .pricing_collection import PricingCollection
 from .hubspot_contact_collection import HubSpotContactCollection
 from .hubspot_integration_collection import HubSpotIntegrationCollection
+from .form_tracking_collection import FormTrackingCollection
 
 
 __all__ = [
@@ -18,5 +19,5 @@ __all__ = [
     'PricingCollection',
     'HubSpotContactCollection',
     'HubSpotIntegrationCollection',
-
+    'FormTrackingCollection'
 ]
