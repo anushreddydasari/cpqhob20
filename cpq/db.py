@@ -18,6 +18,7 @@ try:
     db = client["cpq_db"]
     quotes_collection = db["quotes"]
     clients_collection = db["clients"]  # New collection for client information
+    hubspot_contacts_collection = db["hubspot_contacts"]  # New collection for HubSpot contacts
     
 except pymongo.errors.ServerSelectionTimeoutError:
     print("❌ MongoDB connection failed: Server not reachable")

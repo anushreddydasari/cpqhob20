@@ -3,7 +3,7 @@ from flask_cors import CORS
 from datetime import datetime
 import os
 from dotenv import load_dotenv
-from db import quotes_collection, clients_collection
+from db import quotes_collection, clients_collection, hubspot_contacts_collection
 from pricing_logic import calculate_quote
 from reportlab.lib.pagesizes import letter, A4
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
@@ -36,6 +36,10 @@ def serve_client_management():
 @app.route('/hubspot-data')
 def serve_hubspot_data():
     return send_from_directory('..', 'hubspot/hubspot-data.html')
+
+@app.route('/hubspot-cpq-setup')
+def serve_hubspot_cpq_setup():
+    return send_from_directory('..', 'hubspot/hubspot-cpq-setup.html')
 
 # Client Management APIs
 @app.route('/api/clients', methods=['POST'])
@@ -473,7 +477,7 @@ def test_hubspot_connection():
 
 @app.route('/api/hubspot/fetch-contacts', methods=['GET'])
 def fetch_hubspot_contacts():
-    """Fetch contacts from HubSpot"""
+    """Fetch contacts from HubSpot and store in MongoDB"""
     try:
         import sys
         import os
@@ -486,6 +490,44 @@ def fetch_hubspot_contacts():
         
         hubspot = HubSpotBasic()
         result = hubspot.get_basic_contacts(limit=50)
+        
+        # If contacts fetched successfully, store them in MongoDB
+        if result.get('success') and result.get('contacts'):
+            stored_contacts = []
+            for contact in result['contacts']:
+                # Prepare contact data for MongoDB
+                contact_data = {
+                    "hubspot_id": contact.get('id'),
+                    "name": contact.get('name', ''),
+                    "email": contact.get('email', ''),
+                    "phone": contact.get('phone', ''),
+                    "company": contact.get('company', ''),
+                    "job_title": contact.get('job_title', ''),
+                    "source": "HubSpot",
+                    "fetched_at": datetime.now(),
+                    "status": "new"
+                }
+                
+                # Check if contact already exists (by HubSpot ID)
+                existing_contact = hubspot_contacts_collection.find_one({"hubspot_id": contact.get('id')})
+                
+                if existing_contact:
+                    # Update existing contact
+                    hubspot_contacts_collection.update_one(
+                        {"hubspot_id": contact.get('id')},
+                        {"$set": contact_data}
+                    )
+                    contact_data['action'] = 'updated'
+                else:
+                    # Insert new contact
+                    hubspot_contacts_collection.insert_one(contact_data)
+                    contact_data['action'] = 'inserted'
+                
+                stored_contacts.append(contact_data)
+            
+            # Add storage info to result
+            result['stored_contacts'] = stored_contacts
+            result['message'] = f"Successfully fetched and stored {len(stored_contacts)} contacts in MongoDB"
         
         return jsonify(result)
         

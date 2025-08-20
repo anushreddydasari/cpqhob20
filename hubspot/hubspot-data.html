@@ -69,6 +69,44 @@
             cursor: not-allowed;
         }
 
+        .btn-select {
+            background: #28a745;
+        }
+
+        .btn-select:hover {
+            background: #218838;
+        }
+
+        .btn-select.selected {
+            background: #dc3545;
+        }
+
+        .btn-select.selected:hover {
+            background: #c82333;
+        }
+
+        .selection-controls {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .selection-summary {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .selected-count {
+            font-weight: 600;
+            color: #28a745;
+            font-size: 1.1rem;
+        }
+
         .status {
             margin: 20px 0;
             padding: 15px;
@@ -241,6 +279,30 @@
             <button class="btn" onclick="clearData()">Clear Data</button>
         </div>
 
+        <div id="selectionControls" class="selection-controls" style="display: none;">
+            <div class="search-section" style="margin-bottom: 20px;">
+                <div style="display: flex; gap: 10px; align-items: center; justify-content: center;">
+                    <input type="text" id="searchInput" placeholder="🔍 Search contacts by name, email, company..." 
+                           style="flex: 1; max-width: 400px; padding: 12px; border: 2px solid #dee2e6; border-radius: 6px; font-size: 1rem;">
+                    <button class="btn" onclick="clearSearch()">❌ Clear</button>
+                </div>
+                <div style="margin-top: 10px; color: #666; font-size: 0.9rem;">
+                    <span id="searchResults">Showing all contacts</span>
+                </div>
+            </div>
+            
+            <div class="selection-summary">
+                <span class="selected-count">Selected: <span id="selectedCount">0</span> contacts</span>
+                <div>
+                    <button class="btn btn-select" onclick="selectAllContacts()">✅ Select All</button>
+                    <button class="btn btn-select" onclick="deselectAllContacts()">❌ Deselect All</button>
+                </div>
+            </div>
+            <button class="btn" onclick="generateCPQForSelected()" id="generateCPQBtn" disabled>
+                🚀 Generate CPQ for Selected (<span id="selectedCountBtn">0</span>)
+            </button>
+        </div>
+
         <div id="status"></div>
 
         <div class="data-section">
@@ -293,6 +355,8 @@
                 
                 if (result.success) {
                     hubspotData = result.contacts;
+                    allContacts = [...result.contacts];
+                    filteredContacts = [...result.contacts];
                     showStatus(`✅ Successfully fetched ${result.contacts.length} contacts from HubSpot`, 'success');
                     displayClientData();
                 } else {
@@ -304,14 +368,153 @@
         }
 
         function displayClientData() {
-            const clientDataDiv = document.getElementById('clientData');
+            displayFilteredContacts();
             
-            if (hubspotData.length === 0) {
-                clientDataDiv.innerHTML = '<div class="loading">No contacts found in HubSpot</div>';
+            // Show selection controls
+            document.getElementById('selectionControls').style.display = 'block';
+            
+            // Reset selection
+            selectedContacts.clear();
+            updateSelectionUI();
+        }
+
+        function clearData() {
+            hubspotData = [];
+            document.getElementById('clientData').innerHTML = '<div class="loading">Data cleared. Click "Fetch Client Data" to reload.</div>';
+            clearStatus();
+        }
+
+        let selectedContacts = new Set();
+        let filteredContacts = [];
+        let allContacts = [];
+
+        function toggleContactSelection(hubspotId, button) {
+            if (selectedContacts.has(hubspotId)) {
+                // Deselect
+                selectedContacts.delete(hubspotId);
+                button.textContent = '✅ Select for CPQ';
+                button.classList.remove('selected');
+            } else {
+                // Select
+                selectedContacts.add(hubspotId);
+                button.textContent = '❌ Deselect';
+                button.classList.add('selected');
+            }
+            
+            updateSelectionUI();
+        }
+
+        function selectAllContacts() {
+            selectedContacts.clear();
+            hubspotData.forEach(client => {
+                selectedContacts.add(client.id);
+            });
+            
+            // Update all buttons
+            document.querySelectorAll('[data-contact-id]').forEach(button => {
+                button.textContent = '❌ Deselect';
+                button.classList.add('selected');
+            });
+            
+            updateSelectionUI();
+        }
+
+        function deselectAllContacts() {
+            selectedContacts.clear();
+            
+            // Update all buttons
+            document.querySelectorAll('[data-contact-id]').forEach(button => {
+                button.textContent = '✅ Select for CPQ';
+                button.classList.remove('selected');
+            });
+            
+            updateSelectionUI();
+        }
+
+        function updateSelectionUI() {
+            const count = selectedContacts.size;
+            document.getElementById('selectedCount').textContent = count;
+            document.getElementById('selectedCountBtn').textContent = count;
+            
+            const generateBtn = document.getElementById('generateCPQBtn');
+            generateBtn.disabled = count === 0;
+        }
+
+        function generateCPQForSelected() {
+            if (selectedContacts.size === 0) {
+                showStatus('❌ Please select at least one contact for CPQ generation.', 'error');
                 return;
             }
 
-            const clientsHTML = hubspotData.map(client => `
+            // For now, we'll generate CPQ for the first selected contact
+            // In the future, you could implement batch CPQ generation
+            const firstContactId = Array.from(selectedContacts)[0];
+            const contact = allContacts.find(c => c.id === firstContactId);
+            
+            if (contact) {
+                // Store contact data in localStorage for CPQ page
+                const contactData = {
+                    hubspotId: contact.id,
+                    name: contact.name,
+                    email: contact.email,
+                    company: contact.company,
+                    source: 'HubSpot'
+                };
+                localStorage.setItem('hubspotContactForCPQ', JSON.stringify(contactData));
+                
+                // Navigate to CPQ setup page
+                window.location.href = '/hubspot-cpq-setup';
+            }
+        }
+
+        function searchContacts() {
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase().trim();
+            
+            if (searchTerm === '') {
+                filteredContacts = [...allContacts];
+                document.getElementById('searchResults').textContent = 'Showing all contacts';
+            } else {
+                filteredContacts = allContacts.filter(contact => 
+                    (contact.name && contact.name.toLowerCase().includes(searchTerm)) ||
+                    (contact.email && contact.email.toLowerCase().includes(searchTerm)) ||
+                    (contact.company && contact.company.toLowerCase().includes(searchTerm)) ||
+                    (contact.job_title && contact.job_title.toLowerCase().includes(searchTerm))
+                );
+                
+                document.getElementById('searchResults').textContent = 
+                    `Found ${filteredContacts.length} contact(s) matching "${searchTerm}"`;
+            }
+            
+            // Reset selection when searching
+            selectedContacts.clear();
+            updateSelectionUI();
+            
+            // Display filtered contacts
+            displayFilteredContacts();
+        }
+
+        function clearSearch() {
+            document.getElementById('searchInput').value = '';
+            filteredContacts = [...allContacts];
+            document.getElementById('searchResults').textContent = 'Showing all contacts';
+            
+            // Reset selection
+            selectedContacts.clear();
+            updateSelectionUI();
+            
+            // Display all contacts
+            displayFilteredContacts();
+        }
+
+        function displayFilteredContacts() {
+            const clientDataDiv = document.getElementById('clientData');
+            
+            if (filteredContacts.length === 0) {
+                clientDataDiv.innerHTML = '<div class="loading">No contacts found matching your search.</div>';
+                return;
+            }
+
+            const clientsHTML = filteredContacts.map(client => `
                 <div class="client-card">
                     <div class="client-header">
                         <div class="client-avatar">
@@ -340,6 +543,15 @@
                             <span class="info-label">🆔 HubSpot ID:</span>
                             <span class="info-value">${client.id || 'N/A'}</span>
                         </div>
+                        <div class="info-row">
+                            <span class="info-label">📊 Status:</span>
+                            <span class="info-value">${client.source || 'HubSpot'}</span>
+                        </div>
+                    </div>
+                    <div class="client-actions" style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #dee2e6;">
+                        <button class="btn btn-select" onclick="toggleContactSelection('${client.id}', this)" data-contact-id="${client.id}" style="width: 100%;">
+                            ✅ Select for CPQ
+                        </button>
                     </div>
                 </div>
             `).join('');
@@ -347,15 +559,14 @@
             clientDataDiv.innerHTML = clientsHTML;
         }
 
-        function clearData() {
-            hubspotData = [];
-            document.getElementById('clientData').innerHTML = '<div class="loading">Data cleared. Click "Fetch Client Data" to reload.</div>';
-            clearStatus();
-        }
-
         // Auto-fetch data when page loads
         window.onload = function() {
             showStatus('🚀 HubSpot Integration page loaded. Click "Test Connection" to verify your setup.', 'info');
+            
+            // Add search input event listener
+            document.getElementById('searchInput').addEventListener('input', function() {
+                searchContacts();
+            });
         };
     </script>
 </body>
