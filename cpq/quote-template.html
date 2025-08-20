@@ -1,0 +1,658 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Professional Quote - CPQ System</title>
+  <style>
+    body { 
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+      margin: 0; 
+      padding: 20px; 
+      background-color: #f5f5f5;
+    }
+    
+    .quote-container {
+      max-width: 800px;
+      margin: 0 auto;
+      background: white;
+      box-shadow: 0 0 20px rgba(0,0,0,0.1);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    
+    .header {
+      background: linear-gradient(135deg, #007BFF, #0056b3);
+      color: white;
+      padding: 30px;
+      text-align: center;
+    }
+    
+    .header h1 {
+      margin: 0;
+      font-size: 28px;
+      font-weight: 300;
+    }
+    
+    .header p {
+      margin: 10px 0 0 0;
+      opacity: 0.9;
+      font-size: 16px;
+    }
+    
+    .quote-info {
+      padding: 30px;
+      border-bottom: 2px solid #f0f0f0;
+    }
+    
+    .quote-details {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+      margin-bottom: 20px;
+    }
+    
+    .client-info, .quote-meta {
+      background: #f8f9fa;
+      padding: 20px;
+      border-radius: 6px;
+    }
+    
+    .client-info h3, .quote-meta h3 {
+      margin: 0 0 15px 0;
+      color: #007BFF;
+      font-size: 18px;
+    }
+    
+    .info-row {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 8px;
+      padding: 5px 0;
+      border-bottom: 1px solid #e9ecef;
+    }
+    
+    .info-label {
+      font-weight: 600;
+      color: #495057;
+    }
+    
+    .info-value {
+      color: #212529;
+    }
+    
+    .pricing-section {
+      padding: 30px;
+    }
+    
+    .pricing-section h2 {
+      color: #007BFF;
+      text-align: center;
+      margin-bottom: 30px;
+      font-size: 24px;
+    }
+    
+    .pricing-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 30px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    
+    .pricing-table th {
+      background: #007BFF;
+      color: white;
+      padding: 15px;
+      text-align: center;
+      font-weight: 600;
+    }
+    
+    .pricing-table td {
+      padding: 12px 15px;
+      text-align: center;
+      border-bottom: 1px solid #e9ecef;
+    }
+    
+    .pricing-table tr:nth-child(even) {
+      background: #f8f9fa;
+    }
+    
+    .total-row {
+      background: #e3f2fd !important;
+      font-weight: bold;
+      font-size: 18px;
+    }
+    
+    .total-row td {
+      color: #007BFF;
+    }
+    
+    .terms-section {
+      padding: 30px;
+      background: #f8f9fa;
+    }
+    
+    .terms-section h3 {
+      color: #007BFF;
+      margin-bottom: 15px;
+    }
+    
+    .terms-list {
+      list-style: none;
+      padding: 0;
+    }
+    
+    .terms-list li {
+      padding: 8px 0;
+      border-bottom: 1px solid #e9ecef;
+    }
+    
+    .terms-list li:before {
+      content: "•";
+      color: #007BFF;
+      font-weight: bold;
+      margin-right: 10px;
+    }
+    
+    .footer {
+      padding: 30px;
+      text-align: center;
+      background: #343a40;
+      color: white;
+    }
+    
+    .footer h4 {
+      margin: 0 0 15px 0;
+      color: #007BFF;
+    }
+    
+    .contact-info {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 20px;
+      margin-top: 20px;
+    }
+    
+    .download-section {
+      text-align: center;
+      padding: 30px;
+      background: #e9ecef;
+    }
+    
+    .download-btn {
+      background: #28a745;
+      color: white;
+      border: none;
+      padding: 15px 30px;
+      font-size: 18px;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: background 0.3s;
+    }
+    
+    .download-btn:hover {
+      background: #218838;
+    }
+    
+    .back-btn {
+      background: #6c757d;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      font-size: 14px;
+      border-radius: 4px;
+      cursor: pointer;
+      margin-right: 15px;
+      transition: background 0.3s;
+    }
+    
+    .back-btn:hover {
+      background: #545b62;
+    }
+    
+    @media print {
+      .download-section, .back-btn {
+        display: none;
+      }
+      body { background: white; }
+      .quote-container { box-shadow: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="quote-container">
+    <!-- Header -->
+    <div class="header">
+      <h1>PROFESSIONAL QUOTE</h1>
+      <p>Migration Services & Solutions</p>
+    </div>
+    
+    <!-- Quote Information -->
+    <div class="quote-info">
+      <div class="quote-details">
+        <div class="client-info">
+          <h3>Client Information</h3>
+          <div class="info-row">
+            <span class="info-label">Name:</span>
+            <span class="info-value" id="clientName">-</span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">Company:</span>
+            <span class="info-value" id="companyName">-</span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">Email:</span>
+            <span class="info-value" id="clientEmail">-</span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">Phone:</span>
+            <span class="info-value" id="clientPhone">-</span>
+          </div>
+        </div>
+        
+        <div class="quote-meta">
+          <h3>Quote Details</h3>
+          <div class="info-row">
+            <span class="info-label">Quote Date:</span>
+            <span class="info-value" id="quoteDate">-</span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">Service Type:</span>
+            <span class="info-value" id="serviceType">-</span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">Migration Type:</span>
+            <span class="info-value" id="migrationType">-</span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">Project Duration:</span>
+            <span class="info-value" id="projectDuration">-</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Pricing Section -->
+    <div class="pricing-section">
+      <h2>Pricing Breakdown</h2>
+      <table class="pricing-table">
+        <thead>
+          <tr>
+            <th>Service Details</th>
+            <th>Basic Plan</th>
+            <th>Standard Plan</th>
+            <th>Advanced Plan</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Per User Cost</strong></td>
+            <td id="basicPerUser">$0.00</td>
+            <td id="standardPerUser">$0.00</td>
+            <td id="advancedPerUser">$0.00</td>
+          </tr>
+          <tr>
+            <td><strong>Per GB Cost</strong></td>
+            <td id="basicPerGB">$0.00</td>
+            <td id="standardPerGB">$0.00</td>
+            <td id="advancedPerGB">$0.00</td>
+          </tr>
+          <tr>
+            <td><strong>Total User Cost</strong></td>
+            <td id="basicUserTotal">$0.00</td>
+            <td id="standardUserTotal">$0.00</td>
+            <td id="advancedUserTotal">$0.00</td>
+          </tr>
+          <tr>
+            <td><strong>Data Cost</strong></td>
+            <td id="basicDataCost">$0.00</td>
+            <td id="standardDataCost">$0.00</td>
+            <td id="advancedDataCost">$0.00</td>
+          </tr>
+          <tr>
+            <td><strong>Migration Cost</strong></td>
+            <td id="basicMigration">$0.00</td>
+            <td id="standardMigration">$0.00</td>
+            <td id="advancedMigration">$0.00</td>
+          </tr>
+          <tr>
+            <td><strong>Instance Cost</strong></td>
+            <td id="basicInstance">$0.00</td>
+            <td id="standardInstance">$0.00</td>
+            <td id="advancedInstance">$0.00</td>
+          </tr>
+          <tr class="total-row">
+            <td><strong>TOTAL COST</strong></td>
+            <td id="basicTotal">$0.00</td>
+            <td id="standardTotal">$0.00</td>
+            <td id="advancedTotal">$0.00</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    
+    <!-- Terms Section -->
+    <div class="terms-section">
+      <h3>Terms & Conditions</h3>
+      <ul class="terms-list">
+        <li>This quote is valid for 30 days from the date of issue</li>
+        <li>Payment terms: 50% upfront, 50% upon completion</li>
+        <li>Project timeline will be finalized upon acceptance</li>
+        <li>Any changes to scope may affect pricing</li>
+        <li>Support and maintenance included for 3 months post-migration</li>
+      </ul>
+    </div>
+    
+    <!-- Footer -->
+    <div class="footer">
+      <h4>Contact Information</h4>
+      <div class="contact-info">
+        <div>
+          <strong>Email:</strong><br>
+          sales@yourcompany.com
+        </div>
+        <div>
+          <strong>Phone:</strong><br>
+          +1 (555) 123-4567
+        </div>
+        <div>
+          <strong>Website:</strong><br>
+          www.yourcompany.com
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Download Section -->
+  <div class="download-section">
+    <button class="back-btn" onclick="goBack()">Back to Calculator</button>
+    <button class="back-btn" onclick="refreshData()" style="background-color: #17a2b8;">Refresh Data</button>
+    <button class="back-btn" onclick="testDataPopulation()" style="background-color: #ffc107; color: #000;">Test Data</button>
+    <button class="back-btn" onclick="testPDFGeneration()" style="background-color: #6f42c1; color: white;">Test PDF</button>
+    <button class="download-btn" onclick="downloadPDF()">Download PDF Quote</button>
+  </div>
+
+  <!-- Debug Information (remove in production) -->
+  <div style="background: #f8f9fa; padding: 20px; margin: 20px; border-radius: 5px; font-family: monospace; font-size: 12px;">
+    <h4>Debug Information:</h4>
+    <div id="debugInfo">Loading...</div>
+    <hr>
+    <h5>Template Status:</h5>
+    <div id="templateStatus">Not populated</div>
+  </div>
+
+  <!-- Include html2pdf library -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+  
+  <script>
+    // Load quote data from localStorage
+    window.onload = function() {
+      const clientData = JSON.parse(localStorage.getItem('clientData') || '{}');
+      const quoteData = JSON.parse(localStorage.getItem('quoteData') || '{}');
+      
+      // Show debug information
+      document.getElementById('debugInfo').textContent = `Client Data: ${JSON.stringify(clientData)}\nQuote Data: ${JSON.stringify(quoteData)}`;
+      
+      if (Object.keys(clientData).length === 0) {
+        // No client data, redirect back
+        console.error('No client data found, redirecting...');
+        window.location.href = '/';
+        return;
+      }
+      
+      if (!quoteData.quote) {
+        console.error('No quote data found');
+        document.querySelector('.download-btn').textContent = 'No Quote Data Available';
+        document.querySelector('.download-btn').disabled = true;
+        return;
+      }
+      
+      // Populate template with data
+      populateTemplate();
+    };
+    
+    // Enhanced populate template function
+    function populateTemplate() {
+      const clientData = JSON.parse(localStorage.getItem('clientData') || '{}');
+      const quoteData = JSON.parse(localStorage.getItem('quoteData') || '{}');
+      
+      // Debug logging
+      console.log('Client Data:', clientData);
+      console.log('Quote Data:', quoteData);
+      
+      // Check if we have the minimum required data
+      if (Object.keys(clientData).length === 0) {
+        console.error('No client data found');
+        document.querySelector('.download-btn').textContent = 'No Client Data Available';
+        document.querySelector('.download-btn').disabled = true;
+        document.getElementById('templateStatus').textContent = '❌ No client data available';
+        return;
+      }
+      
+      if (!quoteData.quote) {
+        console.error('No quote data found');
+        document.querySelector('.download-btn').textContent = 'No Quote Data Available';
+        document.querySelector('.download-btn').disabled = true;
+        document.getElementById('templateStatus').textContent = '❌ No quote data available';
+        return;
+      }
+      
+      // Populate client information
+      document.getElementById('clientName').textContent = clientData.clientName || 'N/A';
+      document.getElementById('companyName').textContent = clientData.companyName || 'N/A';
+      document.getElementById('clientEmail').textContent = clientData.email || 'N/A';
+      document.getElementById('clientPhone').textContent = clientData.phoneNumber || 'N/A';
+      
+      // Populate quote details
+      document.getElementById('quoteDate').textContent = new Date().toLocaleDateString();
+      document.getElementById('serviceType').textContent = clientData.serviceType || 'N/A';
+      document.getElementById('migrationType').textContent = quoteData.migrationType || 'N/A';
+      document.getElementById('projectDuration').textContent = (quoteData.duration || 0) + ' months';
+      
+      // Populate pricing
+      populatePricing(quoteData.quote);
+      
+      // Enable download button after successful data population
+      document.querySelector('.download-btn').disabled = false;
+      document.querySelector('.download-btn').textContent = 'Download PDF Quote';
+      document.getElementById('templateStatus').textContent = '✅ Template populated successfully - Ready for PDF generation';
+      
+      console.log('Template populated successfully');
+    }
+    
+    // Populate pricing table
+    function populatePricing(quote) {
+      if (quote.basic) {
+        document.getElementById('basicPerUser').textContent = '$' + quote.basic.perUserCost.toFixed(2);
+        document.getElementById('basicPerGB').textContent = '$' + quote.basic.perGBCost.toFixed(2);
+        document.getElementById('basicUserTotal').textContent = '$' + quote.basic.totalUserCost.toFixed(2);
+        document.getElementById('basicDataCost').textContent = '$' + quote.basic.dataCost.toFixed(2);
+        document.getElementById('basicMigration').textContent = '$' + quote.basic.migrationCost.toFixed(2);
+        document.getElementById('basicInstance').textContent = '$' + quote.basic.instanceCost.toFixed(2);
+        document.getElementById('basicTotal').textContent = '$' + quote.basic.totalCost.toFixed(2);
+      }
+      
+      if (quote.standard) {
+        document.getElementById('standardPerUser').textContent = '$' + quote.standard.perUserCost.toFixed(2);
+        document.getElementById('standardPerGB').textContent = '$' + quote.standard.perGBCost.toFixed(2);
+        document.getElementById('standardUserTotal').textContent = '$' + quote.standard.totalUserCost.toFixed(2);
+        document.getElementById('standardDataCost').textContent = '$' + quote.standard.dataCost.toFixed(2);
+        document.getElementById('standardMigration').textContent = '$' + quote.standard.migrationCost.toFixed(2);
+        document.getElementById('standardInstance').textContent = '$' + quote.standard.instanceCost.toFixed(2);
+        document.getElementById('standardTotal').textContent = '$' + quote.standard.totalCost.toFixed(2);
+      }
+      
+      if (quote.advanced) {
+        document.getElementById('advancedPerUser').textContent = '$' + quote.advanced.perUserCost.toFixed(2);
+        document.getElementById('advancedPerGB').textContent = '$' + quote.advanced.perGBCost.toFixed(2);
+        document.getElementById('advancedUserTotal').textContent = '$' + quote.advanced.totalUserCost.toFixed(2);
+        document.getElementById('advancedDataCost').textContent = '$' + quote.advanced.dataCost.toFixed(2);
+        document.getElementById('advancedMigration').textContent = '$' + quote.advanced.migrationCost.toFixed(2);
+        document.getElementById('advancedInstance').textContent = '$' + quote.advanced.instanceCost.toFixed(2);
+        document.getElementById('advancedTotal').textContent = '$' + quote.advanced.totalCost.toFixed(2);
+      }
+      
+      // Enable download button after data is populated
+      document.querySelector('.download-btn').disabled = false;
+      document.querySelector('.download-btn').textContent = 'Download PDF Quote';
+    }
+    
+    // Download PDF function with improved error handling
+    function downloadPDF() {
+      try {
+        // First, ensure data is populated
+        populateTemplate();
+        
+        // Check if data is available
+        const clientData = JSON.parse(localStorage.getItem('clientData') || '{}');
+        const quoteData = JSON.parse(localStorage.getItem('quoteData') || '{}');
+        
+        if (Object.keys(clientData).length === 0 || !quoteData.quote) {
+          alert('No data available for PDF generation. Please generate a quote first.');
+          return;
+        }
+        
+        // Show loading message
+        document.querySelector('.download-btn').textContent = 'Generating PDF...';
+        document.querySelector('.download-btn').disabled = true;
+        
+        // Wait for data to be fully populated, then generate PDF
+        setTimeout(() => {
+          try {
+            const element = document.querySelector('.quote-container');
+            if (!element) {
+              throw new Error('Quote container not found');
+            }
+            
+            const opt = {
+              margin: 1,
+              filename: 'quote.pdf',
+              image: { type: 'jpeg', quality: 0.98 },
+              html2canvas: { scale: 2 },
+              jsPDF: { unit: 'in', format: 'a4', orientation: 'portrait' }
+            };
+            
+            html2pdf().set(opt).from(element).save().then(() => {
+              // Success - Reset button after PDF is generated
+              document.querySelector('.download-btn').textContent = 'Download PDF Quote';
+              document.querySelector('.download-btn').disabled = false;
+              console.log('PDF generated successfully');
+            }).catch((error) => {
+              console.error('PDF generation failed:', error);
+              alert('PDF generation failed: ' + error.message);
+              document.querySelector('.download-btn').textContent = 'Download PDF Quote';
+              document.querySelector('.download-btn').disabled = false;
+            });
+            
+          } catch (error) {
+            console.error('Error in PDF generation:', error);
+            alert('Error generating PDF: ' + error.message);
+            document.querySelector('.download-btn').textContent = 'Download PDF Quote';
+            document.querySelector('.download-btn').disabled = false;
+          }
+        }, 2000); // Increased to 2 seconds for better reliability
+        
+      } catch (error) {
+        console.error('Error in downloadPDF function:', error);
+        alert('Error: ' + error.message);
+        document.querySelector('.download-btn').textContent = 'Download PDF Quote';
+        document.querySelector('.download-btn').disabled = false;
+      }
+    }
+    
+    // Go back function
+    function goBack() {
+      window.location.href = '/quote-calculator';
+    }
+
+    // Function to refresh data from localStorage
+    function refreshData() {
+      const clientData = JSON.parse(localStorage.getItem('clientData') || '{}');
+      const quoteData = JSON.parse(localStorage.getItem('quoteData') || '{}');
+
+      document.getElementById('debugInfo').textContent = `Client Data: ${JSON.stringify(clientData)}\nQuote Data: ${JSON.stringify(quoteData)}`;
+      console.log('Refreshing data...');
+      populateTemplate(); // Re-populate template to update values
+    }
+
+    // Function to test data population
+    function testDataPopulation() {
+      const clientData = {
+        clientName: 'Test Client',
+        companyName: 'Test Company',
+        email: 'test@example.com',
+        phoneNumber: '123-456-7890',
+        serviceType: 'Migration',
+        duration: 6
+      };
+
+      const quoteData = {
+        quote: {
+          basic: {
+            perUserCost: 10.50,
+            perGBCost: 0.50,
+            totalUserCost: 100.00,
+            dataCost: 500.00,
+            migrationCost: 200.00,
+            instanceCost: 100.00,
+            totalCost: 450.00
+          },
+          standard: {
+            perUserCost: 15.00,
+            perGBCost: 0.75,
+            totalUserCost: 150.00,
+            dataCost: 750.00,
+            migrationCost: 300.00,
+            instanceCost: 150.00,
+            totalCost: 700.00
+          },
+          advanced: {
+            perUserCost: 20.00,
+            perGBCost: 1.00,
+            totalUserCost: 200.00,
+            dataCost: 1000.00,
+            migrationCost: 400.00,
+            instanceCost: 200.00,
+            totalCost: 900.00
+          }
+        },
+        migrationType: 'Full',
+        duration: 6
+      };
+
+      localStorage.setItem('clientData', JSON.stringify(clientData));
+      localStorage.setItem('quoteData', JSON.stringify(quoteData));
+
+      document.getElementById('debugInfo').textContent = `Client Data: ${JSON.stringify(clientData)}\nQuote Data: ${JSON.stringify(quoteData)}`;
+      document.getElementById('templateStatus').textContent = 'Populated with test data';
+      console.log('Test data populated successfully');
+      populateTemplate(); // Re-populate to show test data in template
+    }
+
+    // Function to test PDF generation with simple content
+    function testPDFGeneration() {
+      try {
+        const testElement = document.createElement('div');
+        testElement.innerHTML = '<h1>Test PDF</h1><p>This is a test PDF to verify html2pdf is working.</p>';
+        testElement.style.padding = '20px';
+        testElement.style.fontSize = '16px';
+        
+        const opt = {
+          margin: 1,
+          filename: 'test.pdf',
+          image: { type: 'jpeg', quality: 0.98 },
+          html2canvas: { scale: 2 },
+          jsPDF: { unit: 'in', format: 'a4', orientation: 'portrait' }
+        };
+        
+        html2pdf().set(opt).from(testElement).save().then(() => {
+          alert('Test PDF generated successfully! html2pdf is working.');
+        }).catch((error) => {
+          alert('Test PDF failed: ' + error.message);
+        });
+        
+      } catch (error) {
+        alert('Test PDF error: ' + error.message);
+      }
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,593 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Quote Calculator - CPQ System</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      margin: 0;
+      padding: 0;
+      background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+      min-height: 100vh;
+    }
+
+    .header {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 30px;
+      text-align: center;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+    }
+
+    .header h1 {
+      margin: 0;
+      font-size: 2.5rem;
+      font-weight: 300;
+      margin-bottom: 10px;
+    }
+
+    .header p {
+      margin: 0;
+      opacity: 0.9;
+      font-size: 1.1rem;
+    }
+
+    .back-btn {
+      position: absolute;
+      top: 20px;
+      left: 20px;
+      background: rgba(255,255,255,0.2);
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 25px;
+      cursor: pointer;
+      font-weight: 500;
+      transition: all 0.3s ease;
+      backdrop-filter: blur(10px);
+    }
+
+    .back-btn:hover {
+      background: rgba(255,255,255,0.3);
+      transform: translateY(-2px);
+    }
+
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 30px 20px;
+    }
+
+    .form-section {
+      background: white;
+      padding: 30px;
+      border-radius: 20px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+      margin-bottom: 30px;
+    }
+
+    .form-section h2 {
+      color: #4a5568;
+      margin-bottom: 25px;
+      font-size: 1.8rem;
+      text-align: center;
+    }
+
+    .form-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+      margin-bottom: 25px;
+    }
+
+    .form-group {
+      margin-bottom: 20px;
+    }
+
+    .form-group.full-width {
+      grid-column: 1 / -1;
+    }
+
+    label {
+      display: block;
+      margin-bottom: 8px;
+      color: #4a5568;
+      font-weight: 600;
+      font-size: 0.95rem;
+    }
+
+    input, select, textarea {
+      width: 100%;
+      padding: 12px 15px;
+      border: 2px solid #e2e8f0;
+      border-radius: 10px;
+      font-size: 1rem;
+      transition: border-color 0.3s ease;
+      background: #f8fafc;
+    }
+
+    input:focus, select:focus, textarea:focus {
+      outline: none;
+      border-color: #667eea;
+      background: white;
+    }
+
+    button[type="submit"] {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border: none;
+      padding: 15px 40px;
+      font-size: 1.1rem;
+      border-radius: 25px;
+      cursor: pointer;
+      font-weight: 600;
+      transition: transform 0.3s ease;
+      display: block;
+      margin: 0 auto;
+    }
+
+    button[type="submit"]:hover {
+      transform: translateY(-2px);
+    }
+
+    .result-section {
+      background: white;
+      padding: 30px;
+      border-radius: 20px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+      margin-top: 30px;
+    }
+
+    .result-section h2 {
+      color: #4a5568;
+      margin-bottom: 25px;
+      text-align: center;
+      font-size: 1.8rem;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 30px;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+      border-radius: 10px;
+      overflow: hidden;
+    }
+
+    th {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 15px;
+      text-align: center;
+      font-weight: 600;
+    }
+
+    td {
+      padding: 12px 15px;
+      text-align: center;
+      border-bottom: 1px solid #e9ecef;
+    }
+
+    tr:nth-child(even) {
+      background: #f8f9fa;
+    }
+
+    .total-row {
+      background: #e3f2fd !important;
+      font-weight: bold;
+      font-size: 1.1rem;
+    }
+
+    .total-row td {
+      color: #1976d2;
+    }
+
+    @media (max-width: 768px) {
+      .form-grid {
+        grid-template-columns: 1fr;
+      }
+      
+      .header h1 {
+        font-size: 2rem;
+      }
+      
+      .container {
+        padding: 20px 15px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <button class="back-btn" onclick="goBack()">← Back to Dashboard</button>
+    <h1>🧮 Quote Calculator</h1>
+    <p>Configure your migration parameters and generate professional quotes</p>
+  </div>
+
+  <div class="container">
+    <div class="form-section">
+      <h2>👤 Client Selection</h2>
+      <div class="form-group">
+        <label for="clientSelect">Select Client *</label>
+        <select id="clientSelect" required style="width: 100%; padding: 12px 15px; border: 2px solid #e2e8f0; border-radius: 10px; font-size: 1rem;">
+          <option value="">Choose a client from your database...</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="form-section">
+      <h2>👤 Client Information</h2>
+      <div id="clientInfo">
+        <div style="background: #fff3cd; padding: 20px; border-radius: 10px; border-left: 4px solid #ffc107;">
+          <h4 style="margin: 0 0 15px 0; color: #856404;">⚠️ Please Select a Client</h4>
+          <p>Choose a client from the dropdown above to see their information and generate a quote.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Quote Configuration Form -->
+    <div class="form-section">
+      <h2>⚙️ Migration Configuration</h2>
+      <form id="quoteForm">
+        <div class="form-grid">
+          <div class="form-group">
+            <label for="users">Number of Users *</label>
+            <input type="number" id="users" name="users" value="10" min="1" max="1000" required>
+          </div>
+          
+          <div class="form-group">
+            <label for="instanceType">Instance Type *</label>
+            <select id="instanceType" name="instanceType" required>
+              <option value="Standard">Standard</option>
+              <option value="High-Performance">High-Performance</option>
+              <option value="Enterprise">Enterprise</option>
+            </select>
+          </div>
+          
+          <div class="form-group">
+            <label for="instances">Number of Instances *</label>
+            <input type="number" id="instances" name="instances" value="2" min="1" max="10" required>
+          </div>
+          
+          <div class="form-group">
+            <label for="duration">Duration (months) *</label>
+            <input type="number" id="duration" name="duration" value="6" min="1" max="60" required>
+          </div>
+          
+          <div class="form-group">
+            <label for="migrationType">Migration Type *</label>
+            <select id="migrationType" name="migrationType" required>
+              <option value="Standard">Standard</option>
+              <option value="Express">Express</option>
+              <option value="Premium">Premium</option>
+            </select>
+          </div>
+          
+          <div class="form-group">
+            <label for="dataSize">Data Size (GB) *</label>
+            <input type="number" id="dataSize" name="dataSize" value="500" min="1" max="10000" required>
+          </div>
+        </div>
+        
+        <button type="submit" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; padding: 15px 40px; font-size: 1.1rem; border-radius: 25px; cursor: pointer; font-weight: 600; transition: transform 0.3s ease; display: block; margin: 0 auto;">
+          🚀 Generate Quote
+        </button>
+      </form>
+    </div>
+
+    <!-- Results Section -->
+    <div id="result" class="result-section" style="display: none;">
+      <h2>📊 Quote Results</h2>
+      <div id="resultContent"></div>
+    </div>
+  </div>
+
+  <script>
+    // Load and display client information
+    window.onload = function() {
+      loadClientsForSelection();
+    };
+
+    // Load clients from MongoDB and populate dropdown
+    async function loadClientsForSelection() {
+      try {
+        console.log('Loading clients for selection...');
+        const response = await fetch('/api/clients');
+        
+        if (response.ok) {
+          const result = await response.json();
+          if (result.success) {
+            populateClientDropdown(result.clients);
+            console.log('Clients loaded successfully:', result.clients.length);
+          } else {
+            console.error('Failed to load clients:', result.message);
+            showClientError('Failed to load clients: ' + result.message);
+          }
+        } else {
+          throw new Error('Failed to fetch clients');
+        }
+      } catch (error) {
+        console.error('Error loading clients:', error);
+        showClientError('Error loading clients: ' + error.message);
+      }
+    }
+
+    // Populate the client dropdown
+    function populateClientDropdown(clients) {
+      const select = document.getElementById('clientSelect');
+      
+      // Clear existing options except the first one
+      select.innerHTML = '<option value="">Choose a client from your database...</option>';
+      
+      if (clients.length === 0) {
+        select.innerHTML = '<option value="">No clients found. Please add clients first.</option>';
+        return;
+      }
+
+      // Add client options
+      clients.forEach(client => {
+        const option = document.createElement('option');
+        option.value = client._id;
+        option.textContent = `${client.clientName} - ${client.companyName}`;
+        option.dataset.client = JSON.stringify(client);
+        select.appendChild(option);
+      });
+
+      // Add change event listener
+      select.addEventListener('change', handleClientSelection);
+    }
+
+    // Handle client selection
+    function handleClientSelection() {
+      const select = document.getElementById('clientSelect');
+      const selectedOption = select.options[select.selectedIndex];
+      
+      if (selectedOption.value === '') {
+        // No client selected
+        document.getElementById('clientInfo').innerHTML = `
+          <div style="background: #fff3cd; padding: 20px; border-radius: 10px; border-left: 4px solid #ffc107;">
+            <h4 style="margin: 0 0 15px 0; color: #856404;">⚠️ Please Select a Client</h4>
+            <p>Choose a client from the dropdown above to see their information and generate a quote.</p>
+          </div>
+        `;
+        return;
+      }
+
+      // Client selected - parse client data
+      try {
+        const clientData = JSON.parse(selectedOption.dataset.client);
+        displayClientInfo(clientData);
+        
+        // Store selected client data for quote generation
+        window.selectedClientData = clientData;
+        
+        console.log('Client selected:', clientData);
+      } catch (error) {
+        console.error('Error parsing client data:', error);
+        showClientError('Error loading client information');
+      }
+    }
+
+    // Display client information
+    function displayClientInfo(clientData) {
+      document.getElementById('clientInfo').innerHTML = `
+        <div style="background: #f8f9fa; padding: 20px; border-radius: 10px; border-left: 4px solid #28a745;">
+          <h4 style="margin: 0 0 15px 0; color: #28a745;">✅ Client Information</h4>
+          <p><strong>Name:</strong> ${clientData.clientName}</p>
+          <p><strong>Phone:</strong> ${clientData.phoneNumber}</p>
+          <p><strong>Email:</strong> ${clientData.email}</p>
+          <p><strong>Company:</strong> ${clientData.companyName}</p>
+          <p><strong>Service Type:</strong> ${clientData.serviceType}</p>
+          <p><strong>Requirements:</strong> ${clientData.requirements || 'None specified'}</p>
+        </div>
+      `;
+    }
+
+    // Show client error
+    function showClientError(message) {
+      document.getElementById('clientInfo').innerHTML = `
+        <div style="background: #f8d7da; padding: 20px; border-radius: 10px; border-left: 4px solid #dc3545;">
+          <h4 style="margin: 0 0 15px 0; color: #721c24;">❌ Error</h4>
+          <p>${message}</p>
+          <button onclick="loadClientsForSelection()" style="background: #dc3545; color: white; border: none; padding: 8px 16px; border-radius: 5px; cursor: pointer; margin-top: 10px;">🔄 Retry</button>
+        </div>
+      `;
+    }
+
+    // Handle quote form submission
+    document.getElementById('quoteForm').addEventListener('submit', async function(e) {
+      e.preventDefault();
+      
+      // Check if client is selected
+      if (!window.selectedClientData) {
+        alert('⚠️ Please select a client first before generating a quote.');
+        return;
+      }
+
+      const formData = new FormData(this);
+      const data = {};
+      formData.forEach((value, key) => data[key] = value);
+
+      // Use selected client data instead of localStorage
+      const clientData = window.selectedClientData;
+      
+      // Combine client and quote data
+      const fullData = { ...clientData, ...data };
+
+      console.log('Submitting quote with data:', fullData);
+
+      try {
+        const response = await fetch('/api/quote', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(fullData)
+        });
+
+        if (!response.ok) throw new Error('Network response was not ok');
+
+        const result = await response.json();
+        
+        // Check if the API returned an error
+        if (!result.success) {
+          throw new Error(result.message || 'Failed to generate quote');
+        }
+        
+        // Extract quote data from the response
+        const quoteData = result.quote;
+
+        // Store data globally for PDF generation
+        window.currentQuoteData = quoteData;
+        window.currentFormData = data;
+
+        // Build HTML table showing detailed costs per plan
+        let html = `<table>
+          <thead>
+            <tr>
+              <th>Details</th>
+              <th>Basic Plan</th>
+              <th>Standard Plan</th>
+              <th>Advanced Plan</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td>Per User Cost</td><td>$${quoteData.basic.perUserCost.toFixed(2)}</td><td>$${quoteData.standard.perUserCost.toFixed(2)}</td><td>$${quoteData.advanced.perUserCost.toFixed(2)}</td></tr>
+            <tr><td>Per GB Cost</td><td>$${quoteData.basic.perGBCost.toFixed(2)}</td><td>$${quoteData.standard.perGBCost.toFixed(2)}</td><td>$${quoteData.advanced.perGBCost.toFixed(2)}</td></tr>
+            <tr><td>Total User Cost</td><td>$${quoteData.basic.totalUserCost.toFixed(2)}</td><td>$${quoteData.standard.totalUserCost.toFixed(2)}</td><td>$${quoteData.advanced.totalUserCost.toFixed(2)}</td></tr>
+            <tr><td>Data Cost</td><td>$${quoteData.basic.dataCost.toFixed(2)}</td><td>$${quoteData.standard.dataCost.toFixed(2)}</td><td>$${quoteData.advanced.dataCost.toFixed(2)}</td></tr>
+            <tr><td>Migration Cost</td><td>$${quoteData.basic.migrationCost.toFixed(2)}</td><td>$${quoteData.standard.migrationCost.toFixed(2)}</td><td>$${quoteData.advanced.migrationCost.toFixed(2)}</td></tr>
+            <tr><td>Instance Cost</td><td>$${quoteData.basic.instanceCost.toFixed(2)}</td><td>$${quoteData.standard.instanceCost.toFixed(2)}</td><td>$${quoteData.advanced.instanceCost.toFixed(2)}</td></tr>
+            <tr style="font-weight:bold; background:#f0f0f0;">
+              <td>Total Cost</td>
+              <td>$${quoteData.basic.totalCost.toFixed(2)}</td>
+              <td>$${quoteData.standard.totalCost.toFixed(2)}</td>
+              <td>$${quoteData.advanced.totalCost.toFixed(2)}</td></tr>
+          </tbody>
+        </table>`;
+
+        // Add view quote template button
+        html += `
+          <div style="text-align: center; margin-top: 30px;">
+            <button onclick="generatePDF()" style="background-color: #28a745; color: white; border: none; padding: 15px 30px; font-size: 16px; border-radius: 6px; cursor: pointer; margin-right: 10px;">
+              📄 Generate PDF Quote
+            </button>
+            <button onclick="viewQuoteTemplate()" style="background-color: #007BFF; color: white; border: none; padding: 15px 30px; font-size: 16px; border-radius: 6px; cursor: pointer;">
+              👁️ View HTML Template
+            </button>
+          </div>`;
+
+        document.getElementById('resultContent').innerHTML = html;
+        document.getElementById('result').style.display = 'block';
+
+        // Store quote data for template
+        const templateData = {
+          users: data.users,
+          instanceType: data.instanceType,
+          instances: data.instances,
+          duration: data.duration,
+          migrationType: data.migrationType,
+          dataSize: data.dataSize,
+          quote: quoteData
+        };
+        localStorage.setItem('quoteData', JSON.stringify(templateData));
+        
+        // Debug logging
+        console.log('Stored template data:', templateData);
+        console.log('localStorage quoteData:', localStorage.getItem('quoteData'));
+        
+        // Show success message
+        const successMsg = document.createElement('div');
+        successMsg.style.cssText = 'background: #d4edda; color: #155724; padding: 10px; border-radius: 5px; margin: 20px 0; text-align: center;';
+        successMsg.innerHTML = '✅ Quote generated successfully! Data stored for template.';
+        document.getElementById('resultContent').appendChild(successMsg);
+
+      } catch (error) {
+        document.getElementById('resultContent').textContent = 'Error fetching quote: ' + error.message;
+      }
+    });
+
+    function goBack() {
+      window.location.href = '/';
+    }
+
+    function viewQuoteTemplate() {
+      window.location.href = '/quote-template';
+    }
+
+    // Function to generate PDF directly
+    async function generatePDF() {
+      try {
+        // Check if client is selected
+        if (!window.selectedClientData) {
+          alert('⚠️ Please select a client first before generating a PDF.');
+          return;
+        }
+
+        // Get client data from selected client
+        const clientData = window.selectedClientData;
+        
+        // Prepare data for PDF generation
+        const pdfData = {
+          client: {
+            name: clientData.clientName || 'N/A',
+            company: clientData.companyName || 'N/A',
+            email: clientData.email || 'N/A',
+            phone: clientData.phoneNumber || 'N/A',
+            serviceType: clientData.serviceType || 'N/A'
+          },
+          quote: window.currentQuoteData,
+          configuration: {
+            users: window.currentFormData.users,
+            instanceType: window.currentFormData.instanceType,
+            instances: window.currentFormData.instances,
+            duration: window.currentFormData.duration,
+            migrationType: window.currentFormData.migrationType,
+            dataSize: window.currentFormData.dataSize
+          }
+        };
+
+        // Show loading message
+        const pdfBtn = document.querySelector('button[onclick="generatePDF()"]');
+        const originalText = pdfBtn.textContent;
+        pdfBtn.textContent = '🔄 Generating PDF...';
+        pdfBtn.disabled = true;
+
+        // Call PDF generation endpoint
+        const response = await fetch('/api/generate-pdf', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(pdfData)
+        });
+
+        if (!response.ok) {
+          throw new Error('PDF generation failed');
+        }
+
+        // Get the PDF blob
+        const pdfBlob = await response.blob();
+        
+        // Create download link
+        const url = window.URL.createObjectURL(pdfBlob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `quote_${clientData.clientName || 'client'}_${new Date().toISOString().split('T')[0]}.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+
+        // Show success message
+        alert('✅ PDF generated successfully!');
+        
+      } catch (error) {
+        console.error('Error generating PDF:', error);
+        alert('❌ PDF generation failed: ' + error.message);
+      } finally {
+        // Reset button
+        const pdfBtn = document.querySelector('button[onclick="generatePDF()"]');
+        pdfBtn.textContent = '📄 Generate PDF Quote';
+        pdfBtn.disabled = false;
+      }
+    }
+  </script>
+</body>
+</html>

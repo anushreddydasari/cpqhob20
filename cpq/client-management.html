@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Client Management - CPQ System</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+        }
+
+        .header h1 {
+            margin: 0;
+            font-size: 2.5rem;
+            font-weight: 300;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            margin: 0;
+            opacity: 0.9;
+            font-size: 1.1rem;
+        }
+
+        .back-btn {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(255,255,255,0.2);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
+        }
+
+        .back-btn:hover {
+            background: rgba(255,255,255,0.3);
+            transform: translateY(-2px);
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 30px 20px;
+        }
+
+        .section {
+            background: white;
+            padding: 30px;
+            border-radius: 20px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+            margin-bottom: 30px;
+        }
+
+        .section h2 {
+            color: #4a5568;
+            margin-bottom: 25px;
+            font-size: 1.8rem;
+            text-align: center;
+        }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 25px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group.full-width {
+            grid-column: 1 / -1;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #4a5568;
+            font-weight: 600;
+            font-size: 0.95rem;
+        }
+
+        input, select, textarea {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid #e2e8f0;
+            border-radius: 10px;
+            font-size: 1rem;
+            transition: border-color 0.3s ease;
+            background: #f8fafc;
+        }
+
+        input:focus, select:focus, textarea:focus {
+            outline: none;
+            border-color: #667eea;
+            background: white;
+        }
+
+        button[type="submit"] {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 15px 40px;
+            font-size: 1.1rem;
+            border-radius: 25px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: transform 0.3s ease;
+            display: block;
+            margin: 0 auto;
+        }
+
+        button[type="submit"]:hover {
+            transform: translateY(-2px);
+        }
+
+        .clients-grid {
+            display: grid;
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .client-card {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 15px;
+            border-left: 4px solid #667eea;
+            transition: transform 0.2s ease;
+        }
+
+        .client-card:hover {
+            transform: translateY(-2px);
+        }
+
+        .client-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .client-name {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: #4a5568;
+        }
+
+        .client-company {
+            color: #718096;
+            font-weight: 500;
+        }
+
+        .client-details {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+
+        .client-detail {
+            font-size: 0.9rem;
+        }
+
+        .client-detail strong {
+            color: #4a5568;
+        }
+
+        .client-actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        .action-btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 500;
+            transition: all 0.2s ease;
+        }
+
+        .edit-btn {
+            background: #17a2b8;
+            color: white;
+        }
+
+        .edit-btn:hover {
+            background: #138496;
+        }
+
+        .delete-btn {
+            background: #dc3545;
+            color: white;
+        }
+
+        .delete-btn:hover {
+            background: #c82333;
+        }
+
+        .message {
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            text-align: center;
+            font-weight: 500;
+        }
+
+        .success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .loading {
+            text-align: center;
+            color: #718096;
+            font-style: italic;
+        }
+
+        @media (max-width: 768px) {
+            .form-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .client-details {
+                grid-template-columns: 1fr;
+            }
+            
+            .header h1 {
+                font-size: 2rem;
+            }
+            
+            .container {
+                padding: 20px 15px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <button class="back-btn" onclick="goBack()">← Back to Dashboard</button>
+        <h1>👥 Client Management</h1>
+        <p>Add, view, and manage your client database</p>
+    </div>
+
+    <div class="container">
+        <!-- Add New Client Section -->
+        <div class="section">
+            <h2>➕ Add New Client</h2>
+            <form id="clientForm">
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="clientName">Client Name *</label>
+                        <input type="text" id="clientName" name="clientName" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="companyName">Company Name *</label>
+                        <input type="text" id="companyName" name="companyName" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="email">Email Address *</label>
+                        <input type="email" id="email" name="email" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="phoneNumber">Phone Number *</label>
+                        <input type="tel" id="phoneNumber" name="phoneNumber" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="serviceType">Service Type *</label>
+                        <select id="serviceType" name="serviceType" required>
+                            <option value="">Select Service Type</option>
+                            <option value="Migration">Migration</option>
+                            <option value="Consulting">Consulting</option>
+                            <option value="Support">Support</option>
+                            <option value="Custom">Custom</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="requirements">Requirements</label>
+                        <textarea id="requirements" name="requirements" rows="3" placeholder="Describe specific requirements, timeline, or special considerations..."></textarea>
+                    </div>
+                </div>
+                
+                <button type="submit">💾 Save Client</button>
+            </form>
+        </div>
+
+        <!-- Recent Clients Section -->
+        <div class="section">
+            <h2>📋 Recent Clients (Last 5)</h2>
+            <div id="message"></div>
+            <div id="clientsList">
+                <div class="loading">Loading clients...</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Load clients on page load
+        window.onload = function() {
+            loadRecentClients();
+        };
+
+        // Load the last 5 clients
+        async function loadRecentClients() {
+            console.log('Loading recent clients...');
+            try {
+                const response = await fetch('/api/clients');
+                console.log('Response status:', response.status);
+                if (response.ok) {
+                    const result = await response.json();
+                    console.log('API response:', result);
+                    if (result.success) {
+                        console.log('Clients found:', result.clients.length);
+                        displayClients(result.clients.slice(-5)); // Show last 5 clients
+                    } else {
+                        console.error('API error:', result.message);
+                        showMessage('Error loading clients: ' + result.message, 'error');
+                    }
+                } else {
+                    throw new Error('Failed to fetch clients');
+                }
+            } catch (error) {
+                console.error('Error loading clients:', error);
+                showMessage('Error loading clients: ' + error.message, 'error');
+            }
+        }
+
+        // Display clients in cards
+        function displayClients(clients) {
+            const container = document.getElementById('clientsList');
+            
+            if (clients.length === 0) {
+                container.innerHTML = '<p style="text-align: center; color: #718096;">No clients found. Add your first client above!</p>';
+                return;
+            }
+
+            let html = '';
+            clients.forEach((client, index) => {
+                html += `
+                    <div class="client-card">
+                        <div class="client-header">
+                            <div>
+                                <div class="client-name">${client.clientName}</div>
+                                <div class="client-company">${client.companyName}</div>
+                            </div>
+                        </div>
+                        <div class="client-details">
+                            <div class="client-detail">
+                                <strong>Email:</strong> ${client.email}
+                            </div>
+                            <div class="client-detail">
+                                <strong>Phone:</strong> ${client.phoneNumber}
+                            </div>
+                            <div class="client-detail">
+                                <strong>Service:</strong> ${client.serviceType}
+                            </div>
+                            <div class="client-detail">
+                                <strong>Requirements:</strong> ${client.requirements || 'None specified'}
+                            </div>
+                        </div>
+                        <div class="client-actions">
+                            <button class="action-btn edit-btn" onclick="editClient('${client._id || index}')">✏️ Edit</button>
+                            <button class="action-btn delete-btn" onclick="deleteClient('${client._id || index}')">🗑️ Delete</button>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            container.innerHTML = html;
+        }
+
+        // Handle form submission
+        document.getElementById('clientForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            console.log('Form submitted');
+            
+            const formData = new FormData(this);
+            const data = {};
+            formData.forEach((value, key) => data[key] = value);
+            
+            console.log('Form data to send:', data);
+
+            try {
+                console.log('Sending POST request to /api/clients');
+                const response = await fetch('/api/clients', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+
+                console.log('Response status:', response.status);
+                if (response.ok) {
+                    const result = await response.json();
+                    console.log('Success response:', result);
+                    showMessage('✅ Client added successfully!', 'success');
+                    this.reset(); // Clear form
+                    loadRecentClients(); // Refresh client list
+                } else {
+                    const result = await response.json();
+                    console.error('Error response:', result);
+                    throw new Error(result.message || 'Failed to add client');
+                }
+            } catch (error) {
+                console.error('Error adding client:', error);
+                showMessage('❌ Error adding client: ' + error.message, 'error');
+            }
+        });
+
+        // Show message
+        function showMessage(message, type) {
+            const messageDiv = document.getElementById('message');
+            messageDiv.innerHTML = `<div class="message ${type}">${message}</div>`;
+            
+            // Auto-hide success messages after 3 seconds
+            if (type === 'success') {
+                setTimeout(() => {
+                    messageDiv.innerHTML = '';
+                }, 3000);
+            }
+        }
+
+        // Edit client (placeholder for future implementation)
+        function editClient(clientId) {
+            alert('Edit functionality coming soon! Client ID: ' + clientId);
+        }
+
+        // Delete client
+        async function deleteClient(clientId) {
+            if (confirm('Are you sure you want to delete this client?')) {
+                try {
+                    const response = await fetch(`/api/clients/${clientId}`, {
+                        method: 'DELETE'
+                    });
+
+                    if (response.ok) {
+                        showMessage('✅ Client deleted successfully!', 'success');
+                        loadRecentClients(); // Refresh client list
+                    } else {
+                        const result = await response.json();
+                        throw new Error(result.message || 'Failed to delete client');
+                    }
+                } catch (error) {
+                    showMessage('❌ Error deleting client: ' + error.message, 'error');
+                }
+            }
+        }
+
+        // Go back to dashboard
+        function goBack() {
+            window.location.href = '/';
+        }
+    </script>
+</body>
+</html>

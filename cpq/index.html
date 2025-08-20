@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CPQ Dashboard - Quote Generator</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+
+        .dashboard-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 30px;
+            margin-bottom: 30px;
+            text-align: center;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            color: #4a5568;
+            margin-bottom: 10px;
+            font-weight: 700;
+        }
+
+        .header p {
+            font-size: 1.1rem;
+            color: #718096;
+            font-weight: 500;
+        }
+
+        .actions-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 25px;
+            margin-bottom: 30px;
+        }
+
+        .action-card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 30px;
+            text-align: center;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            cursor: pointer;
+            border: 2px solid transparent;
+        }
+
+        .action-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
+            border-color: #667eea;
+        }
+
+        .action-icon {
+            font-size: 3rem;
+            margin-bottom: 20px;
+            color: #667eea;
+        }
+
+        .action-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: #4a5568;
+            margin-bottom: 15px;
+        }
+
+        .action-description {
+            font-size: 1rem;
+            color: #718096;
+            line-height: 1.6;
+            margin-bottom: 20px;
+        }
+
+        .action-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 25px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s ease;
+        }
+
+        .action-btn:hover {
+            transform: scale(1.05);
+        }
+
+        @media (max-width: 768px) {
+            .dashboard-container {
+                padding: 15px;
+            }
+            
+            .header h1 {
+                font-size: 2rem;
+            }
+            
+            .actions-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="dashboard-container">
+        <!-- Header -->
+        <div class="header">
+            <h1>🚀 CPQ Dashboard</h1>
+            <p>Configure • Price • Quote • Generate</p>
+        </div>
+
+        <!-- Main Actions -->
+        <div class="actions-grid">
+            <div class="action-card" onclick="goToQuoteGenerator()">
+                <div class="action-icon">🧮</div>
+                <div class="action-title">Generate Quote</div>
+                <div class="action-description">
+                    Create professional quotes instantly with our CPQ calculator. 
+                    Configure pricing, calculate costs, and generate PDFs.
+                </div>
+                <button class="action-btn">Start Quote Generation</button>
+            </div>
+
+            <div class="action-card" onclick="goToClientManagement()">
+                <div class="action-icon">👥</div>
+                <div class="action-title">Manage Clients</div>
+                <div class="action-description">
+                    Add new clients, update information, and maintain your 
+                    client database with full CRUD operations.
+                </div>
+                <button class="action-btn">Manage Clients</button>
+            </div>
+
+            <div class="action-card" onclick="goToHubSpotData()">
+                <div class="action-icon">🔗</div>
+                <div class="action-title">HubSpot Integration</div>
+                <div class="action-description">
+                    View and manage your HubSpot client data. Test connections, 
+                    fetch contacts, and integrate with your CPQ system.
+                </div>
+                <button class="action-btn">View HubSpot Data</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Load dashboard data
+        window.onload = function() {
+            // Dashboard is now simplified - no stats to load
+        };
+
+        // Navigation functions
+        function goToQuoteGenerator() {
+            // Clear any existing client data to start fresh
+            localStorage.removeItem('clientData');
+            window.location.href = '/quote-calculator';
+        }
+
+        function goToClientManagement() {
+            window.location.href = '/client-management';
+        }
+
+        function goToHubSpotData() {
+            window.location.href = '/hubspot-data';
+        }
+    </script>
+</body>
+</html>
