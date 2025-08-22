@@ -162,6 +162,27 @@
                 </div>
                 <button class="action-btn">View HubSpot Data</button>
             </div>
+
+            <div class="action-card" onclick="goToQuoteManagement()">
+                <div class="action-icon">📊</div>
+                <div class="action-title">Quote Management</div>
+                <div class="action-description">
+                    Send Gmail, generate PDFs by quote ID/username, and manage 
+                    quotes from your database.
+                </div>
+                <button class="action-btn">Manage Quotes</button>
+            </div>
+
+            <!-- Template Management Card -->
+            <div class="action-card" onclick="goToTemplateManagement()">
+                <div class="action-icon">💾</div>
+                <div class="action-title">Template Management</div>
+                <div class="action-description">
+                    Create, organize, and manage your email, PDF, and quote 
+                    templates with advanced features.
+                </div>
+                <button class="action-btn">Manage Templates</button>
+            </div>
         </div>
     </div>
 
@@ -184,6 +205,15 @@
 
         function goToHubSpotData() {
             window.location.href = '/hubspot-data';
+        }
+
+        function goToQuoteManagement() {
+            window.location.href = '/quote-management';
+        }
+
+        // Template Management navigation
+        function goToTemplateManagement() {
+            window.location.href = '/template-management';
         }
     </script>
 </body>

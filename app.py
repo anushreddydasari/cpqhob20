@@ -1,13 +1,13 @@
 from flask import Flask, request, jsonify, render_template_string, send_from_directory
 from flask_cors import CORS
-from datetime import datetime
+from datetime import datetime, timedelta
 import os
 from dotenv import load_dotenv
 from mongodb_collections import (
     EmailCollection, SMTPCollection, QuoteCollection,
     ClientCollection, PricingCollection, 
     HubSpotContactCollection, HubSpotIntegrationCollection,
-    FormTrackingCollection
+    FormTrackingCollection, TemplateCollection
 )
 from cpq.pricing_logic import calculate_quote
 from flask import send_file
@@ -887,11 +887,794 @@ This is an automated message. Please do not reply to this email address.
             "error": f"Failed to send signature form email: {str(e)}"
         }), 500
 
+# New Quote Management Routes
+@app.route('/quote-management')
+def serve_quote_management():
+    return send_from_directory('cpq', 'quote-management.html')
+
+@app.route('/template-management')
+def serve_template_management():
+    return send_from_directory('cpq', 'template-management.html')
+
+@app.route('/api/email/send-quote', methods=['POST'])
+def send_quote_email_new():
+    try:
+        data = request.json
+        recipient_email = data.get('recipient_email')
+        recipient_name = data.get('recipient_name')
+        company_name = data.get('company_name')
+        client_phone = data.get('client_phone', '')
+        service_type = data.get('service_type')
+        requirements = data.get('requirements', '')
+
+        if not all([recipient_email, recipient_name, company_name, service_type]):
+            return jsonify({'success': False, 'message': 'Missing required fields'})
+
+        # Create email content
+        subject = f"Quote Request - {service_type}"
+        body = f"""
+        Dear {recipient_name},
+
+        Thank you for your interest in our {service_type}.
+
+        Company: {company_name}
+        Phone: {client_phone}
+        Requirements: {requirements}
+
+        We will review your requirements and get back to you with a detailed quote within 24 hours.
+
+        Best regards,
+        Your Team
+        """
+
+        # Send email using your existing email service
+        email_service = EmailService()
+        success = email_service.send_email(recipient_email, subject, body)
+
+        if success:
+            return jsonify({'success': True, 'message': 'Quote email sent successfully'})
+        else:
+            return jsonify({'success': False, 'message': 'Failed to send email'})
+
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)})
+
+@app.route('/api/generate-pdf-by-lookup', methods=['POST'])
+def generate_pdf_by_lookup():
+    try:
+        data = request.json
+        lookup_type = data.get('lookup_type')
+        lookup_value = data.get('lookup_value')
+
+        if not lookup_type or not lookup_value:
+            return jsonify({'success': False, 'message': 'Missing lookup parameters'}), 400
+
+        # Import quote collection to fetch real data
+        from mongodb_collections.quote_collection import QuoteCollection
+        quote_collection = QuoteCollection()
+        
+        # Find quote based on lookup type
+        quote_data = None
+        if lookup_type == 'quoteId':
+            quote_data = quote_collection.get_quote_by_id(lookup_value)
+        elif lookup_type == 'username':
+            # Search by client name
+            all_quotes = quote_collection.get_all_quotes(limit=1000)
+            for quote in all_quotes:
+                if quote.get('client', {}).get('name', '').lower() == lookup_value.lower():
+                    quote_data = quote
+                    break
+        elif lookup_type == 'company':
+            # Search by company name
+            all_quotes = quote_collection.get_all_quotes(limit=1000)
+            for quote in all_quotes:
+                if quote.get('client', {}).get('company', '').lower() == lookup_value.lower():
+                    quote_data = quote
+                    break
+
+        if not quote_data:
+            return jsonify({'success': False, 'message': f'No quote found for {lookup_type}: {lookup_value}'}), 404
+
+        # Create professional PDF with real quote data
+        from reportlab.lib.pagesizes import letter
+        from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+        from reportlab.lib.styles import getSampleStyleSheet
+        from reportlab.lib import colors
+        from io import BytesIO
+
+        buffer = BytesIO()
+        doc = SimpleDocTemplate(buffer, pagesize=letter)
+        styles = getSampleStyleSheet()
+        story = []
+
+        # Header
+        title = Paragraph("Professional Quote", styles['Title'])
+        story.append(title)
+        story.append(Spacer(1, 20))
+
+        # Client Information
+        client = quote_data.get('client', {})
+        client_info = [
+            ['Client Name:', client.get('name', 'N/A')],
+            ['Email:', client.get('email', 'N/A')],
+            ['Company:', client.get('company', 'N/A')],
+            ['Phone:', client.get('phone', 'N/A')],
+            ['Service Type:', client.get('serviceType', 'N/A')]
+        ]
+        
+        client_table = Table(client_info, colWidths=[100, 300])
+        client_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (0, -1), colors.grey),
+            ('TEXTCOLOR', (0, 0), (0, -1), colors.whitesmoke),
+            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+            ('FONTNAME', (0, 0), (-1, -1), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, -1), 10),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 12),
+            ('BACKGROUND', (1, 0), (1, -1), colors.beige),
+            ('GRID', (0, 0), (-1, -1), 1, colors.black)
+        ]))
+        story.append(client_table)
+        story.append(Spacer(1, 20))
+
+        # Configuration Details
+        config = quote_data.get('configuration', {})
+        config_info = [
+            ['Configuration', 'Value'],
+            ['Number of Users:', str(config.get('users', 'N/A'))],
+            ['Instance Type:', config.get('instanceType', 'N/A')],
+            ['Number of Instances:', str(config.get('instances', 'N/A'))],
+            ['Duration (months):', str(config.get('duration', 'N/A'))],
+            ['Migration Type:', config.get('migrationType', 'N/A')],
+            ['Data Size (GB):', str(config.get('dataSize', 'N/A'))]
+        ]
+        
+        config_table = Table(config_info, colWidths=[200, 200])
+        config_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.blue),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, -1), 10),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 12),
+            ('GRID', (0, 0), (-1, -1), 1, colors.black)
+        ]))
+        story.append(config_table)
+        story.append(Spacer(1, 20))
+
+        # Quote Results
+        quote_results = quote_data.get('quote', {})
+        if quote_results:
+            story.append(Paragraph("Quote Results", styles['Heading2']))
+            story.append(Spacer(1, 12))
+            
+            # Add pricing details if available
+            if 'basic' in quote_results:
+                basic = quote_results['basic']
+                story.append(Paragraph(f"Basic Plan: ${basic.get('totalCost', 0):,.2f}", styles['Normal']))
+            if 'standard' in quote_results:
+                standard = quote_results['standard']
+                story.append(Paragraph(f"Standard Plan: ${standard.get('totalCost', 0):,.2f}", styles['Normal']))
+            if 'advanced' in quote_results:
+                advanced = quote_results['advanced']
+                story.append(Paragraph(f"Advanced Plan: ${advanced.get('totalCost', 0):,.2f}", styles['Normal']))
+
+        # Requirements
+        if client.get('requirements'):
+            story.append(Spacer(1, 20))
+            story.append(Paragraph("Requirements", styles['Heading2']))
+            story.append(Paragraph(client.get('requirements'), styles['Normal']))
+
+        # Footer
+        story.append(Spacer(1, 30))
+        story.append(Paragraph(f"Generated on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}", styles['Normal']))
+        story.append(Paragraph(f"Quote ID: {str(quote_data.get('_id', 'N/A'))}", styles['Normal']))
+
+        doc.build(story)
+        buffer.seek(0)
+
+        return send_file(
+            buffer,
+            as_attachment=True,
+            download_name=f"quote_{client.get('name', 'client')}_{datetime.now().strftime('%Y%m%d')}.pdf",
+            mimetype='application/pdf'
+        )
+
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+@app.route('/api/templates/save', methods=['POST'])
+def save_template():
+    try:
+        data = request.get_json()
+        
+        # Validate required fields
+        if not data or not data.get('name') or not data.get('type') or not data.get('content'):
+            return jsonify({'success': False, 'message': 'Missing required fields'}), 400
+        
+        # Create template document
+        template_data = {
+            'name': data['name'],
+            'type': data['type'],
+            'content': data['content'],
+            'description': data.get('description', ''),
+            'created_at': datetime.utcnow(),
+            'updated_at': datetime.utcnow()
+        }
+        
+        # Save to MongoDB using existing collection structure
+        from mongodb_collections.template_collection import TemplateCollection
+        template_collection = TemplateCollection()
+        template_id = template_collection.save_template(template_data)
+        
+        return jsonify({
+            'success': True, 
+            'message': 'Template saved successfully',
+            'template_id': str(template_id)
+        })
+        
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+@app.route('/api/templates/list')
+def list_templates():
+    try:
+        from mongodb_collections.template_collection import TemplateCollection
+        template_collection = TemplateCollection()
+        templates = template_collection.get_all_templates()
+        
+        # Format templates for frontend
+        formatted_templates = []
+        for template in templates:
+            formatted_templates.append({
+                'id': str(template['_id']),
+                'name': template['name'],
+                'type': template['type'],
+                'content': template['content'],
+                'description': template.get('description', ''),
+                'created_at': template['created_at'].isoformat() if template.get('created_at') else None
+            })
+        
+        return jsonify({
+            'success': True, 
+            'templates': formatted_templates,
+            'count': len(formatted_templates)
+        })
+        
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+@app.route('/api/templates/edit/<template_id>', methods=['PUT'])
+def edit_template(template_id):
+    try:
+        data = request.get_json()
+        
+        if not data or not data.get('name') or not data.get('type') or not data.get('content'):
+            return jsonify({'success': False, 'message': 'Missing required fields'}), 400
+        
+        # Update template
+        from mongodb_collections.template_collection import TemplateCollection
+        template_collection = TemplateCollection()
+        
+        update_data = {
+            'name': data['name'],
+            'type': data['type'],
+            'content': data['content'],
+            'description': data.get('description', ''),
+            'updated_at': datetime.utcnow()
+        }
+        
+        success = template_collection.update_template(template_id, update_data)
+        
+        if success:
+            return jsonify({'success': True, 'message': 'Template updated successfully'})
+        else:
+            return jsonify({'success': False, 'message': 'Template not found'}), 404
+            
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+@app.route('/api/templates/delete/<template_id>', methods=['DELETE'])
+def delete_template(template_id):
+    try:
+        from mongodb_collections.template_collection import TemplateCollection
+        template_collection = TemplateCollection()
+        
+        success = template_collection.delete_template(template_id)
+        
+        if success:
+            return jsonify({'success': True, 'message': 'Template deleted successfully'})
+        else:
+            return jsonify({'success': False, 'message': 'Template not found'}), 404
+            
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+@app.route('/api/templates/test-variables', methods=['POST'])
+def test_template_variables():
+    """Test template variable replacement with sample data"""
+    try:
+        data = request.get_json()
+        template_id = data.get('template_id')
+        
+        if not template_id:
+            return jsonify({'success': False, 'message': 'Template ID is required'}), 400
+        
+        # Get template from database
+        from mongodb_collections.template_collection import TemplateCollection
+        template_collection = TemplateCollection()
+        template = template_collection.get_template_by_id(template_id)
+        
+        if not template:
+            return jsonify({'success': False, 'message': 'Template not found'}), 404
+        
+        # Sample data for testing
+        sample_data = {
+            # Client Information
+            'client_name': 'John Smith',
+            'client_company': 'Tech Solutions Inc.',
+            'client_address': '123 Business St, Tech City, TC 12345',
+            'client_email': 'john@techsolutions.com',
+            'client_phone': '+1-555-0123',
+            'client_title': 'Chief Technology Officer',
+            
+            # Service Information
+            'service_type': 'Web Development',
+            'service_description': 'Custom e-commerce website with payment integration',
+            'requirements': 'Responsive design, mobile optimization, SEO features',
+            'deliverables': 'Fully functional website, admin panel, user documentation',
+            
+            # Pricing
+            'unit_price': '5000',
+            'total_cost': '5000',
+            'additional_service_1': 'SEO Optimization',
+            'additional_service_1_desc': 'Search engine optimization and analytics setup',
+            'quantity_1': '1',
+            'price_1': '1000',
+            'total_1': '1000',
+            'additional_service_2': 'Maintenance Package',
+            'additional_service_2_desc': '3 months of post-launch support',
+            'quantity_2': '1',
+            'price_2': '500',
+            'total_2': '500',
+            
+            # Company Information
+            'company_name': 'Digital Creations LLC',
+            'company_address': '456 Innovation Ave, Digital City, DC 67890',
+            'company_website': 'www.digitalcreations.com',
+            'company_email': 'info@digitalcreations.com',
+            'company_phone': '+1-555-9876',
+            'provider_representative': 'Sarah Johnson',
+            'provider_title': 'Project Manager',
+            
+            # Agreement Details
+            'agreement_title': 'Web Development Services Agreement',
+            'effective_date': '2024-01-15',
+            'start_date': '2024-01-20',
+            'end_date': '2024-03-20',
+            'project_duration': '2 months',
+            'milestone_1': 'Design Approval',
+            'milestone_1_date': '2024-02-01',
+            'milestone_2': 'Development Complete',
+            'milestone_2_date': '2024-03-01',
+            'final_delivery_date': '2024-03-20',
+            
+            # Payment Terms
+            'payment_schedule': '50% upfront, 50% upon completion',
+            'payment_method': 'Bank Transfer',
+            'payment_due_dates': 'Upfront: Jan 20, Final: Mar 20',
+            'late_payment_terms': '2% monthly fee on overdue amounts',
+            'overage_charges': '$100 per additional feature',
+            
+            # Legal Terms
+            'confidentiality_period': '5 years',
+            'non_disclosure_terms': 'Standard NDA terms apply',
+            'data_protection_terms': 'GDPR compliant',
+            'return_materials_terms': 'All materials returned upon completion',
+            'warranty_period': '1 year',
+            'warranty_coverage': 'Standard warranty applies',
+            'liability_limitations': 'Limited to total contract value',
+            'force_majeure_terms': 'Standard force majeure clauses apply',
+            'service_standards': 'Industry best practices',
+            'quality_assurance': 'Comprehensive testing and validation',
+            'change_management': 'Change requests require written approval',
+            'issue_resolution': '24-hour response time for critical issues',
+            'client_responsibilities': 'Provide content, feedback, and approvals',
+            'provider_responsibilities': 'Deliver quality code and documentation',
+            'ip_terms': 'Client owns final deliverables, provider owns tools',
+            'third_party_terms': 'Third-party services billed separately',
+            'termination_notice': '30 days written notice',
+            'termination_fees': 'Pro-rated based on completion',
+            'data_retrieval': 'All data returned within 30 days',
+            'renewal_terms': 'Annual maintenance agreement available',
+            'governing_law': 'State of Delaware',
+            'dispute_process': 'Mediation followed by arbitration',
+            'arbitration_terms': 'Binding arbitration in Delaware',
+            'legal_jurisdiction': 'Delaware State Courts',
+            
+            # Agreement Metadata
+            'agreement_validity_period': '2 years',
+            'agreement_id': 'AG-2024-001',
+            'agreement_version': '1.0',
+            'generation_date': '2024-01-15',
+            
+            # Dates
+            'provider_signature_date': '2024-01-15',
+            'client_signature_date': '2024-01-16'
+        }
+        
+        # Replace variables in template
+        processed_content = replace_template_variables(template['content'], sample_data)
+        
+        return jsonify({
+            'success': True,
+            'original_template': template['content'],
+            'processed_template': processed_content,
+            'sample_data': sample_data,
+            'message': 'Template variables replaced successfully'
+        })
+        
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+@app.route('/api/quotes/list')
+def list_quotes():
+    try:
+        from mongodb_collections.quote_collection import QuoteCollection
+        quote_collection = QuoteCollection()
+        
+        # Get all quotes with basic info for lookup
+        all_quotes = quote_collection.get_all_quotes(limit=100)
+        
+        # Format quotes for display
+        formatted_quotes = []
+        for quote in all_quotes:
+            client = quote.get('client', {})
+            formatted_quotes.append({
+                'id': str(quote.get('_id')),
+                'client_name': client.get('name', 'N/A'),
+                'client_email': client.get('email', 'N/A'),
+                'company': client.get('company', 'N/A'),
+                'service_type': client.get('serviceType', 'N/A'),
+                'status': quote.get('status', 'draft'),
+                'created_at': quote.get('created_at', 'N/A'),
+                'total_cost': quote.get('quote', {}).get('standard', {}).get('totalCost', 0)
+            })
+        
+        return jsonify({
+            'success': True, 
+            'quotes': formatted_quotes,
+            'count': len(formatted_quotes)
+        })
+        
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)})
+
+@app.route('/api/agreements/generate-from-quote', methods=['POST'])
+def generate_agreement_from_quote():
+    """Generate personalized agreement from quote data"""
+    try:
+        data = request.get_json()
+        quote_id = data.get('quote_id')
+        
+        if not quote_id:
+            return jsonify({'success': False, 'message': 'Quote ID is required'}), 400
+        
+        # Get quote data from database
+        from mongodb_collections.quote_collection import QuoteCollection
+        quote_collection = QuoteCollection()
+        quote = quote_collection.get_quote_by_id(quote_id)
+        
+        if not quote:
+            return jsonify({'success': False, 'message': 'Quote not found'}), 404
+        
+        # Convert ObjectId to string to avoid JSON serialization issues
+        quote['_id'] = str(quote['_id'])
+        
+        # Get agreement template
+        from mongodb_collections.template_collection import TemplateCollection
+        template_collection = TemplateCollection()
+        agreement_templates = template_collection.get_templates_by_type('agreement')
+        
+        # Prefer a saved agreement template, but gracefully fall back if none exist
+        template = None
+        if agreement_templates:
+            template = agreement_templates[0]
+            template['_id'] = str(template['_id'])  # Convert ObjectId to string
+        
+        # Extract quote data for template variables
+        client = quote.get('client', {})
+        quote_data = quote.get('quote', {})
+        configuration = quote.get('configuration', {})
+        
+        # Prepare data for template variable replacement
+        template_data = {
+            # Client Information
+            'client_name': client.get('name', 'N/A'),
+            'client_company': client.get('company', 'N/A'),
+            'client_address': client.get('address', 'N/A'),
+            'client_email': client.get('email', 'N/A'),
+            'client_phone': client.get('phone', 'N/A'),
+            'client_title': client.get('title', 'N/A'),
+            
+            # Service Information
+            'service_type': client.get('serviceType', 'N/A'),
+            'service_description': client.get('description', 'N/A'),
+            'requirements': client.get('requirements', 'N/A'),
+            'deliverables': client.get('deliverables', 'N/A'),
+            
+            # Quote Configuration Details
+            'quote_date': datetime.now().strftime('%B %d, %Y'),
+            'migration_type': configuration.get('migrationType', 'N/A'),
+            'project_duration': configuration.get('duration', 'N/A'),
+            'number_of_users': configuration.get('users', 'N/A'),
+            'instance_type': configuration.get('instanceType', 'N/A'),
+            'number_of_instances': configuration.get('instances', 'N/A'),
+            'data_size': configuration.get('dataSize', 'N/A'),
+            
+            # Pricing Breakdown - Basic Plan
+            'basic_per_user_cost': str(quote_data.get('basic', {}).get('perUserCost', 0)),
+            'basic_user_total': str(quote_data.get('basic', {}).get('userCost', 0)),
+            'basic_data_cost': str(quote_data.get('basic', {}).get('dataCost', 0)),
+            'basic_migration_cost': str(quote_data.get('basic', {}).get('migrationCost', 0)),
+            'basic_instance_cost': str(quote_data.get('basic', {}).get('instanceCost', 0)),
+            'basic_plan_total': str(quote_data.get('basic', {}).get('totalCost', 0)),
+            
+            # Pricing Breakdown - Standard Plan
+            'standard_per_user_cost': str(quote_data.get('standard', {}).get('perUserCost', 0)),
+            'standard_user_total': str(quote_data.get('standard', {}).get('userCost', 0)),
+            'standard_data_cost': str(quote_data.get('standard', {}).get('dataCost', 0)),
+            'standard_migration_cost': str(quote_data.get('standard', {}).get('migrationCost', 0)),
+            'standard_instance_cost': str(quote_data.get('standard', {}).get('instanceCost', 0)),
+            'standard_plan_total': str(quote_data.get('standard', {}).get('totalCost', 0)),
+            
+            # Pricing Breakdown - Advanced Plan
+            'advanced_per_user_cost': str(quote_data.get('advanced', {}).get('perUserCost', 0)),
+            'advanced_user_total': str(quote_data.get('advanced', {}).get('userCost', 0)),
+            'advanced_data_cost': str(quote_data.get('advanced', {}).get('dataCost', 0)),
+            'advanced_migration_cost': str(quote_data.get('advanced', {}).get('migrationCost', 0)),
+            'advanced_instance_cost': str(quote_data.get('advanced', {}).get('instanceCost', 0)),
+            'advanced_plan_total': str(quote_data.get('advanced', {}).get('totalCost', 0)),
+            
+            # Company Information (you can customize these)
+            'company_name': 'Your Company Name',
+            'company_address': 'Your Company Address',
+            'company_website': 'www.yourcompany.com',
+            'company_email': 'info@yourcompany.com',
+            'company_phone': '+1-555-0123',
+            'provider_representative': 'Your Name',
+            'provider_title': 'Project Manager',
+            
+            # Agreement Details
+            'agreement_title': f'{client.get("serviceType", "Service")} Agreement',
+            'effective_date': datetime.now().strftime('%Y-%m-%d'),
+            'start_date': (datetime.now() + timedelta(days=7)).strftime('%Y-%m-%d'),
+            'end_date': (datetime.now() + timedelta(days=configuration.get("duration", 3) * 30)).strftime('%Y-%m-%d'),
+            'project_duration': configuration.get("duration", 3),
+            'milestone_1': 'Project Planning',
+            'milestone_1_date': (datetime.now() + timedelta(days=14)).strftime('%Y-%m-%d'),
+            'milestone_2': 'Development Complete',
+            'milestone_2_date': (datetime.now() + timedelta(days=configuration.get("duration", 3) * 30 // 2)).strftime('%Y-%m-%d'),
+            'final_delivery_date': (datetime.now() + timedelta(days=configuration.get("duration", 3) * 30)).strftime('%Y-%m-%d'),
+            
+            # Payment Terms
+            'payment_schedule': '50% upfront, 50% upon completion',
+            'payment_method': 'Bank Transfer',
+            'payment_due_dates': 'Upfront: 7 days, Final: 90 days',
+            'late_payment_terms': '2% monthly fee on overdue amounts',
+            'overage_charges': '$100 per additional feature',
+            
+            # Legal Terms (standard business terms)
+            'confidentiality_period': '5 years',
+            'non_disclosure_terms': 'Standard NDA terms apply',
+            'data_protection_terms': 'GDPR compliant',
+            'return_materials_terms': 'All materials returned upon completion',
+            'warranty_period': '1 year',
+            'warranty_coverage': 'Standard warranty applies',
+            'liability_limitations': 'Limited to total contract value',
+            'force_majeure_terms': 'Standard force majeure clauses apply',
+            'service_standards': 'Industry best practices',
+            'quality_assurance': 'Comprehensive testing and validation',
+            'change_management': 'Change requests require written approval',
+            'issue_resolution': '24-hour response time for critical issues',
+            'client_responsibilities': 'Provide content, feedback, and approvals',
+            'provider_responsibilities': 'Deliver quality code and documentation',
+            'ip_terms': 'Client owns final deliverables, provider owns tools',
+            'third_party_terms': 'Third-party services billed separately',
+            'termination_notice': '30 days written notice',
+            'termination_fees': 'Pro-rated based on completion',
+            'data_retrieval': 'All data returned within 30 days',
+            'renewal_terms': 'Annual maintenance agreement available',
+            'governing_law': 'State of Delaware',
+            'dispute_process': 'Mediation followed by arbitration',
+            'arbitration_terms': 'Binding arbitration in Delaware',
+            'legal_jurisdiction': 'Delaware State Courts',
+            
+            # Agreement Metadata
+            'agreement_validity_period': '2 years',
+            'agreement_id': f'AG-{quote_id[:8].upper()}',
+            'agreement_version': '1.0',
+            'generation_date': datetime.now().strftime('%Y-%m-%d'),
+            
+            # Dates
+            'provider_signature_date': datetime.now().strftime('%Y-%m-%d'),
+            'client_signature_date': 'Pending'
+        }
+        
+        # Replace template variables with real data (or provide a minimal fallback)
+        if template and template.get('content'):
+            personalized_content = replace_template_variables(template['content'], template_data)
+        else:
+            personalized_content = (
+                f"Agreement for {template_data.get('client_name')} at {template_data.get('client_company')} "
+                f"for {template_data.get('service_type')} services. Total: ${template_data.get('standard_plan_total', '0')}"
+            )
+
+        # Build structured pricing table from quote data (Standard plan)
+        standard_plan = quote_data.get('standard', {}) if isinstance(quote_data, dict) else {}
+        user_cost = float(standard_plan.get('userCost', 0) or 0)
+        data_cost = float(standard_plan.get('dataCost', 0) or 0)
+        instance_cost = float(standard_plan.get('instanceCost', 0) or 0)
+        migration_cost = float(standard_plan.get('migrationCost', 0) or 0)
+        total_cost = float(standard_plan.get('totalCost', 0) or (user_cost + data_cost + instance_cost + migration_cost))
+
+        line_item_1_price = user_cost + data_cost + instance_cost
+        line_items = [
+            {
+                'job_requirement': f"{client.get('serviceType', 'Migration')} Data Migration",
+                'description': (
+                    f"Up to {configuration.get('users', 'N/A')} Users | "
+                    f"{configuration.get('migrationType', 'Migration').title()} | "
+                    f"{configuration.get('instanceType', 'Standard').title()} | "
+                    f"{configuration.get('dataSize', 'N/A')} GB"
+                ),
+                'migration_type': 'Managed Migration',
+                'price_usd': round(line_item_1_price, 2)
+            },
+            {
+                'job_requirement': 'Managed Migration Service',
+                'description': 'Project management, consulting, post-migration support',
+                'migration_type': 'Managed Migration',
+                'price_usd': round(migration_cost, 2)
+            }
+        ]
+        
+        return jsonify({
+            'success': True,
+            'agreement': {
+                'id': str(template['_id']) if template else 'default',
+                'name': template['name'] if template else 'Auto Generated',
+                'type': template['type'] if template else 'agreement',
+                'personalized_content': personalized_content,
+                'template_data': template_data,
+                'quote_id': quote_id,
+                'generated_at': datetime.now().isoformat()
+            },
+            'pricing_table': {
+                'rows': line_items,
+                'total_price': round(total_cost, 2),
+                'currency': 'USD'
+            },
+            'message': 'Personalized agreement generated successfully'
+        })
+        
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+def replace_template_variables(template_content, data):
+    """
+    Replace template variables with actual data
+    
+    Args:
+        template_content (str): Template content with {{variable}} placeholders
+        data (dict): Dictionary containing values to replace variables
+    
+    Returns:
+        str: Template content with variables replaced
+    """
+    try:
+        # Create a copy of the template content
+        result = template_content
+        
+        # Replace all variables found in the template
+        for key, value in data.items():
+            # Handle both {{key}} and {{key_name}} formats
+            placeholder = f"{{{{{key}}}}}"
+            if placeholder in result:
+                # Convert value to string and replace
+                result = result.replace(placeholder, str(value))
+        
+        # Replace any remaining variables with empty string or default values
+        import re
+        remaining_vars = re.findall(r'\{\{(\w+)\}\}', result)
+        for var in remaining_vars:
+            if f"{{{{{var}}}}}" in result:
+                # You can set default values here
+                default_values = {
+                    'company_name': 'Your Company Name',
+                    'company_address': 'Your Company Address',
+                    'company_website': 'www.yourcompany.com',
+                    'company_email': 'info@yourcompany.com',
+                    'company_phone': '+1-555-0123',
+                    'effective_date': 'Today',
+                    'start_date': 'TBD',
+                    'end_date': 'TBD',
+                    'project_duration': 'To be determined',
+                    'payment_schedule': 'Net 30',
+                    'payment_method': 'Bank Transfer',
+                    'payment_due_dates': '30 days from invoice',
+                    'late_payment_terms': '2% monthly fee',
+                    'confidentiality_period': '5 years',
+                    'non_disclosure_terms': 'Standard NDA terms apply',
+                    'data_protection_terms': 'GDPR compliant',
+                    'return_materials_terms': 'All materials returned upon completion',
+                    'warranty_period': '1 year',
+                    'warranty_coverage': 'Standard warranty applies',
+                    'termination_notice': '30 days written notice',
+                    'termination_fees': 'Pro-rated based on completion',
+                    'feature_1': 'Core functionality',
+                    'feature_2': 'User management',
+                    'feature_3': 'Reporting system',
+                    'feature_4': 'Integration capabilities',
+                    'feature_5': 'Support and maintenance',
+                    'additional_services': 'As requested',
+                    'acceptance_date': 'Upon agreement',
+                    # New quote-specific defaults
+                    'quote_date': 'Today',
+                    'migration_type': 'N/A',
+                    'number_of_users': 'N/A',
+                    'instance_type': 'N/A',
+                    'number_of_instances': 'N/A',
+                    'data_size': 'N/A',
+                    'basic_per_user_cost': '0',
+                    'basic_user_total': '0',
+                    'basic_data_cost': '0',
+                    'basic_migration_cost': '0',
+                    'basic_instance_cost': '0',
+                    'basic_plan_total': '0',
+                    'standard_per_user_cost': '0',
+                    'standard_user_total': '0',
+                    'standard_data_cost': '0',
+                    'standard_migration_cost': '0',
+                    'standard_instance_cost': '0',
+                    'standard_plan_total': '0',
+                    'advanced_per_user_cost': '0',
+                    'advanced_user_total': '0',
+                    'advanced_data_cost': '0',
+                    'advanced_migration_cost': '0',
+                    'advanced_instance_cost': '0',
+                    'advanced_plan_total': '0'
+                }
+                default_value = default_values.get(var, '')
+                result = result.replace(f"{{{{{var}}}}}", str(default_value))
+        
+        return result
+        
+    except Exception as e:
+        print(f"Error replacing template variables: {str(e)}")
+        return template_content
+
+def setup_default_templates():
+    """Automatically create default templates when Flask starts"""
+    try:
+        print("🚀 Setting up default templates...")
+        
+        # Check if templates already exist
+        template_collection = TemplateCollection()
+        existing_templates = template_collection.get_all_templates()
+        
+        print(f"✅ Templates already exist ({len(existing_templates)} found)")
+            
+    except Exception as e:
+        print(f"⚠️ Warning: Could not setup default templates: {str(e)}")
+
 if __name__ == '__main__':
+    # Setup default templates on startup
+    setup_default_templates()
+    
     app.run(
         debug=True,
         host='127.0.0.1',
-        port=5010,  # Back to port 5000 since we're in root
+        port=5000,  # Back to port 5000 since we're in root
         use_reloader=False,  # Prevents duplicate processes
         threaded=True
     )

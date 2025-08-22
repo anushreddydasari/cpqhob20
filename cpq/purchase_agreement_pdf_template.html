@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Purchase Agreement PDF Template</title>
+    <style>
+        body {
+            font-family: 'Times New Roman', serif;
+            line-height: 1.6;
+            color: #000;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: white;
+        }
+        .header {
+            text-align: center;
+            border-bottom: 3px solid #000;
+            padding-bottom: 20px;
+            margin-bottom: 30px;
+        }
+        .header h1 {
+            font-size: 24px;
+            font-weight: bold;
+            margin: 0;
+            text-transform: uppercase;
+        }
+        .header p {
+            font-size: 14px;
+            margin: 5px 0;
+        }
+        .section {
+            margin-bottom: 20px;
+        }
+        .section h2 {
+            font-size: 16px;
+            font-weight: bold;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            border-bottom: 1px solid #000;
+            padding-bottom: 5px;
+        }
+        .section h3 {
+            font-size: 14px;
+            font-weight: bold;
+            margin: 15px 0 8px 0;
+        }
+        .variable {
+            background: #f0f0f0;
+            padding: 1px 4px;
+            border-radius: 2px;
+            font-family: monospace;
+            color: #333;
+        }
+        .table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+            font-size: 12px;
+        }
+        .table th, .table td {
+            border: 1px solid #000;
+            padding: 6px;
+            text-align: left;
+        }
+        .table th {
+            background: #f0f0f0;
+            font-weight: bold;
+        }
+        .signature-section {
+            margin-top: 40px;
+            page-break-inside: avoid;
+        }
+        .signature-line {
+            border-top: 1px solid #000;
+            margin-top: 30px;
+            padding-top: 5px;
+        }
+        .two-column {
+            display: flex;
+            justify-content: space-between;
+            margin: 20px 0;
+        }
+        .column {
+            width: 48%;
+        }
+        .exhibit {
+            border: 2px solid #000;
+            padding: 15px;
+            margin: 20px 0;
+            background: #f9f9f9;
+        }
+        .exhibit h3 {
+            text-align: center;
+            margin-top: 0;
+            font-size: 16px;
+            font-weight: bold;
+        }
+        .legal-text {
+            font-size: 11px;
+            line-height: 1.4;
+        }
+        .page-break {
+            page-break-before: always;
+        }
+        .btn {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 1rem;
+            margin: 10px 5px;
+        }
+        .btn:hover {
+            background: #5a6fd8;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>PURCHASE AGREEMENT</h1>
+        <p><strong>Agreement Number:</strong> <span class="variable">{{agreement_number}}</span></p>
+        <p><strong>Effective Date:</strong> <span class="variable">{{effective_date}}</span></p>
+    </div>
+
+    <div class="section">
+        <h2>1. PARTIES</h2>
+        <div class="two-column">
+            <div class="column">
+                <h3>1.1 COMPANY (Service Provider)</h3>
+                <p><strong>Company Name:</strong> <span class="variable">{{company_name}}</span></p>
+                <p><strong>Address:</strong> <span class="variable">{{company_address}}</span></p>
+                <p><strong>Website:</strong> <span class="variable">{{company_website}}</span></p>
+                <p><strong>Email:</strong> <span class="variable">{{company_email}}</span></p>
+                <p><strong>Phone:</strong> <span class="variable">{{company_phone}}</span></p>
+            </div>
+            <div class="column">
+                <h3>1.2 CUSTOMER (Client)</h3>
+                <p><strong>Customer Name:</strong> <span class="variable">{{client_name}}</span></p>
+                <p><strong>Company:</strong> <span class="variable">{{client_company}}</span></p>
+                <p><strong>Address:</strong> <span class="variable">{{client_address}}</span></p>
+                <p><strong>Email:</strong> <span class="variable">{{client_email}}</span></p>
+                <p><strong>Phone:</strong> <span class="variable">{{client_phone}}</span></p>
+            </div>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>2. SERVICES AND SCOPE</h2>
+        <h3>2.1 Service Description</h3>
+        <p><strong>Service Type:</strong> <span class="variable">{{service_type}}</span></p>
+        <p><strong>Service Description:</strong> <span class="variable">{{service_description}}</span></p>
+        <p><strong>Requirements:</strong> <span class="variable">{{requirements}}</span></p>
+        
+        <h3>2.2 Project Timeline</h3>
+        <p><strong>Start Date:</strong> <span class="variable">{{start_date}}</span></p>
+        <p><strong>End Date:</strong> <span class="variable">{{end_date}}</span></p>
+        <p><strong>Duration:</strong> <span class="variable">{{project_duration}}</span></p>
+    </div>
+
+    <div class="section">
+        <h2>3. PRICING AND PAYMENT</h2>
+        <h3>3.1 Service Pricing</h3>
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Service Item</th>
+                    <th>Description</th>
+                    <th>Quantity</th>
+                    <th>Unit Price</th>
+                    <th>Total</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><span class="variable">{{service_type}}</span></td>
+                    <td><span class="variable">{{service_description}}</span></td>
+                    <td>1</td>
+                    <td>$<span class="variable">{{unit_price}}</span></td>
+                    <td>$<span class="variable">{{total_cost}}</span></td>
+                </tr>
+            </tbody>
+        </table>
+        <p><strong>Total Agreement Value:</strong> $<span class="variable">{{total_cost}}</span></p>
+        
+        <h3>3.2 Payment Terms</h3>
+        <p><strong>Payment Schedule:</strong> <span class="variable">{{payment_schedule}}</span></p>
+        <p><strong>Payment Method:</strong> <span class="variable">{{payment_method}}</span></p>
+        <p><strong>Due Dates:</strong> <span class="variable">{{payment_due_dates}}</span></p>
+        <p><strong>Late Payment:</strong> <span class="variable">{{late_payment_terms}}</span></p>
+    </div>
+
+    <div class="section">
+        <h2>4. CONFIDENTIALITY</h2>
+        <div class="legal-text">
+            <p><strong>4.1 Confidentiality Period:</strong> <span class="variable">{{confidentiality_period}}</span></p>
+            <p><strong>4.2 Non-Disclosure:</strong> <span class="variable">{{non_disclosure_terms}}</span></p>
+            <p><strong>4.3 Data Protection:</strong> <span class="variable">{{data_protection_terms}}</span></p>
+            <p><strong>4.4 Return of Materials:</strong> <span class="variable">{{return_materials_terms}}</span></p>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>5. WARRANTY AND SUPPORT</h2>
+        <div class="legal-text">
+            <p><strong>5.1 Warranty Period:</strong> <span class="variable">{{warranty_period}}</span></p>
+            <p><strong>5.2 Warranty Coverage:</strong> <span class="variable">{{warranty_coverage}}</span></p>
+            <p><strong>5.3 Support Terms:</strong> <span class="variable">{{support_terms}}</span></p>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>6. LIMITATION OF LIABILITY</h2>
+        <div class="legal-text">
+            <p><strong>6.1 Liability Cap:</strong> <span class="variable">{{liability_cap}}</span></p>
+            <p><strong>6.2 Exclusions:</strong> <span class="variable">{{liability_exclusions}}</span></p>
+            <p><strong>6.3 Indemnification:</strong> <span class="variable">{{indemnification_terms}}</span></p>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>7. TERMINATION</h2>
+        <div class="legal-text">
+            <p><strong>7.1 Termination Notice:</strong> <span class="variable">{{termination_notice}}</span></p>
+            <p><strong>7.2 Termination Fees:</strong> <span class="variable">{{termination_fees}}</span></p>
+            <p><strong>7.3 Post-Termination Obligations:</strong> <span class="variable">{{post_termination_obligations}}</span></p>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>8. GENERAL PROVISIONS</h2>
+        <div class="legal-text">
+            <p><strong>8.1 Governing Law:</strong> <span class="variable">{{governing_law}}</span></p>
+            <p><strong>8.2 Dispute Resolution:</strong> <span class="variable">{{dispute_resolution}}</span></p>
+            <p><strong>8.3 Force Majeure:</strong> <span class="variable">{{force_majeure_terms}}</span></p>
+            <p><strong>8.4 Entire Agreement:</strong> This document constitutes the entire agreement between the parties.</p>
+        </div>
+    </div>
+
+    <div class="exhibit">
+        <h3>EXHIBIT A: IN-SCOPE FEATURES</h3>
+        <p><strong>Core Features:</strong></p>
+        <ul>
+            <li><span class="variable">{{feature_1}}</span></li>
+            <li><span class="variable">{{feature_2}}</span></li>
+            <li><span class="variable">{{feature_3}}</span></li>
+            <li><span class="variable">{{feature_4}}</span></li>
+            <li><span class="variable">{{feature_5}}</span></li>
+        </ul>
+        <p><strong>Additional Services:</strong> <span class="variable">{{additional_services}}</span></p>
+        <p><strong>Out-of-Scope:</strong> <span class="variable">{{out_of_scope_items}}</span></p>
+    </div>
+
+    <div class="signature-section">
+        <h2>9. SIGNATURES</h2>
+        <p>By signing below, both parties acknowledge that they have read, understood, and agree to the terms and conditions of this Purchase Agreement.</p>
+        
+        <div class="two-column">
+            <div class="column">
+                <h3>COMPANY (Service Provider)</h3>
+                <p><strong>Company:</strong> <span class="variable">{{company_name}}</span></p>
+                <p><strong>Authorized Representative:</strong> <span class="variable">{{company_representative}}</span></p>
+                <p><strong>Title:</strong> <span class="variable">{{company_representative_title}}</span></p>
+                <p><strong>Date:</strong> <span class="variable">{{company_signature_date}}</span></p>
+                <div class="signature-line">
+                    <p><strong>Signature:</strong> _________________________</p>
+                </div>
+            </div>
+            <div class="column">
+                <h3>CUSTOMER (Client)</h3>
+                <p><strong>Company:</strong> <span class="variable">{{client_company}}</span></p>
+                <p><strong>Authorized Representative:</strong> <span class="variable">{{client_representative}}</span></p>
+                <p><strong>Title:</strong> <span class="variable">{{client_representative_title}}</span></p>
+                <p><strong>Date:</strong> <span class="variable">{{client_signature_date}}</span></p>
+                <div class="signature-line">
+                    <p><strong>Signature:</strong> _________________________</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>10. CONTACT INFORMATION</h2>
+        <p>For questions about this agreement, please contact:</p>
+        <p><strong>Email:</strong> <span class="variable">{{company_email}}</span></p>
+        <p><strong>Phone:</strong> <span class="variable">{{company_phone}}</span></p>
+        <p><strong>Address:</strong> <span class="variable">{{company_address}}</span></p>
+    </div>
+
+    <div style="text-align: center; margin-top: 30px;">
+        <button class="btn" onclick="saveTemplate()">💾 Save as Template</button>
+        <button class="btn" onclick="previewTemplate()">👁️ Preview</button>
+        <button class="btn" onclick="goBack()">← Back</button>
+    </div>
+
+    <script>
+        function saveTemplate() {
+            // This will be handled by your template management system
+            alert('PDF Template ready to save to your template system!');
+        }
+        
+        function previewTemplate() {
+            // Preview functionality
+            alert('Preview functionality will be implemented in your template system');
+        }
+        
+        function goBack() {
+            window.history.back();
+        }
+    </script>
+</body>
+</html>
