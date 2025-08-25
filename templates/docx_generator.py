@@ -211,25 +211,23 @@ class DocxGenerator:
         """Process HTML table elements"""
         try:
             # Extract table rows
-            rows = re.findall(r'<tr>(.*?)</tr>', table_html, re.DOTALL)
-            
+            rows = re.findall(r'<tr[^>]*>(.*?)</tr>', table_html, re.DOTALL | re.IGNORECASE)
+
             if rows:
-                # Create table
-                table = self.document.add_table(rows=len(rows), cols=0)
+                # Determine max columns across rows
+                all_cells = [re.findall(r'<t[dh][^>]*>(.*?)</t[dh]>', r, re.DOTALL | re.IGNORECASE) for r in rows]
+                max_cols = max((len(c) for c in all_cells), default=1)
+
+                table = self.document.add_table(rows=len(rows), cols=max_cols)
                 table.style = 'Table Grid'
-                
-                for i, row in enumerate(rows):
-                    # Extract cells
-                    cells = re.findall(r'<t[dh]>(.*?)</t[dh]>', row, re.DOTALL)
-                    
-                    if cells:
-                        # Ensure table has enough columns
-                        while len(table.rows[i].cells) < len(cells):
-                            table.add_column(Inches(1.5))
-                        
-                        for j, cell_text in enumerate(cells):
-                            if j < len(table.rows[i].cells):
-                                table.rows[i].cells[j].text = cell_text.strip()
+
+                for i, cells in enumerate(all_cells):
+                    for j in range(max_cols):
+                        text_html = cells[j] if j < len(cells) else ''
+                        # Clean HTML → plain text
+                        clean = self._strip_tags(text_html)
+                        clean = clean.replace('\n', ' ').strip()
+                        table.rows[i].cells[j].text = clean
         
         except Exception as e:
             print(f"Error processing table: {str(e)}")
