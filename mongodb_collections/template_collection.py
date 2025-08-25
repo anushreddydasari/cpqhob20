@@ -1,150 +1,191 @@
-from pymongo import MongoClient
-from bson import ObjectId
 from datetime import datetime
-import os
-from dotenv import load_dotenv
-
-load_dotenv()
+from bson import ObjectId
+import json
+from cpq.db import db
 
 class TemplateCollection:
     def __init__(self):
-        # Get MongoDB connection string from environment
-        mongo_uri = os.getenv('MONGO_URI', 'mongodb://localhost:27017/')
-        self.client = MongoClient(mongo_uri)
-        self.db = self.client['hubspot_cpq']
-        self.collection = self.db['templates']
-        
-        # Create indexes for better performance
-        self.collection.create_index([('name', 1)])
-        self.collection.create_index([('type', 1)])
-        self.collection.create_index([('created_at', -1)])
+        # Reuse the shared MongoDB connection configured in cpq.db
+        self.collection = db["agreement_templates"]
     
-    def save_template(self, template_data):
-        """Save a new template to MongoDB"""
+    def create_template(self, template_data):
+        """Create a new agreement template"""
         try:
-            # Ensure required fields
-            if not template_data.get('name') or not template_data.get('type') or not template_data.get('content'):
-                raise ValueError("Missing required template fields")
-            
-            # Add timestamps if not present
-            if 'created_at' not in template_data:
-                template_data['created_at'] = datetime.utcnow()
-            if 'updated_at' not in template_data:
-                template_data['updated_at'] = datetime.utcnow()
-            
-            # Insert template
-            result = self.collection.insert_one(template_data)
-            return result.inserted_id
-            
-        except Exception as e:
-            print(f"Error saving template: {e}")
-            raise e
-    
-    def get_all_templates(self, limit=100):
-        """Get all templates from MongoDB"""
-        try:
-            templates = list(self.collection.find().sort('created_at', -1).limit(limit))
-            return templates
-            
-        except Exception as e:
-            print(f"Error fetching templates: {e}")
-            return []
-    
-    def get_template_by_id(self, template_id):
-        """Get a specific template by ID"""
-        try:
-            if not ObjectId.is_valid(template_id):
-                return None
-            
-            template = self.collection.find_one({'_id': ObjectId(template_id)})
-            return template
-            
-        except Exception as e:
-            print(f"Error fetching template by ID: {e}")
-            return None
-    
-    def get_templates_by_type(self, template_type, limit=50):
-        """Get templates by type (email, pdf, quote)"""
-        try:
-            templates = list(self.collection.find({'type': template_type}).sort('created_at', -1).limit(limit))
-            return templates
-            
-        except Exception as e:
-            print(f"Error fetching templates by type: {e}")
-            return []
-    
-    def search_templates(self, search_term, limit=50):
-        """Search templates by name or content"""
-        try:
-            # Create text search query
-            query = {
-                '$or': [
-                    {'name': {'$regex': search_term, '$options': 'i'}},
-                    {'content': {'$regex': search_term, '$options': 'i'}},
-                    {'description': {'$regex': search_term, '$options': 'i'}}
-                ]
+            template = {
+                'name': template_data['name'],
+                'description': template_data.get('description', ''),
+                'content': template_data['content'],
+                'placeholders': template_data.get('placeholders', []),
+                'clauses': template_data.get('clauses', []),
+                'category': template_data.get('category', 'general'),
+                # html or pdf
+                'type': template_data.get('type', 'html'),
+                # file metadata for pdf templates
+                'file_name': template_data.get('file_name'),
+                'file_path': template_data.get('file_path'),
+                'file_size': template_data.get('file_size'),
+                'mime_type': template_data.get('mime_type'),
+                'is_active': template_data.get('is_active', True),
+                'version': 1,
+                'created_at': datetime.now(),
+                'updated_at': datetime.now(),
+                'created_by': template_data.get('created_by', 'admin'),
+                'tags': template_data.get('tags', [])
             }
             
-            templates = list(self.collection.find(query).sort('created_at', -1).limit(limit))
-            return templates
-            
+            result = self.collection.insert_one(template)
+            return str(result.inserted_id)
         except Exception as e:
-            print(f"Error searching templates: {e}")
+            print(f"Error creating template: {str(e)}")
+            return None
+    
+    def get_template_by_id(self, template_id):
+        """Get template by ID"""
+        try:
+            if isinstance(template_id, str):
+                template_id = ObjectId(template_id)
+            return self.collection.find_one({'_id': template_id})
+        except Exception as e:
+            print(f"Error getting template: {str(e)}")
+            return None
+    
+    def get_all_templates(self, active_only=True):
+        """Get all templates, optionally only active ones"""
+        try:
+            filter_query = {}
+            if active_only:
+                filter_query['is_active'] = True
+            
+            templates = list(self.collection.find(filter_query).sort('updated_at', -1))
+            
+            # Convert ObjectIds to strings for JSON serialization
+            for template in templates:
+                template['_id'] = str(template['_id'])
+                template['created_at'] = template['created_at'].isoformat()
+                template['updated_at'] = template['updated_at'].isoformat()
+            
+            return templates
+        except Exception as e:
+            print(f"Error getting templates: {str(e)}")
             return []
     
     def update_template(self, template_id, update_data):
         """Update an existing template"""
         try:
-            if not ObjectId.is_valid(template_id):
-                return False
+            if isinstance(template_id, str):
+                template_id = ObjectId(template_id)
             
-            # Add updated timestamp
-            update_data['updated_at'] = datetime.utcnow()
+            # Increment version
+            current_template = self.collection.find_one({'_id': template_id})
+            if current_template:
+                new_version = current_template.get('version', 1) + 1
+            else:
+                new_version = 1
             
-            # Update template
+            update_data['version'] = new_version
+            update_data['updated_at'] = datetime.now()
+            
             result = self.collection.update_one(
-                {'_id': ObjectId(template_id)},
+                {'_id': template_id},
                 {'$set': update_data}
             )
             
             return result.modified_count > 0
-            
         except Exception as e:
-            print(f"Error updating template: {e}")
+            print(f"Error updating template: {str(e)}")
             return False
     
     def delete_template(self, template_id):
-        """Delete a template by ID"""
+        """Soft delete a template (mark as inactive)"""
         try:
-            if not ObjectId.is_valid(template_id):
-                return False
+            if isinstance(template_id, str):
+                template_id = ObjectId(template_id)
             
-            result = self.collection.delete_one({'_id': ObjectId(template_id)})
-            return result.deleted_count > 0
+            result = self.collection.update_one(
+                {'_id': template_id},
+                {'$set': {'is_active': False, 'updated_at': datetime.now()}}
+            )
             
+            return result.modified_count > 0
         except Exception as e:
-            print(f"Error deleting template: {e}")
+            print(f"Error deleting template: {str(e)}")
             return False
     
-    def get_template_stats(self):
-        """Get template statistics"""
+    def get_templates_by_category(self, category):
+        """Get templates by category"""
         try:
-            total = self.collection.count_documents({})
-            email_count = self.collection.count_documents({'type': 'email'})
-            pdf_count = self.collection.count_documents({'type': 'pdf'})
-            quote_count = self.collection.count_documents({'type': 'quote'})
+            templates = list(self.collection.find({
+                'category': category,
+                'is_active': True
+            }).sort('updated_at', -1))
             
-            return {
-                'total': total,
-                'email': email_count,
-                'pdf': pdf_count,
-                'quote': quote_count
+            # Convert ObjectIds to strings
+            for template in templates:
+                template['_id'] = str(template['_id'])
+                template['created_at'] = template['created_at'].isoformat()
+                template['updated_at'] = template['updated_at'].isoformat()
+            
+            return templates
+        except Exception as e:
+            print(f"Error getting templates by category: {str(e)}")
+            return []
+    
+    def search_templates(self, search_term):
+        """Search templates by name, description, or content"""
+        try:
+            from bson.regex import Regex
+            
+            search_regex = Regex(search_term, 'i')
+            templates = list(self.collection.find({
+                '$or': [
+                    {'name': search_regex},
+                    {'description': search_regex},
+                    {'content': search_regex}
+                ],
+                'is_active': True
+            }).sort('updated_at', -1))
+            
+            # Convert ObjectIds to strings
+            for template in templates:
+                template['_id'] = str(template['_id'])
+                template['created_at'] = template['created_at'].isoformat()
+                template['updated_at'] = template['updated_at'].isoformat()
+            
+            return templates
+        except Exception as e:
+            print(f"Error searching templates: {str(e)}")
+            return []
+    
+    def create_template_version(self, template_id, new_content, user_id='admin'):
+        """Create a new version of an existing template"""
+        try:
+            if isinstance(template_id, str):
+                template_id = ObjectId(template_id)
+            
+            # Get current template
+            current_template = self.collection.find_one({'_id': template_id})
+            if not current_template:
+                return None
+            
+            # Create new version
+            new_version = {
+                'name': current_template['name'],
+                'description': current_template.get('description', ''),
+                'content': new_content,
+                'placeholders': current_template.get('placeholders', []),
+                'clauses': current_template.get('clauses', []),
+                'category': current_template.get('category', 'general'),
+                'is_active': True,
+                'version': current_template.get('version', 1) + 1,
+                'created_at': datetime.now(),
+                'updated_at': datetime.now(),
+                'created_by': user_id,
+                'tags': current_template.get('tags', []),
+                'parent_template_id': template_id
             }
             
+            result = self.collection.insert_one(new_version)
+            return str(result.inserted_id)
         except Exception as e:
-            print(f"Error getting template stats: {e}")
-            return {'total': 0, 'email': 0, 'pdf': 0, 'quote': 0}
-    
-    def close(self):
-        """Close MongoDB connection"""
-        self.client.close()
+            print(f"Error creating template version: {str(e)}")
+            return None

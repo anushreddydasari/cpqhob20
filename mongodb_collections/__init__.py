@@ -10,6 +10,7 @@ from .hubspot_contact_collection import HubSpotContactCollection
 from .hubspot_integration_collection import HubSpotIntegrationCollection
 from .form_tracking_collection import FormTrackingCollection
 from .template_collection import TemplateCollection
+from .hubspot_quote_collection import HubSpotQuoteCollection
 
 
 __all__ = [
@@ -21,5 +22,6 @@ __all__ = [
     'HubSpotContactCollection',
     'HubSpotIntegrationCollection',
     'FormTrackingCollection',
-    'TemplateCollection'
+    'TemplateCollection',
+    'HubSpotQuoteCollection'
 ]

@@ -13,7 +13,7 @@ try:
     client = pymongo.MongoClient(MONGO_URI, serverSelectionTimeoutMS=5000)
     # Test the connection
     client.admin.command('ping')
-    print("✅ MongoDB connection successful!")
+    print("MongoDB connection successful!")
     
     db = client["cpq_db"]
     quotes_collection = db["quotes"]
@@ -22,11 +22,11 @@ try:
     quote_status_collection = db["quote_status"]  # New collection for quote status tracking
     
 except pymongo.errors.ServerSelectionTimeoutError:
-    print("❌ MongoDB connection failed: Server not reachable")
+    print("MongoDB connection failed: Server not reachable")
     raise
 except pymongo.errors.ConnectionFailure:
-    print("❌ MongoDB connection failed: Connection error")
+    print("MongoDB connection failed: Connection error")
     raise
 except Exception as e:
-    print(f"❌ MongoDB connection failed: {str(e)}")
+    print(f"MongoDB connection failed: {str(e)}")
     raise
