@@ -13,6 +13,7 @@ from .template_collection import TemplateCollection
 from .hubspot_quote_collection import HubSpotQuoteCollection
 
 
+
 __all__ = [
     'EmailCollection',
     'SMTPCollection', 
@@ -23,5 +24,6 @@ __all__ = [
     'HubSpotIntegrationCollection',
     'FormTrackingCollection',
     'TemplateCollection',
-    'HubSpotQuoteCollection'
+    'HubSpotQuoteCollection',
+
 ]

@@ -90,7 +90,9 @@ class DocxGenerator:
     def _replace_placeholders(self, content, data):
         """Replace template placeholders with actual data"""
         try:
-            # Replace all placeholders in the format {{placeholder_name}}
+            
+            
+            # Replace all other placeholders in the format {{placeholder_name}}
             placeholder_pattern = r'\{\{(\w+)\}\}'
             
             def replace_placeholder(match):
@@ -102,6 +104,8 @@ class DocxGenerator:
         except Exception as e:
             print(f"Error replacing placeholders: {str(e)}")
             return content
+
+
     
     def _convert_html_to_docx(self, html_content):
         """Convert HTML content to DOCX format"""
@@ -235,6 +239,22 @@ class DocxGenerator:
 
                 table = self.document.add_table(rows=len(rows), cols=max_cols)
                 table.style = 'Table Grid'
+                try:
+                    table.autofit = False
+                except Exception:
+                    pass
+
+                # Compute equal column widths to approximate HTML width
+                try:
+                    section = self.document.sections[0]
+                    available_width_in = float((section.page_width - section.left_margin - section.right_margin)) / 914400.0
+                    col_width_in = max(0.5, available_width_in / max_cols)
+                    from docx.shared import Inches as _Inches
+                    for j in range(max_cols):
+                        for cell in table.columns[j].cells:
+                            cell.width = _Inches(col_width_in)
+                except Exception:
+                    pass
 
                 for i, cells in enumerate(all_cells):
                     for j in range(max_cols):
@@ -269,6 +289,31 @@ class DocxGenerator:
                             clean = re.sub(r'\s+', ' ', clean).strip()
                             if clean:
                                 cell.add_paragraph(clean)
+
+                # Style header row if first row has any <th>
+                try:
+                    header_is_th = bool(re.search(r'<th', rows[0], flags=re.IGNORECASE))
+                    if header_is_th:
+                        header_row = table.rows[0]
+                        for hdr_cell in header_row.cells:
+                            # Bold + center paragraphs
+                            if not hdr_cell.paragraphs:
+                                hdr_cell.add_paragraph('')
+                            for p in hdr_cell.paragraphs:
+                                p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                                for r in p.runs:
+                                    r.bold = True
+                            # Shading (light gray)
+                            try:
+                                tcPr = hdr_cell._tc.get_or_add_tcPr()
+                                shd = OxmlElement('w:shd')
+                                shd.set(qn('w:fill'), 'F1F3F5')
+                                shd.set(qn('w:val'), 'clear')
+                                tcPr.append(shd)
+                            except Exception:
+                                pass
+                except Exception:
+                    pass
         
         except Exception as e:
             print(f"Error processing table: {str(e)}")

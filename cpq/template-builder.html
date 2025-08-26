@@ -306,6 +306,50 @@
             pointer-events: none;
         }
 
+        .config-row select {
+            padding: 6px 10px;
+            border: 1px solid #ced4da;
+            border-radius: 4px;
+            background: white;
+            font-size: 0.9rem;
+        }
+
+        .config-row select:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.25);
+        }
+
+        .upload-row {
+            display: flex;
+            align-items: center;
+            margin-bottom: 12px;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .upload-row label {
+            min-width: 180px;
+            font-weight: 500;
+            color: #495057;
+        }
+
+        .upload-row select {
+            padding: 6px 10px;
+            border: 1px solid #ced4da;
+            border-radius: 4px;
+            background: white;
+            font-size: 0.9rem;
+        }
+
+        .upload-row select:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.25);
+        }
+
+
+
         /* Toolbar Styles */
         .toolbar {
             display: flex;
@@ -598,8 +642,8 @@
                     </div>
                 </div>
 
-                <!-- Pre-built Clauses -->
-                <div class="section">
+                <!-- Pre-built Clauses (hidden) -->
+                <div class="section" style="display:none;">
                     <h3>📋 Pre-built Clauses</h3>
                     <div class="form-group">
                         <button class="btn btn-warning" onclick="addClause('payment')">💰 Payment Terms</button>
@@ -664,6 +708,10 @@
                     
                     <div style="width: 1px; background: #dee2e6; margin: 0 10px;"></div>
                     
+                    
+                    
+                    <div style="width: 1px; background: #dee2e6; margin: 0 10px;"></div>
+                    
                     <button onclick="editor.chain().focus().undo().run()" class="undo">↶</button>
                     <button onclick="editor.chain().focus().redo().run()" class="redo">↷</button>
                 </div>
@@ -706,12 +754,16 @@
         </div>
     </div>
 
+    <!-- Signature Manager Modal -->
+
+
     <script>
         let editor;
         let useFallback = false;
         let fallbackEl;
         let placeholders = [];
         let clauses = [];
+        let availableFields = new Set();
 
         function resolveTipTapGlobals() {
             const Core = window.tiptap || window.tiptapCore || window['@tiptap/core'];
@@ -872,11 +924,17 @@
                     </div>
                     <div class="placeholder-actions">
                         <button onclick="insertPlaceholder('${placeholder.name}')" title="Insert">➕</button>
+                        <button onclick="removePlaceholderOccurrences('${placeholder.name}')" title="Remove from content">🧹</button>
                         <button onclick="removePlaceholder('${placeholder.name}')" title="Remove">🗑️</button>
                     </div>
                 `;
                 container.appendChild(item);
             });
+            // Add a bulk-clean button
+            const bulk = document.createElement('div');
+            bulk.style.marginTop = '8px';
+            bulk.innerHTML = `<button class="btn" onclick="removeAllPlaceholdersFromContent()">Remove All Placeholders from Content</button>`;
+            container.appendChild(bulk);
         }
 
         function addClause(type) {
@@ -1313,6 +1371,28 @@
             showStatus(msg, type);
         }
 
+        function removePlaceholderOccurrences(name) {
+            if (!name) return;
+            const token = new RegExp(`\\{\\{${name}\\}\\}`, 'g');
+            const html = editor.getHTML();
+            const next = html.replace(token, '');
+            editor.commands.setContent(next || '<p></p>');
+            showStatus(`✅ Removed {{${name}}} from content.`, 'success');
+        }
+
+        function removeAllPlaceholdersFromContent() {
+            let html = editor.getHTML();
+            // Remove known placeholders first
+            placeholders.forEach(p => {
+                const re = new RegExp(`\\{\\{${p.name}\\}\\}`, 'g');
+                html = html.replace(re, '');
+            });
+            // Remove any remaining tokens of the form {{word}}
+            html = html.replace(/\{\{\w+\}\}/g, '');
+            editor.commands.setContent(html || '<p></p>');
+            showStatus('✅ Removed all placeholders from content.', 'success');
+        }
+
         async function exportSavedTemplateDocx() {
             const templateId = prompt('Enter saved Template ID to export as DOCX');
             if (!templateId) return;
@@ -1343,6 +1423,35 @@
             } catch (e) {
                 showStatus(`❌ Error exporting: ${e.message}`, 'error');
             }
+        }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        function fileToBase64(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.readAsDataURL(file);
+                reader.onload = () => {
+                    const base64 = reader.result.split(',')[1]; // Remove data:image/...;base64, prefix
+                    resolve(base64);
+                };
+                reader.onerror = error => reject(error);
+            });
         }
 
         function insertImagePrompt() {

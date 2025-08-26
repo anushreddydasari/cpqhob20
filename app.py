@@ -7,7 +7,8 @@ from mongodb_collections import (
     EmailCollection, SMTPCollection, QuoteCollection,
     ClientCollection, PricingCollection, 
     HubSpotContactCollection, HubSpotIntegrationCollection,
-    FormTrackingCollection, TemplateCollection, HubSpotQuoteCollection
+    FormTrackingCollection, TemplateCollection, HubSpotQuoteCollection,
+
 )
 from cpq.pricing_logic import calculate_quote
 from flask import send_file
@@ -36,6 +37,7 @@ hubspot_quotes = HubSpotQuoteCollection()
 
 
 
+
 # Initialize PDF generator
 pdf_generator = PDFGenerator()
 
@@ -45,14 +47,36 @@ def _build_template_data_from_quote(quote: dict) -> dict:
     Returns a flat dict of placeholder keys → values.
     """
     client = quote.get('client', {}) if isinstance(quote, dict) else {}
+    configuration = quote.get('configuration', {}) if isinstance(quote, dict) else {}
     quote_block = quote.get('quote', {}) if isinstance(quote, dict) else {}
-    standard_total = (quote_block.get('standard', {}) or {}).get('totalCost', 0)
+    # Pricing blocks (may be missing)
+    basic = (quote_block.get('basic') or {}) if isinstance(quote_block, dict) else {}
+    standard = (quote_block.get('standard') or {}) if isinstance(quote_block, dict) else {}
+    advanced = (quote_block.get('advanced') or {}) if isinstance(quote_block, dict) else {}
+    standard_total = (standard or {}).get('totalCost', 0)
+
+    def _money(val):
+        try:
+            return f"${float(val or 0):,.2f}"
+        except Exception:
+            return "$0.00"
+
+    # Subtotals (user + data + instance) per plan
+    def _subtotal(plan: dict):
+        try:
+            return float(plan.get('totalUserCost', 0) or 0) + float(plan.get('dataCost', 0) or 0) + float(plan.get('instanceCost', 0) or 0)
+        except Exception:
+            return 0.0
+    basic_subtotal = _subtotal(basic)
+    standard_subtotal = _subtotal(standard)
+    advanced_subtotal = _subtotal(advanced)
 
     template_data = {
         'client_name': client.get('name', 'N/A'),
         'client_company': client.get('company', 'N/A'),
         'client_email': client.get('email', 'N/A'),
         'client_phone': client.get('phone', 'N/A'),
+        'client_title': client.get('title', client.get('job_title', '')),  # support HubSpot job title
         'company_name': 'Your Company LLC',
         'company_email': 'contact@yourcompany.com',
         'company_phone': '+1-555-0123',
@@ -60,6 +84,8 @@ def _build_template_data_from_quote(quote: dict) -> dict:
         'service_type': client.get('serviceType', 'Services'),
         'total_cost': standard_total,
         'amount': standard_total,
+        'total_cost_formatted': _money(standard_total),
+        'amount_formatted': _money(standard_total),
         'start_date': datetime.now().strftime('%B %d, %Y'),
         'end_date': (datetime.now() + timedelta(days=30)).strftime('%B %d, %Y'),
         'generation_date': datetime.now().strftime('%B %d, %Y'),
@@ -67,10 +93,70 @@ def _build_template_data_from_quote(quote: dict) -> dict:
         'payment_method': 'Bank transfer or check',
         'confidentiality_period': '5 years',
         'warranty_period': '1 year',
-        'termination_notice': '30 days written notice'
+        'termination_notice': '30 days written notice',
+
+
+
+        # CPQ configuration placeholders
+        'config_users': configuration.get('users', ''),
+        'config_instance_type': configuration.get('instanceType', ''),
+        'config_instances': configuration.get('instances', ''),
+        'config_duration_months': configuration.get('duration', ''),
+        'config_migration_type': configuration.get('migrationType', ''),
+        'config_data_size_gb': configuration.get('dataSize', ''),
+
+        # Quote results - Basic plan
+        'basic_per_user_cost': basic.get('perUserCost', 0),
+        'basic_total_user_cost': basic.get('totalUserCost', 0),
+        'basic_data_cost': basic.get('dataCost', 0),
+        'basic_migration_cost': basic.get('migrationCost', 0),
+        'basic_instance_cost': basic.get('instanceCost', 0),
+        'basic_total_cost': basic.get('totalCost', 0),
+        'basic_subtotal_cost': basic_subtotal,
+        'basic_subtotal_cost_formatted': _money(basic_subtotal),
+        'basic_per_user_cost_formatted': _money(basic.get('perUserCost', 0)),
+        'basic_total_user_cost_formatted': _money(basic.get('totalUserCost', 0)),
+        'basic_data_cost_formatted': _money(basic.get('dataCost', 0)),
+        'basic_migration_cost_formatted': _money(basic.get('migrationCost', 0)),
+        'basic_instance_cost_formatted': _money(basic.get('instanceCost', 0)),
+        'basic_total_cost_formatted': _money(basic.get('totalCost', 0)),
+
+        # Quote results - Standard plan
+        'standard_per_user_cost': standard.get('perUserCost', 0),
+        'standard_total_user_cost': standard.get('totalUserCost', 0),
+        'standard_data_cost': standard.get('dataCost', 0),
+        'standard_migration_cost': standard.get('migrationCost', 0),
+        'standard_instance_cost': standard.get('instanceCost', 0),
+        'standard_total_cost': standard.get('totalCost', 0),
+        'standard_subtotal_cost': standard_subtotal,
+        'standard_subtotal_cost_formatted': _money(standard_subtotal),
+        'standard_per_user_cost_formatted': _money(standard.get('perUserCost', 0)),
+        'standard_total_user_cost_formatted': _money(standard.get('totalUserCost', 0)),
+        'standard_data_cost_formatted': _money(standard.get('dataCost', 0)),
+        'standard_migration_cost_formatted': _money(standard.get('migrationCost', 0)),
+        'standard_instance_cost_formatted': _money(standard.get('instanceCost', 0)),
+        'standard_total_cost_formatted': _money(standard.get('totalCost', 0)),
+
+        # Quote results - Advanced plan
+        'advanced_per_user_cost': advanced.get('perUserCost', 0),
+        'advanced_total_user_cost': advanced.get('totalUserCost', 0),
+        'advanced_data_cost': advanced.get('dataCost', 0),
+        'advanced_migration_cost': advanced.get('migrationCost', 0),
+        'advanced_instance_cost': advanced.get('instanceCost', 0),
+        'advanced_total_cost': advanced.get('totalCost', 0),
+        'advanced_subtotal_cost': advanced_subtotal,
+        'advanced_subtotal_cost_formatted': _money(advanced_subtotal),
+        'advanced_per_user_cost_formatted': _money(advanced.get('perUserCost', 0)),
+        'advanced_total_user_cost_formatted': _money(advanced.get('totalUserCost', 0)),
+        'advanced_data_cost_formatted': _money(advanced.get('dataCost', 0)),
+        'advanced_migration_cost_formatted': _money(advanced.get('migrationCost', 0)),
+        'advanced_instance_cost_formatted': _money(advanced.get('instanceCost', 0)),
+        'advanced_total_cost_formatted': _money(advanced.get('totalCost', 0))
     }
 
     return template_data
+
+
 
 def _find_quote_by_identifier(identifier: str):
     """Find a quote by ID or by client name/company (case-insensitive). Returns the most recent match.
@@ -151,9 +237,7 @@ def serve_hubspot_data():
 def serve_hubspot_cpq_setup():
     return send_from_directory('hubspot', 'hubspot-cpq-setup.html')
 
-@app.route('/signature-form')
-def serve_signature_form():
-    return send_from_directory('templates', 'signature_form.html')
+
 
 # Serve uploaded files (e.g., images) for use in templates
 @app.route('/uploads/<path:filename>')
@@ -418,7 +502,7 @@ def create_form_session():
         data = request.get_json()
         quote_id = data.get('quote_id')
         client_data = data.get('client_data')
-        form_type = data.get('form_type', 'signature')
+        form_type = data.get('form_type', 'form_interaction')
         
         if not quote_id or not client_data:
             return jsonify({"success": False, "message": "Quote ID and client data required"}), 400
@@ -535,77 +619,7 @@ def track_page_exit():
             "message": f"Error tracking page exit: {str(e)}"
         }), 500
 
-@app.route('/api/form/submit-signature', methods=['POST'])
-def submit_signature():
-    """Submit signature form and track approval"""
-    try:
-        data = request.get_json()
-        
-        # Create form session if not exists
-        quote_id = data.get('quote_id', 'unknown')
-        session_id = form_tracking.create_form_session(
-            quote_id=quote_id,
-            client_data={
-                'name': data.get('approverName'),
-                'email': data.get('approverEmail'),
-                'title': data.get('approverTitle')
-            }
-        )
-        
-        # Log the form submission
-        approval_data = {
-            'approver_name': data.get('approverName'),
-            'approver_title': data.get('approverTitle'),
-            'approver_email': data.get('approverEmail'),
-            'approver_phone': data.get('approverPhone'),
-            'terms_accepted': data.get('termsAccepted'),
-            'budget_approved': data.get('budgetApproved'),
-            'timeline_accepted': data.get('timelineAccepted'),
-            'signature_data': data.get('signatureData'),
-            'signature_text': data.get('signatureText'),
-            'comments': data.get('comments'),
-            'tracking': data.get('tracking', {})
-        }
-        
-        form_tracking.log_form_submission(
-            session_id=session_id,
-            approval_data=approval_data,
-            success=True
-        )
-        
-        # Send confirmation email
-        try:
-            email_collection.send_email(
-                to_email=data.get('approverEmail'),
-                subject="Quote Approval Confirmation",
-                body=f"""
-                Thank you for approving the quote!
-                
-                Approver: {data.get('approverName')}
-                Title: {data.get('approverTitle')}
-                Company: {data.get('companyName', 'N/A')}
-                
-                Your approval has been recorded and the project team has been notified.
-                
-                Best regards,
-                Migration Services Team
-                """
-            )
-        except Exception as email_error:
-            print(f"Email sending failed: {email_error}")
-        
-        return jsonify({
-            "success": True,
-            "message": "Signature submitted successfully",
-            "session_id": session_id
-        }), 200
-        
-    except Exception as e:
-        print(f"Error submitting signature: {str(e)}")
-        return jsonify({
-            "success": False,
-            "message": f"Error submitting signature: {str(e)}"
-        }), 500
+
 
 @app.route('/api/form/analytics/<session_id>', methods=['GET'])
 def get_form_analytics(session_id):
@@ -886,111 +900,7 @@ def send_quote_email_direct():
             "error": f"Failed to send quote email: {str(e)}"
         }), 500
 
-@app.route('/api/quote/send-signature-form', methods=['POST'])
-def send_signature_form_email():
-    """Send signature form link via email to client"""
-    try:
-        data = request.get_json()
-        recipient_email = data.get('recipient_email')
-        recipient_name = data.get('recipient_name')
-        company_name = data.get('company_name')
-        signature_url = data.get('signature_url')
-        quote_data = data.get('quote_data', {})
-        
-        if not all([recipient_email, recipient_name, company_name, signature_url]):
-            return jsonify({
-                "success": False,
-                "message": "Recipient email, name, company, and signature URL are required"
-            }), 400
-        
-        # Import email service
-        from cpq.email_service import EmailService
-        
-        # Create professional email content
-        subject = f"Action Required: Please Sign Your Migration Service Quote - {company_name}"
-        
-        # Safely format the total amount
-        try:
-            total_amount = quote_data.get('total', 0)
-            if total_amount is None:
-                total_amount = 0
-            formatted_total = f"${float(total_amount):,.2f}"
-        except (ValueError, TypeError):
-            formatted_total = "$0.00"
-        
-        body = f"""
-Dear {recipient_name},
 
-Thank you for your interest in our Migration Services. We've prepared a detailed quote for your project and need your approval to proceed.
-
-**Quote Summary:**
-- Service Type: {quote_data.get('service_type', 'Migration Services')}
-- Total Amount: {formatted_total}
-
-**Next Steps:**
-1. Click the link below to access your digital signature form
-2. Review the quote details
-3. Fill out the approval form
-4. Sign digitally or type your signature
-5. Submit your approval
-
-**🔗 Click Here to Sign Your Quote:**
-{signature_url}
-
-**What Happens After Approval:**
-- Your approval will be recorded in our system
-- Our project team will be notified immediately
-- You'll receive a confirmation email
-- Project planning will begin within 24 hours
-
-**Need Help?**
-If you have any questions or need assistance, please reply to this email or contact our support team.
-
-**Security Note:**
-This link is unique to you and your quote. Please do not share it with others.
-
-Best regards,
-Migration Services Team
-
----
-This is an automated message. Please do not reply to this email address.
-        """
-        
-        # Send email using email service
-        email_service = EmailService()
-        email_result = email_service.send_signature_form_email(
-            recipient_email, recipient_name, company_name, body
-        )
-        
-        if email_result['success']:
-            # Log email sent
-            email_collection.log_email_sent({
-                "recipient_email": recipient_email,
-                "recipient_name": recipient_name,
-                "company_name": company_name,
-                "email_type": "signature_form",
-                "signature_url": signature_url,
-                "quote_data": quote_data
-            })
-            
-            return jsonify({
-                "success": True,
-                "message": "Signature form email sent successfully",
-                "email_result": email_result
-            })
-        else:
-            return jsonify({
-                "success": False,
-                "message": "Failed to send email",
-                "email_result": email_result
-            }), 500
-        
-    except Exception as e:
-        print(f"Error sending signature form email: {str(e)}")
-        return jsonify({
-            "success": False,
-            "error": f"Failed to send signature form email: {str(e)}"
-        }), 500
 
 # New Quote Management Routes
 @app.route('/quote-management')
@@ -1358,8 +1268,8 @@ def generate_agreement_from_quote():
             'generation_date': datetime.now().strftime('%Y-%m-%d'),
             
             # Dates
-            'provider_signature_date': datetime.now().strftime('%Y-%m-%d'),
-            'client_signature_date': 'Pending'
+            'agreement_date': datetime.now().strftime('%Y-%m-%d'),
+            'effective_date': datetime.now().strftime('%Y-%m-%d')
         }
         
         # Generate agreement content
@@ -1683,6 +1593,8 @@ def export_template_as_docx(template_id):
         # Prepare template data (normalize from our stored quote schema)
         template_data = _build_template_data_from_quote(quote)
         
+
+        
         # If the template is HTML, generate DOCX from HTML route
         if template.get('type') == 'html':
             from templates.docx_generator import generate_agreement_docx
@@ -1751,6 +1663,8 @@ def export_template_content_as_docx():
                     'message': 'Quote not found'
                 }), 404
             template_data = _build_template_data_from_quote(quote)
+            
+
         else:
             # No quote provided; export with placeholders untouched (will show [placeholder] labels)
             template_data = {}
@@ -1825,12 +1739,42 @@ def get_available_template_fields():
                 'payment_method': 'Bank transfer or check',
                 'confidentiality_period': '5 years',
                 'warranty_period': '1 year',
-                'termination_notice': '30 days written notice'
+                'termination_notice': '30 days written notice',
+                
             }
 
         return jsonify({'success': True, 'fields': sorted(list(template_data.keys())), 'template_data': template_data}), 200
     except Exception as e:
         return jsonify({'success': False, 'message': f'Error fetching fields: {str(e)}'}), 500
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 if __name__ == '__main__':
     app.run(

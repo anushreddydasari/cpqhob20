@@ -37,6 +37,7 @@ def create_database_structure():
         pricing = PricingCollection()
         hubspot_contacts = HubSpotContactCollection()
         hubspot_integration = HubSpotIntegrationCollection()
+
         
         print("✅ All collections initialized!")
         
@@ -113,6 +114,8 @@ def create_database_structure():
         })
         print(f"    ✅ Created HubSpot contact record!")
         
+
+        
         print("\n🎉 Database Structure Creation Complete!")
         print("\n📋 Collections Created:")
         print("  ✅ pdf_tracking - PDF interaction tracking")
@@ -123,6 +126,7 @@ def create_database_structure():
         print("  ✅ pricing_configs - Pricing configurations")
         print("  ✅ hubspot_contacts - HubSpot contact storage")
         print("  ✅ hubspot_integrations - HubSpot API logs")
+
         
         print("\n🚀 Ready for Step 2: Enhanced PDF Generator!")
         

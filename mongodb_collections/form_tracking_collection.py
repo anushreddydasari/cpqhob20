@@ -8,7 +8,7 @@ class FormTrackingCollection:
     def __init__(self):
         self.collection = db["form_tracking"]
     
-    def create_form_session(self, quote_id, client_data, form_type="signature"):
+    def create_form_session(self, quote_id, client_data, form_type="form_interaction"):
         """Create a new form tracking session"""
         session_data = {
             "quote_id": quote_id,
@@ -26,7 +26,7 @@ class FormTrackingCollection:
                 "clicks": 0,
                 "submissions": 0
             },
-            "signature_data": None,
+            "form_data": None,
             "approval_data": None,
             "last_activity": None
         }
@@ -139,12 +139,12 @@ class FormTrackingCollection:
         )
         return result
     
-    def log_signature(self, session_id, signature_data, signature_type="drawn"):
-        """Log signature capture"""
-        signature_info = {
+    def log_form_data(self, session_id, form_data, data_type="submission"):
+        """Log form data capture"""
+        form_info = {
             "timestamp": datetime.now(),
-            "type": signature_type,
-            "data": signature_data,
+            "type": data_type,
+            "data": form_data,
             "captured": True
         }
         
@@ -152,7 +152,7 @@ class FormTrackingCollection:
             {"session_id": session_id},
             {
                 "$set": {
-                    "signature_data": signature_info,
+                    "form_data": form_info,
                     "last_activity": datetime.now(),
                     "updated_at": datetime.now()
                 }
