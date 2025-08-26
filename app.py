@@ -39,6 +39,39 @@ hubspot_quotes = HubSpotQuoteCollection()
 # Initialize PDF generator
 pdf_generator = PDFGenerator()
 
+def _build_template_data_from_quote(quote: dict) -> dict:
+    """Builds the template_data dict used for DOCX exports from a quote document.
+
+    Returns a flat dict of placeholder keys → values.
+    """
+    client = quote.get('client', {}) if isinstance(quote, dict) else {}
+    quote_block = quote.get('quote', {}) if isinstance(quote, dict) else {}
+    standard_total = (quote_block.get('standard', {}) or {}).get('totalCost', 0)
+
+    template_data = {
+        'client_name': client.get('name', 'N/A'),
+        'client_company': client.get('company', 'N/A'),
+        'client_email': client.get('email', 'N/A'),
+        'client_phone': client.get('phone', 'N/A'),
+        'company_name': 'Your Company LLC',
+        'company_email': 'contact@yourcompany.com',
+        'company_phone': '+1-555-0123',
+        'company_address': '123 Business St, City, State 12345',
+        'service_type': client.get('serviceType', 'Services'),
+        'total_cost': standard_total,
+        'amount': standard_total,
+        'start_date': datetime.now().strftime('%B %d, %Y'),
+        'end_date': (datetime.now() + timedelta(days=30)).strftime('%B %d, %Y'),
+        'generation_date': datetime.now().strftime('%B %d, %Y'),
+        'payment_schedule': '50% upfront, 50% upon completion',
+        'payment_method': 'Bank transfer or check',
+        'confidentiality_period': '5 years',
+        'warranty_period': '1 year',
+        'termination_notice': '30 days written notice'
+    }
+
+    return template_data
+
 def _find_quote_by_identifier(identifier: str):
     """Find a quote by ID or by client name/company (case-insensitive). Returns the most recent match.
 
@@ -121,6 +154,14 @@ def serve_hubspot_cpq_setup():
 @app.route('/signature-form')
 def serve_signature_form():
     return send_from_directory('templates', 'signature_form.html')
+
+# Serve uploaded files (e.g., images) for use in templates
+@app.route('/uploads/<path:filename>')
+def serve_uploads(filename):
+    try:
+        return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'File not found: {str(e)}'}), 404
 
 # Client Management APIs
 @app.route('/api/clients', methods=['POST'])
@@ -1640,32 +1681,7 @@ def export_template_as_docx(template_id):
             }), 404
         
         # Prepare template data (normalize from our stored quote schema)
-        client = quote.get('client', {}) if isinstance(quote, dict) else {}
-        quote_block = quote.get('quote', {}) if isinstance(quote, dict) else {}
-        standard_total = (
-            quote_block.get('standard', {}) or {}
-        ).get('totalCost', 0)
-        template_data = {
-            'client_name': client.get('name', 'N/A'),
-            'client_company': client.get('company', 'N/A'),
-            'client_email': client.get('email', 'N/A'),
-            'client_phone': client.get('phone', 'N/A'),
-            'company_name': 'Your Company LLC',  # Default company name
-            'company_email': 'contact@yourcompany.com',
-            'company_phone': '+1-555-0123',
-            'company_address': '123 Business St, City, State 12345',
-            'service_type': client.get('serviceType', 'Services'),
-            'total_cost': standard_total,
-            'amount': standard_total,  # alias for {{amount}}
-            'start_date': datetime.now().strftime('%B %d, %Y'),
-            'end_date': (datetime.now() + timedelta(days=30)).strftime('%B %d, %Y'),
-            'generation_date': datetime.now().strftime('%B %d, %Y'),
-            'payment_schedule': '50% upfront, 50% upon completion',
-            'payment_method': 'Bank transfer or check',
-            'confidentiality_period': '5 years',
-            'warranty_period': '1 year',
-            'termination_notice': '30 days written notice'
-        }
+        template_data = _build_template_data_from_quote(quote)
         
         # If the template is HTML, generate DOCX from HTML route
         if template.get('type') == 'html':
@@ -1734,32 +1750,7 @@ def export_template_content_as_docx():
                     'success': False,
                     'message': 'Quote not found'
                 }), 404
-            client = quote.get('client', {}) if isinstance(quote, dict) else {}
-            quote_block = quote.get('quote', {}) if isinstance(quote, dict) else {}
-            standard_total = (
-                quote_block.get('standard', {}) or {}
-            ).get('totalCost', 0)
-            template_data = {
-                'client_name': client.get('name', 'N/A'),
-                'client_company': client.get('company', 'N/A'),
-                'client_email': client.get('email', 'N/A'),
-                'client_phone': client.get('phone', 'N/A'),
-                'company_name': 'Your Company LLC',
-                'company_email': 'contact@yourcompany.com',
-                'company_phone': '+1-555-0123',
-                'company_address': '123 Business St, City, State 12345',
-                'service_type': client.get('serviceType', 'Services'),
-                'total_cost': standard_total,
-                'amount': standard_total,
-                'start_date': datetime.now().strftime('%B %d, %Y'),
-                'end_date': (datetime.now() + timedelta(days=30)).strftime('%B %d, %Y'),
-                'generation_date': datetime.now().strftime('%B %d, %Y'),
-                'payment_schedule': '50% upfront, 50% upon completion',
-                'payment_method': 'Bank transfer or check',
-                'confidentiality_period': '5 years',
-                'warranty_period': '1 year',
-                'termination_notice': '30 days written notice'
-            }
+            template_data = _build_template_data_from_quote(quote)
         else:
             # No quote provided; export with placeholders untouched (will show [placeholder] labels)
             template_data = {}
@@ -1796,6 +1787,50 @@ def export_template_content_as_docx():
             'success': False,
             'message': f'Error exporting template: {str(e)}'
         }), 500
+
+@app.route('/api/templates/available-fields', methods=['GET'])
+def get_available_template_fields():
+    """Return available placeholder fields for templates.
+
+    Optional query param: quote_id (can be ObjectId, client name, or company)
+    When provided, returns fields based on that quote; otherwise returns defaults.
+    """
+    try:
+        quote_id = request.args.get('quote_id')
+        template_data = {}
+        if quote_id:
+            quote = _find_quote_by_identifier(quote_id)
+            if quote:
+                template_data = _build_template_data_from_quote(quote)
+            else:
+                return jsonify({'success': False, 'message': 'Quote not found'}), 404
+        else:
+            # Default set without a specific quote
+            template_data = {
+                'client_name': 'N/A',
+                'client_company': 'N/A',
+                'client_email': 'N/A',
+                'client_phone': 'N/A',
+                'company_name': 'Your Company LLC',
+                'company_email': 'contact@yourcompany.com',
+                'company_phone': '+1-555-0123',
+                'company_address': '123 Business St, City, State 12345',
+                'service_type': 'Services',
+                'total_cost': 0,
+                'amount': 0,
+                'start_date': datetime.now().strftime('%B %d, %Y'),
+                'end_date': (datetime.now() + timedelta(days=30)).strftime('%B %d, %Y'),
+                'generation_date': datetime.now().strftime('%B %d, %Y'),
+                'payment_schedule': '50% upfront, 50% upon completion',
+                'payment_method': 'Bank transfer or check',
+                'confidentiality_period': '5 years',
+                'warranty_period': '1 year',
+                'termination_notice': '30 days written notice'
+            }
+
+        return jsonify({'success': True, 'fields': sorted(list(template_data.keys())), 'template_data': template_data}), 200
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'Error fetching fields: {str(e)}'}), 500
 
 if __name__ == '__main__':
     app.run(

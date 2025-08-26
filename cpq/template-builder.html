@@ -276,6 +276,21 @@
             padding: 0;
         }
 
+        /* Table preview styling in the editor */
+        #editor .ProseMirror table {
+            border-collapse: collapse;
+            width: 100%;
+            margin: 10px 0;
+        }
+        #editor .ProseMirror th, #editor .ProseMirror td {
+            border: 1px solid #dee2e6;
+            padding: 6px 8px;
+        }
+        #editor .ProseMirror th {
+            background: #f1f3f5;
+            font-weight: 600;
+        }
+
         #editor .ProseMirror mark {
             background: #fff3cd;
             padding: 2px 4px;
@@ -566,8 +581,20 @@
                             <button class="btn btn-info" onclick="addPlaceholder()" style="padding: 8px 12px;">+</button>
                         </div>
                     </div>
+                    <div class="form-group">
+                        <label class="form-label">Available Fields (from quote)</label>
+                        <div style="display: flex; gap: 5px;">
+                            <input type="text" id="fieldsQuoteId" class="form-input" placeholder="Optional: Quote ID / Client / Company" style="flex: 1;">
+                            <button class="btn" onclick="loadAvailableFields()" style="padding: 8px 12px;">Load</button>
+                        </div>
+                        <div id="availableFields" style="margin-top: 8px; display: flex; flex-wrap: wrap; gap: 6px;"></div>
+                    </div>
                     <div id="placeholdersList">
                         <!-- Placeholders will be added here -->
+                    </div>
+                    <div style="margin-top: 10px; display: flex; gap: 6px; flex-wrap: wrap;">
+                        <button class="btn btn-info" onclick="validatePlaceholders()">Validate Placeholders</button>
+                        <button class="btn" onclick="insertPlaceholderPrompt()">Insert Placeholder</button>
                     </div>
                 </div>
 
@@ -629,6 +656,14 @@
                     
                     <div style="width: 1px; background: #dee2e6; margin: 0 10px;"></div>
                     
+                    <button onclick="insertImagePrompt()" class="image">Image</button>
+                    
+                    <div style="width: 1px; background: #dee2e6; margin: 0 10px;"></div>
+                    
+                    <button onclick="insertTablePrompt()" class="table">Table</button>
+                    
+                    <div style="width: 1px; background: #dee2e6; margin: 0 10px;"></div>
+                    
                     <button onclick="editor.chain().focus().undo().run()" class="undo">↶</button>
                     <button onclick="editor.chain().focus().redo().run()" class="redo">↷</button>
                 </div>
@@ -642,6 +677,8 @@
                 <div id="status"></div>
                 <div style="margin-top: 12px; display: flex; gap: 8px; flex-wrap: wrap;">
                     <button class="btn btn-info" onclick="exportFromEditorDocx()">📄 Export DOCX from Editor</button>
+                    <button class="btn" onclick="exportSavedTemplateDocx()">📦 Export Saved Template as DOCX</button>
+                    <button class="btn btn-success" onclick="previewWithLiveData()">🔄 Preview with Live Data</button>
                 </div>
             </div>
         </div>
@@ -834,6 +871,7 @@
                         <div class="placeholder-description">${placeholder.description}</div>
                     </div>
                     <div class="placeholder-actions">
+                        <button onclick="insertPlaceholder('${placeholder.name}')" title="Insert">➕</button>
                         <button onclick="removePlaceholder('${placeholder.name}')" title="Remove">🗑️</button>
                     </div>
                 `;
@@ -969,6 +1007,32 @@
             
             previewContent.innerHTML = previewHTML;
             document.getElementById('previewModal').style.display = 'block';
+        }
+
+        async function previewWithLiveData() {
+            const quoteId = document.getElementById('fieldsQuoteId').value.trim();
+            const previewContent = document.getElementById('previewContent');
+            const content = editor.getHTML();
+            try {
+                const url = quoteId ? `/api/templates/available-fields?quote_id=${encodeURIComponent(quoteId)}` : '/api/templates/available-fields';
+                const res = await fetch(url);
+                const json = await res.json();
+                if (!json.success) {
+                    showStatus(`❌ Could not load live data: ${json.message}`, 'error');
+                    return;
+                }
+                let html = content;
+                const data = json.template_data || {};
+                Object.keys(data).forEach(key => {
+                    const val = String(data[key] == null ? '' : data[key]);
+                    html = html.replace(new RegExp(`\\{\\{${key}\\}\\}`, 'g'), `<span style="background:#e6ffed;padding:2px 4px;border-radius:4px;">${val}</span>`);
+                });
+                previewContent.innerHTML = html;
+                document.getElementById('previewModal').style.display = 'block';
+                showStatus('✅ Previewed with live data.', 'success');
+            } catch (e) {
+                showStatus(`❌ Error during live preview: ${e.message}`, 'error');
+            }
         }
 
         function closePreview() {
@@ -1181,6 +1245,152 @@
             } catch (e) {
                 showStatus(`❌ Error exporting DOCX: ${e.message}`, 'error');
             }
+        }
+
+        async function loadAvailableFields() {
+            const quoteId = document.getElementById('fieldsQuoteId').value.trim();
+            try {
+                const url = quoteId ? `/api/templates/available-fields?quote_id=${encodeURIComponent(quoteId)}` : '/api/templates/available-fields';
+                const res = await fetch(url);
+                const json = await res.json();
+                if (!json.success) {
+                    showStatus(`❌ Could not load fields: ${json.message || 'Unknown error'}`, 'error');
+                    return;
+                }
+                const fields = json.fields || [];
+                const container = document.getElementById('availableFields');
+                container.innerHTML = '';
+                fields.forEach(f => {
+                    const btn = document.createElement('button');
+                    btn.className = 'btn';
+                    btn.style.padding = '6px 10px';
+                    btn.textContent = `{{${f}}}`;
+                    btn.onclick = function(){ insertPlaceholder(f); };
+                    container.appendChild(btn);
+                });
+                showStatus(`✅ Loaded ${fields.length} available fields.`, 'success');
+            } catch (e) {
+                showStatus(`❌ Error loading fields: ${e.message}`, 'error');
+            }
+        }
+
+        function insertPlaceholder(name) {
+            const token = `{{${name}}}`;
+            if (useFallback && fallbackEl) {
+                // Insert at cursor for contenteditable fallback
+                document.execCommand('insertText', false, token);
+                return;
+            }
+            try {
+                editor.chain().focus().insertContent(token).run();
+            } catch (e) {
+                // Fallback append
+                const html = editor.getHTML();
+                editor.commands.setContent(html + token);
+            }
+        }
+
+        function insertPlaceholderPrompt() {
+            const name = prompt('Enter placeholder name (without braces), e.g., client_name');
+            if (name) insertPlaceholder(name.trim());
+        }
+
+        function validatePlaceholders() {
+            const content = editor.getHTML();
+            const re = /\{\{(\w+)\}\}/g;
+            const found = new Set([...content.matchAll(re)].map(m => m[1]));
+            const defined = new Set(placeholders.map(p => p.name));
+            const unknown = [...found].filter(n => !defined.has(n));
+            const unused = [...defined].filter(n => !found.has(n));
+            let msg = '✅ Placeholders look good.';
+            let type = 'success';
+            if (unknown.length || unused.length) {
+                msg = '';
+                if (unknown.length) msg += `⚠️ Unknown in content: ${unknown.join(', ')}. `;
+                if (unused.length) msg += `ℹ️ Defined but unused: ${unused.join(', ')}.`;
+                type = 'info';
+            }
+            showStatus(msg, type);
+        }
+
+        async function exportSavedTemplateDocx() {
+            const templateId = prompt('Enter saved Template ID to export as DOCX');
+            if (!templateId) return;
+            const quoteId = prompt('Enter Quote ID / Client / Company to fill placeholders (optional)');
+            try {
+                const res = await fetch(`/api/templates/${encodeURIComponent(templateId)}`);
+                const json = await res.json();
+                if (!json.success) { showStatus(`❌ Could not load template: ${json.message}`, 'error'); return; }
+                const body = { quote_id: quoteId || '' };
+                const ex = await fetch(`/api/templates/${encodeURIComponent(templateId)}/export-docx`, {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
+                });
+                if (!ex.ok) {
+                    const err = await ex.json();
+                    showStatus(`❌ Export failed: ${err.message}`, 'error');
+                    return;
+                }
+                const blob = await ex.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `${(json.template?.name || 'template')}_${new Date().toISOString().split('T')[0]}.docx`;
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+                document.body.removeChild(a);
+                showStatus('✅ Exported saved template as DOCX!', 'success');
+            } catch (e) {
+                showStatus(`❌ Error exporting: ${e.message}`, 'error');
+            }
+        }
+
+        function insertImagePrompt() {
+            const url = prompt('Enter image URL or data URI (data:image/...;base64,...)');
+            if (!url) return;
+            const width = prompt('Width in px (optional)');
+            const height = prompt('Height in px (optional)');
+            const alt = prompt('Alt text (optional)') || '';
+            const wAttr = (width && /^\d+$/.test(width)) ? ` width="${width}"` : '';
+            const hAttr = (height && /^\d+$/.test(height)) ? ` height="${height}"` : '';
+            const html = `<img src="${url}"${wAttr}${hAttr} alt="${alt}">`;
+            if (useFallback && fallbackEl) {
+                document.execCommand('insertHTML', false, html);
+            } else {
+                try { editor.chain().focus().insertContent(html).run(); }
+                catch(e){ const cur = editor.getHTML(); editor.commands.setContent(cur + html); }
+            }
+            showStatus('✅ Image inserted.', 'success');
+        }
+
+        function insertTablePrompt() {
+            const rowsStr = prompt('Number of rows?', '3');
+            const colsStr = prompt('Number of columns?', '3');
+            if (!rowsStr || !colsStr) return;
+            let rows = parseInt(rowsStr, 10);
+            let cols = parseInt(colsStr, 10);
+            if (!(rows > 0 && cols > 0 && rows <= 30 && cols <= 12)) {
+                showStatus('❌ Please enter reasonable rows (1-30) and columns (1-12).', 'error');
+                return;
+            }
+            const hasHeader = confirm('Use first row as header?');
+            let html = '<table style="width:100%; border-collapse:collapse;">';
+            for (let r = 0; r < rows; r++) {
+                html += '<tr>';
+                for (let c = 0; c < cols; c++) {
+                    const tag = (hasHeader && r === 0) ? 'th' : 'td';
+                    html += `<${tag} style="border:1px solid #dee2e6; padding:6px 8px;">Cell ${r+1}-${c+1}</${tag}>`;
+                }
+                html += '</tr>';
+            }
+            html += '</table>';
+            if (useFallback && fallbackEl) {
+                document.execCommand('insertHTML', false, html);
+            } else {
+                try { editor.chain().focus().insertContent(html).run(); }
+                catch(e){ const cur = editor.getHTML(); editor.commands.setContent(cur + html); }
+            }
+            showStatus('✅ Table inserted.', 'success');
         }
 
         async function uploadDocxTemplate() {

@@ -5,6 +5,9 @@ from docx.enum.style import WD_STYLE_TYPE
 from docx.oxml.shared import OxmlElement, qn
 import re
 from datetime import datetime
+import base64
+import requests
+from PIL import Image
 
 class DocxGenerator:
     def __init__(self):
@@ -106,7 +109,7 @@ class DocxGenerator:
             # Tokenize by blocks to support multi-line tags
             content = html_content
             block_pattern = re.compile(
-                r'(<h1>.*?</h1>|<h2>.*?</h2>|<h3>.*?</h3>|<p>.*?</p>|<ul>.*?</ul>|<ol>.*?</ol>|<blockquote>.*?</blockquote>|<table>.*?</table>)',
+                r'(<h1>.*?</h1>|<h2>.*?</h2>|<h3>.*?</h3>|<p>.*?</p>|<ul>.*?</ul>|<ol>.*?</ol>|<blockquote>.*?</blockquote>|<table[^>]*?>.*?</table>|<img[^>]*>)',
                 re.IGNORECASE | re.DOTALL
             )
             pos = 0
@@ -139,24 +142,34 @@ class DocxGenerator:
         block = block_html.strip()
         lower = block.lower()
         if lower.startswith('<h1>'):
-            text = self._strip_tags(block)
+            # Emit any inline images within the heading
+            self._emit_inline_images(block)
+            text = self._strip_tags(re.sub(r'<img[^>]*>', '', block, flags=re.IGNORECASE))
             p = self.document.add_paragraph(text, style='Custom Heading 1')
             p.alignment = WD_ALIGN_PARAGRAPH.CENTER
             return
         if lower.startswith('<h2>'):
-            text = self._strip_tags(block)
+            self._emit_inline_images(block)
+            text = self._strip_tags(re.sub(r'<img[^>]*>', '', block, flags=re.IGNORECASE))
             p = self.document.add_paragraph(text, style='Custom Heading 2')
             p.alignment = WD_ALIGN_PARAGRAPH.CENTER
             return
         if lower.startswith('<h3>'):
-            text = self._strip_tags(block)
+            self._emit_inline_images(block)
+            text = self._strip_tags(re.sub(r'<img[^>]*>', '', block, flags=re.IGNORECASE))
             p = self.document.add_paragraph(text, style='Custom Heading 3')
             p.alignment = WD_ALIGN_PARAGRAPH.CENTER
             return
         if lower.startswith('<p>'):
-            text = self._strip_tags(block)
+            # Emit images inside the paragraph, then add remaining text
+            self._emit_inline_images(block)
+            no_imgs = re.sub(r'<img[^>]*>', '', block, flags=re.IGNORECASE)
+            text = self._strip_tags(no_imgs)
             if text:
                 self.document.add_paragraph(text)
+            return
+        if lower.startswith('<img'):
+            self._process_image(block)
             return
         if lower.startswith('<ul>') or lower.startswith('<ol>'):
             items = re.findall(r'<li>(.*?)</li>', block, flags=re.IGNORECASE | re.DOTALL)
@@ -164,12 +177,13 @@ class DocxGenerator:
                 self.document.add_paragraph(self._strip_tags(it))
             return
         if lower.startswith('<blockquote>'):
-            text = self._strip_tags(block)
+            self._emit_inline_images(block)
+            text = self._strip_tags(re.sub(r'<img[^>]*>', '', block, flags=re.IGNORECASE))
             if text:
                 para = self.document.add_paragraph(text)
                 para.style = 'Quote'
             return
-        if lower.startswith('<table>'):
+        if lower.startswith('<table'):
             self._process_table(block)
             return
         # Fallback to plain
@@ -215,7 +229,8 @@ class DocxGenerator:
 
             if rows:
                 # Determine max columns across rows
-                all_cells = [re.findall(r'<t[dh][^>]*>(.*?)</t[dh]>', r, re.DOTALL | re.IGNORECASE) for r in rows]
+                # Extract cells; keep empty strings if missing
+                all_cells = [re.findall(r'<t(?:d|h)[^>]*>(.*?)</t(?:d|h)>', r, re.DOTALL | re.IGNORECASE) for r in rows]
                 max_cols = max((len(c) for c in all_cells), default=1)
 
                 table = self.document.add_table(rows=len(rows), cols=max_cols)
@@ -223,14 +238,182 @@ class DocxGenerator:
 
                 for i, cells in enumerate(all_cells):
                     for j in range(max_cols):
+                        cell = table.rows[i].cells[j]
+                        # Remove existing paragraph content safely
+                        for p in list(cell.paragraphs):
+                            p._element.getparent().remove(p._element)
+
                         text_html = cells[j] if j < len(cells) else ''
-                        # Clean HTML → plain text
-                        clean = self._strip_tags(text_html)
-                        clean = clean.replace('\n', ' ').strip()
-                        table.rows[i].cells[j].text = clean
+
+                        # Emit images first (as separate paragraphs in the cell)
+                        for img in re.finditer(r'<img[^>]*>', text_html, flags=re.IGNORECASE):
+                            # Insert picture into cell by adding a paragraph run
+                            para_for_img = cell.add_paragraph()
+                            self._process_image(img.group(0))
+
+                        # Convert inner HTML line breaks to paragraph breaks
+                        normalized = re.sub(r'<br\s*/?>', '\n', text_html, flags=re.IGNORECASE)
+                        # Remove image tags for text portion
+                        normalized = re.sub(r'<img[^>]*>', '', normalized, flags=re.IGNORECASE)
+
+                        # Split on paragraphs if any (<p>...</p>) inside cell
+                        inner_ps = re.findall(r'<p[^>]*>(.*?)</p>', normalized, flags=re.IGNORECASE | re.DOTALL)
+                        if inner_ps:
+                            for seg in inner_ps:
+                                clean = self._strip_tags(seg)
+                                clean = re.sub(r'\s+', ' ', clean).strip()
+                                if clean:
+                                    cell.add_paragraph(clean)
+                        else:
+                            clean = self._strip_tags(normalized)
+                            clean = re.sub(r'\s+', ' ', clean).strip()
+                            if clean:
+                                cell.add_paragraph(clean)
         
         except Exception as e:
             print(f"Error processing table: {str(e)}")
+
+    def _emit_inline_images(self, html: str):
+        """Emit any <img> tags contained within a larger HTML block (e.g., inside <p>, headings, table cells)."""
+        try:
+            for m in re.finditer(r'<img[^>]*>', html, flags=re.IGNORECASE):
+                self._process_image(m.group(0))
+        except Exception:
+            pass
+
+    def _parse_img_attrs(self, img_html: str):
+        """Extract src, width, height from an <img> tag string."""
+        try:
+            src_match = re.search(r'src\s*=\s*"([^"]+)"', img_html, flags=re.IGNORECASE)
+            if not src_match:
+                src_match = re.search(r"src\s*=\s*'([^']+)'", img_html, flags=re.IGNORECASE)
+            src = src_match.group(1) if src_match else None
+
+            width = None
+            height = None
+            # Try width/height attributes
+            w_match = re.search(r'width\s*=\s*"(\d+)"', img_html, flags=re.IGNORECASE)
+            if not w_match:
+                w_match = re.search(r"width\s*=\s*'(\d+)'", img_html, flags=re.IGNORECASE)
+            h_match = re.search(r'height\s*=\s*"(\d+)"', img_html, flags=re.IGNORECASE)
+            if not h_match:
+                h_match = re.search(r"height\s*=\s*'(\d+)'", img_html, flags=re.IGNORECASE)
+            if w_match:
+                width = int(w_match.group(1))
+            if h_match:
+                height = int(h_match.group(1))
+
+            # Try inline style width/height (e.g., style="width:200px;height:80px")
+            style_match = re.search(r'style\s*=\s*"([^"]+)"', img_html, flags=re.IGNORECASE)
+            if style_match:
+                style = style_match.group(1)
+                sw = re.search(r'width\s*:\s*(\d+)px', style, flags=re.IGNORECASE)
+                sh = re.search(r'height\s*:\s*(\d+)px', style, flags=re.IGNORECASE)
+                if sw:
+                    width = int(sw.group(1))
+                if sh:
+                    height = int(sh.group(1))
+
+            return src, width, height
+        except Exception:
+            return None, None, None
+
+    def _process_image(self, img_html: str):
+        """Process <img> tag: supports http(s) URLs and data URIs. Optional width/height attrs in px.
+        """
+        try:
+            src, width_px, height_px = self._parse_img_attrs(img_html)
+            if not src:
+                return
+
+            image_bytes = None
+            if src.startswith('data:image/'):
+                # data URI
+                b64_match = re.search(r'base64,([A-Za-z0-9+/=]+)', src)
+                if b64_match:
+                    image_bytes = base64.b64decode(b64_match.group(1))
+            elif src.startswith('http://') or src.startswith('https://'):
+                # Some CDNs block requests without UA; include a common UA header
+                headers = {
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+                }
+                resp = requests.get(src, timeout=10, headers=headers)
+                if resp.status_code == 200:
+                    image_bytes = resp.content
+            else:
+                # treat as local file path or app-served uploads (/uploads/..)
+                try:
+                    local_path = src
+                    if src.startswith('/uploads/'):
+                        import os
+                        # Map to UPLOAD_FOLDER
+                        base = os.path.join(os.getcwd(), 'uploaded_docs')
+                        local_path = os.path.join(base, src.split('/uploads/', 1)[1])
+                    with open(local_path, 'rb') as f:
+                        image_bytes = f.read()
+                except Exception:
+                    image_bytes = None
+
+            if not image_bytes:
+                return
+
+            from io import BytesIO
+            stream = BytesIO(image_bytes)
+
+            # Normalize to a docx-friendly format if needed (e.g., WebP → PNG)
+            try:
+                img = Image.open(BytesIO(image_bytes))
+                fmt = (img.format or '').upper()
+                if fmt not in ('PNG', 'JPEG', 'JPG', 'GIF', 'BMP', 'TIFF'):
+                    buf = BytesIO()
+                    img.convert('RGBA').save(buf, format='PNG')
+                    buf.seek(0)
+                    stream = buf
+            except Exception:
+                # If PIL can't open, fall back to raw bytes (may fail silently)
+                pass
+
+            # Determine target size and auto-fit to page width
+            # Read intrinsic image size (pixels)
+            img_w_px = None
+            img_h_px = None
+            try:
+                meta_img = Image.open(BytesIO(image_bytes))
+                img_w_px, img_h_px = meta_img.size
+            except Exception:
+                pass
+
+            # Compute requested size in inches (default from intrinsic size)
+            width_in = width_px / 96.0 if width_px else (img_w_px / 96.0 if img_w_px else None)
+            height_in = height_px / 96.0 if height_px else (img_h_px / 96.0 if img_h_px else None)
+
+            # If only height provided, derive width by aspect ratio
+            if width_in is None and height_in and img_w_px and img_h_px:
+                width_in = (img_w_px / img_h_px) * height_in
+            # If neither provided, and no metadata, fallback to 2 inches
+            if width_in is None:
+                width_in = 2.0
+
+            # Clamp to available page width (preserve aspect ratio)
+            try:
+                section = self.document.sections[0]
+                # python-docx uses EMUs; convert to inches (1 inch = 914400 EMUs)
+                available_width_in = float((section.page_width - section.left_margin - section.right_margin)) / 914400.0
+                if width_in > available_width_in:
+                    scale = available_width_in / width_in
+                    width_in = available_width_in
+                    if height_in:
+                        height_in = height_in * scale
+            except Exception:
+                pass
+
+            kwargs = {'width': Inches(width_in)}
+            # Do not set height to preserve aspect ratio unless explicitly needed
+            # If height was explicitly provided and width not adjusted above we could set it, but width is preferred
+
+            self.document.add_picture(stream, **kwargs)
+        except Exception as e:
+            print(f"Error processing image: {str(e)}")
 
     def _strip_tags(self, html_fragment: str) -> str:
         try:
