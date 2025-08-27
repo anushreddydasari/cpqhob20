@@ -711,13 +711,13 @@ def fetch_hubspot_contacts():
         from hubspot.hubspot_basic import HubSpotBasic
         
         hubspot = HubSpotBasic()
-        result = hubspot.get_basic_contacts(limit=50)
+        # Fetch most recently updated contacts for freshness
+        result = hubspot.get_recent_contacts(limit=50)
         
-        # If contacts fetched successfully, store them in MongoDB
-        if result.get('success') and result.get('contacts'):
-            stored_contacts = []
-            for contact in result['contacts']:
-                # Prepare contact data for MongoDB
+        # If contacts fetched successfully, store them in MongoDB (side-effect)
+        contacts_list = result.get('contacts', []) if result.get('success') else []
+        if contacts_list:
+            for contact in contacts_list:
                 contact_data = {
                     "hubspot_id": contact.get('id'),
                     "name": contact.get('name', ''),
@@ -726,25 +726,81 @@ def fetch_hubspot_contacts():
                     "job_title": contact.get('job_title', ''),
                     "company": contact.get('company', ''),
                     "source": "HubSpot",
+                    # Datetimes are stored in MongoDB but not returned in the API response
                     "fetched_at": datetime.now(),
                     "status": "new"
                 }
-                
-                # Store contact using collection
-                store_result = hubspot_contacts.store_contact(contact_data)
-                # The store_contact method already sets the action in contact_data
-                stored_contacts.append(contact_data)
-            
-            # Add storage info to result
-            result['stored_contacts'] = stored_contacts
-            result['message'] = f"Successfully fetched and stored {len(stored_contacts)} contacts in MongoDB"
-        
-        return jsonify(result)
+                hubspot_contacts.store_contact(contact_data)
+
+        # Return a sanitized JSON payload containing only serializable data
+        return jsonify({
+            "success": bool(result.get('success')),
+            "contacts": contacts_list,
+            "total": len(contacts_list)
+        })
         
     except Exception as e:
         return jsonify({
             "success": False,
             "error": f"Failed to fetch HubSpot contacts: {str(e)}"
+        }), 500
+
+@app.route('/api/hubspot/sync-client', methods=['POST'])
+def sync_client_from_hubspot():
+    """Update a local client using latest data from HubSpot by email."""
+    try:
+        data = request.get_json() or {}
+        email = data.get('email')
+        client_id = data.get('client_id')  # optional
+
+        if not email:
+            return jsonify({"success": False, "message": "email is required"}), 400
+
+        from hubspot.hubspot_basic import HubSpotBasic
+        hubspot = HubSpotBasic()
+        hs = hubspot.get_contact_by_email(email)
+
+        if not hs.get('success'):
+            message = 'HubSpot contact not found' if hs.get('error') == 'not_found' else f"HubSpot error: {hs.get('error')}"
+            status = 404 if hs.get('error') == 'not_found' else 502
+            return jsonify({"success": False, "message": message}), status
+
+        contact = hs['contact']
+
+        update_payload = {
+            'clientName': contact.get('name'),
+            'companyName': contact.get('company'),
+            'email': contact.get('email'),
+            'phoneNumber': contact.get('phone'),
+            'serviceType': 'HubSpot',
+        }
+
+        updated = False
+        if client_id:
+            result = clients.update_client(client_id, update_payload)
+            updated = result.matched_count > 0
+        else:
+            existing = clients.get_client_by_email(email)
+            if existing:
+                result = clients.update_client(str(existing['_id']), update_payload)
+                updated = result.matched_count > 0
+                client_id = str(existing['_id'])
+            else:
+                insert_result = clients.create_client(update_payload)
+                client_id = str(insert_result.inserted_id)
+                updated = True
+
+        return jsonify({
+            'success': True,
+            'message': 'Client synced from HubSpot',
+            'client_id': client_id,
+            'updated': updated,
+            'hubspot': contact
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': f'Failed to sync client from HubSpot: {str(e)}'
         }), 500
 
 # Quote Status Tracking & Email APIs

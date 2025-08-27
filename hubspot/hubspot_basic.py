@@ -94,6 +94,98 @@ class HubSpotBasic:
             print(f"❌ Error fetching contacts: {str(e)}")
             return {"success": False, "error": str(e)}
 
+    def get_recent_contacts(self, limit=50):
+        """Fetch most recently updated contacts using the CRM search API sorted by lastmodifieddate."""
+        try:
+            url = f"{self.base_url}/crm/v3/objects/contacts/search"
+            payload = {
+                "sorts": ["-lastmodifieddate"],
+                "properties": [
+                    "firstname",
+                    "lastname",
+                    "email",
+                    "phone",
+                    "company",
+                    "jobtitle",
+                    "lastmodifieddate"
+                ],
+                "limit": limit
+            }
+            response = requests.post(url, headers=self.headers, data=json.dumps(payload))
+            if response.status_code != 200:
+                return {"success": False, "error": f"HTTP {response.status_code}", "details": response.text}
+
+            data = response.json()
+            contacts = []
+            for contact in data.get('results', []):
+                props = contact.get('properties', {})
+                contacts.append({
+                    "id": contact.get('id'),
+                    "name": f"{props.get('firstname', '')} {props.get('lastname', '')}".strip(),
+                    "email": props.get('email', ''),
+                    "phone": props.get('phone', ''),
+                    "company": props.get('company', ''),
+                    "job_title": props.get('jobtitle', ''),
+                    "source": "HubSpot",
+                    "last_modified": props.get('lastmodifieddate')
+                })
+            return {"success": True, "contacts": contacts, "total": len(contacts)}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    def get_contact_by_email(self, email: str):
+        """Fetch a single contact by email with core properties."""
+        try:
+            if not email:
+                return {"success": False, "error": "email required"}
+
+            url = f"{self.base_url}/crm/v3/objects/contacts/search"
+            payload = {
+                "filterGroups": [
+                    {
+                        "filters": [
+                            {
+                                "propertyName": "email",
+                                "operator": "EQ",
+                                "value": email
+                            }
+                        ]
+                    }
+                ],
+                "properties": [
+                    "firstname",
+                    "lastname",
+                    "email",
+                    "phone",
+                    "company",
+                    "jobtitle"
+                ],
+                "limit": 1
+            }
+
+            response = requests.post(url, headers=self.headers, data=json.dumps(payload))
+            if response.status_code != 200:
+                return {"success": False, "error": f"HTTP {response.status_code}", "details": response.text}
+
+            data = response.json()
+            results = data.get('results', [])
+            if not results:
+                return {"success": False, "error": "not_found"}
+
+            contact = results[0]
+            props = contact.get('properties', {})
+            normalized = {
+                "hubspot_id": contact.get('id'),
+                "name": f"{props.get('firstname','')} {props.get('lastname','')}".strip(),
+                "email": props.get('email',''),
+                "phone": props.get('phone',''),
+                "company": props.get('company',''),
+                "job_title": props.get('jobtitle','')
+            }
+            return {"success": True, "contact": normalized}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
 def main():
     """Test the basic HubSpot connection"""
     print("🧪 Testing Basic HubSpot Connection")

@@ -221,6 +221,11 @@
             background: #c82333;
         }
 
+        .sync-btn {
+            background: #6f42c1;
+            color: white;
+        }
+
         .message {
             padding: 15px;
             border-radius: 10px;
@@ -397,6 +402,7 @@
                         <div class="client-actions">
                             <button class="action-btn edit-btn" onclick="editClient('${client._id || index}')">✏️ Edit</button>
                             <button class="action-btn delete-btn" onclick="deleteClient('${client._id || index}')">🗑️ Delete</button>
+                            <button class="action-btn sync-btn" onclick="syncFromHubSpot('${client._id || ''}', '${client.email || ''}')">🔄 Refresh from HubSpot</button>
                         </div>
                     </div>
                 `;
@@ -484,6 +490,30 @@
         // Go back to dashboard
         function goBack() {
             window.location.href = '/';
+        }
+
+        // Sync client from HubSpot by email
+        async function syncFromHubSpot(clientId, email) {
+            if (!email) {
+                showMessage('❌ Cannot sync: client has no email', 'error');
+                return;
+            }
+            try {
+                const resp = await fetch('/api/hubspot/sync-client', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ client_id: clientId, email })
+                });
+                const result = await resp.json();
+                if (resp.ok && result.success) {
+                    showMessage('✅ Synced latest data from HubSpot', 'success');
+                    loadRecentClients();
+                } else {
+                    showMessage('❌ Sync failed: ' + (result.message || 'Unknown error'), 'error');
+                }
+            } catch (err) {
+                showMessage('❌ Sync error: ' + err.message, 'error');
+            }
         }
     </script>
 </body>

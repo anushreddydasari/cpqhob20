@@ -302,6 +302,9 @@
             <button class="btn" onclick="generateCPQForSelected()" id="generateCPQBtn" disabled>
                 🚀 Generate CPQ for Selected (<span id="selectedCountBtn">0</span>)
             </button>
+            <button class="btn" onclick="syncSelectedToClients()" id="syncBtn" disabled>
+                🔄 Sync Selected to Clients
+            </button>
         </div>
 
         <div id="status"></div>
@@ -439,6 +442,8 @@
             
             const generateBtn = document.getElementById('generateCPQBtn');
             generateBtn.disabled = count === 0;
+            const syncBtn = document.getElementById('syncBtn');
+            syncBtn.disabled = count === 0;
         }
 
         function generateCPQForSelected() {
@@ -465,6 +470,35 @@
                 
                 // Navigate to CPQ setup page
                 window.location.href = '/hubspot-cpq-setup';
+            }
+        }
+
+        async function syncSelectedToClients() {
+            if (selectedContacts.size === 0) {
+                showStatus('❌ Please select at least one contact to sync.', 'error');
+                return;
+            }
+            showStatus('🔄 Syncing selected contacts to Clients...', 'info');
+            let success = 0, failed = 0;
+            for (const contactId of Array.from(selectedContacts)) {
+                const contact = allContacts.find(c => c.id === contactId);
+                if (!contact || !contact.email) { failed++; continue; }
+                try {
+                    const resp = await fetch('/api/hubspot/sync-client', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ email: contact.email })
+                    });
+                    const result = await resp.json();
+                    if (resp.ok && result.success) success++; else failed++;
+                } catch (e) { failed++; }
+            }
+            if (failed === 0) {
+                showStatus(`✅ Synced ${success} contact(s) to Clients`, 'success');
+            } else if (success === 0) {
+                showStatus('❌ Failed to sync selected contacts', 'error');
+            } else {
+                showStatus(`⚠️ Synced ${success}, failed ${failed}`, 'info');
             }
         }
 
