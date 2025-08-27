@@ -10,13 +10,23 @@ class ClientCollection:
     
     def create_client(self, client_data):
         """Create a new client with validation"""
-        if not self._validate_client_data(client_data):
+        # Normalize incoming keys from frontend
+        normalized = {
+            'clientName': client_data.get('clientName') or client_data.get('name'),
+            'companyName': client_data.get('companyName') or client_data.get('company'),
+            'email': client_data.get('email'),
+            'phoneNumber': client_data.get('phoneNumber') or client_data.get('phone'),
+            'serviceType': client_data.get('serviceType'),
+            'requirements': client_data.get('requirements')
+        }
+
+        if not self._validate_client_data(normalized):
             raise ValueError("Invalid client data")
-        
-        client_data["created_at"] = datetime.now()
-        client_data["updated_at"] = datetime.now()
-        
-        return self.collection.insert_one(client_data)
+
+        normalized["created_at"] = datetime.now()
+        normalized["updated_at"] = datetime.now()
+
+        return self.collection.insert_one(normalized)
     
     def get_client_by_id(self, client_id):
         """Get client by MongoDB ObjectId"""
@@ -35,18 +45,23 @@ class ClientCollection:
     
     def update_client(self, client_id, client_data):
         """Update existing client"""
-        if not self._validate_client_data(client_data):
+        normalized = {
+            'clientName': client_data.get('clientName') or client_data.get('name'),
+            'companyName': client_data.get('companyName') or client_data.get('company'),
+            'email': client_data.get('email'),
+            'phoneNumber': client_data.get('phoneNumber') or client_data.get('phone'),
+            'serviceType': client_data.get('serviceType'),
+            'requirements': client_data.get('requirements')
+        }
+
+        if not self._validate_client_data(normalized):
             raise ValueError("Invalid client data")
-        
-        client_data["updated_at"] = datetime.now()
-        
-        # Remove _id if present
-        if '_id' in client_data:
-            del client_data['_id']
-        
+
+        normalized["updated_at"] = datetime.now()
+
         return self.collection.update_one(
             {"_id": ObjectId(client_id)},
-            {"$set": client_data}
+            {"$set": normalized}
         )
     
     def delete_client(self, client_id):
@@ -60,12 +75,12 @@ class ClientCollection:
         """Search clients by name, email, or company"""
         search_query = {
             "$or": [
-                {"name": {"$regex": search_term, "$options": "i"}},
+                {"clientName": {"$regex": search_term, "$options": "i"}},
                 {"email": {"$regex": search_term, "$options": "i"}},
-                {"company": {"$regex": search_term, "$options": "i"}}
+                {"companyName": {"$regex": search_term, "$options": "i"}}
             ]
         }
-        
+
         return list(self.collection.find(search_query).sort("created_at", -1).limit(limit))
     
     def get_client_stats(self):
@@ -82,5 +97,5 @@ class ClientCollection:
     
     def _validate_client_data(self, data):
         """Validate client data before saving"""
-        required_fields = ["name", "email"]
-        return all(field in data for field in required_fields)
+        required_fields = ["clientName", "email", "companyName", "phoneNumber"]
+        return all(data.get(field) for field in required_fields)

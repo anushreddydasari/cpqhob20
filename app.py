@@ -278,9 +278,37 @@ def get_all_clients():
     """Get all clients from MongoDB"""
     try:
         clients_data = clients.get_all_clients()
+
+        # Serialize MongoDB documents for JSON (ObjectId, datetime)
+        serialized_clients = []
+        for client_doc in clients_data:
+            try:
+                safe_doc = dict(client_doc)
+
+                # Normalize field names expected by the frontend
+                safe_doc['clientName'] = safe_doc.get('clientName') or safe_doc.get('name')
+                safe_doc['companyName'] = safe_doc.get('companyName') or safe_doc.get('company')
+                safe_doc['phoneNumber'] = safe_doc.get('phoneNumber') or safe_doc.get('phone')
+
+                if '_id' in safe_doc:
+                    safe_doc['_id'] = str(safe_doc['_id'])
+
+                # Convert datetimes to ISO strings if present
+                created_at = safe_doc.get('created_at')
+                updated_at = safe_doc.get('updated_at')
+                if hasattr(created_at, 'isoformat'):
+                    safe_doc['created_at'] = created_at.isoformat()
+                if hasattr(updated_at, 'isoformat'):
+                    safe_doc['updated_at'] = updated_at.isoformat()
+
+                serialized_clients.append(safe_doc)
+            except Exception:
+                # If serialization fails for a document, skip it rather than 500 the whole request
+                continue
+
         return jsonify({
             "success": True,
-            "clients": clients_data
+            "clients": serialized_clients
         }), 200
         
     except Exception as e:
