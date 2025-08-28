@@ -2287,6 +2287,29 @@ def download_document(document_id):
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)}), 500
 
+@app.route('/api/documents/preview/<document_id>', methods=['GET'])
+def preview_document(document_id):
+    """Preview a specific document by ID (for managers to view before approval)"""
+    try:
+        # Try to find in PDFs first
+        pdf = generated_pdfs.get_pdf_by_id(document_id)
+        if pdf:
+            file_path = pdf.get('file_path')
+            if file_path and os.path.exists(file_path):
+                return send_file(file_path, mimetype='application/pdf')
+        
+        # Try to find in agreements
+        agreement = generated_agreements.get_agreement_by_id(document_id)
+        if agreement:
+            file_path = agreement.get('file_path')
+            if file_path and os.path.exists(file_path):
+                return send_file(file_path, mimetype='application/pdf')
+        
+        return jsonify({'success': False, 'message': 'Document not found'}), 404
+        
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
+
 @app.route('/api/email/send-with-attachments', methods=['POST'])
 def send_email_with_attachments():
     """Send email with document attachments"""
