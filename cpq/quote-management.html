@@ -256,6 +256,100 @@
         .documents-table tr:nth-child(even) {
             background: #f8f9fa;
         }
+
+        /* Quotes Table Styles */
+        .quotes-table-container {
+            max-height: 400px;
+            overflow-y: auto;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            margin-top: 15px;
+        }
+
+        .quotes-table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+        }
+
+        .quotes-table th,
+        .quotes-table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+
+        .quotes-table th {
+            background: #4CAF50;
+            color: white;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        .quotes-table tr:nth-child(even) {
+            background: #f8f9fa;
+        }
+
+        .quotes-table tr:hover {
+            background: #e3f2fd;
+        }
+
+        .quote-action-btn {
+            background: #2196f3;
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.8rem;
+            margin: 2px;
+        }
+
+        .quote-action-btn:hover {
+            background: #1976d2;
+        }
+
+        .quote-action-btn.pdf {
+            background: #ff5722;
+        }
+
+        .quote-action-btn.agreement {
+            background: #4caf50;
+        }
+
+        /* Status badges */
+        .status-badge {
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            font-weight: 500;
+            text-transform: capitalize;
+        }
+
+        .status-badge.pending {
+            background: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeaa7;
+        }
+
+        .status-badge.approved {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .status-badge.rejected {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .status-badge.completed {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
     </style>
 </head>
 <body>
@@ -339,6 +433,34 @@
                 <div class="section">
                     <h3>📄 PDF Generation</h3>
                     
+                    <!-- Load Available Quotes Section -->
+                    <div class="form-group" style="margin-bottom: 20px;">
+                        <button class="btn btn-success" onclick="loadAvailableQuotes()">📋 Load Available Quotes</button>
+                        <span id="quotesLoadingStatus" style="margin-left: 10px;"></span>
+                    </div>
+                    
+                    <!-- Available Quotes Display -->
+                    <div id="availableQuotesSection" style="display: none; margin-bottom: 20px;">
+                        <h4>📊 Available Quotes</h4>
+                        <div class="quotes-table-container">
+                            <table class="quotes-table" id="availableQuotesTable">
+                                <thead>
+                                    <tr>
+                                        <th>Quote ID</th>
+                                        <th>Client Name</th>
+                                        <th>Company</th>
+                                        <th>Service Type</th>
+                                        <th>Total Amount</th>
+                                        <th>Status</th>
+                                        <th>Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="quotesTableBody">
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    
                     <div class="form-grid">
                         <div class="form-group">
                             <label class="form-label">🔍 Lookup By</label>
@@ -346,6 +468,7 @@
                                 <option value="quoteId">Quote ID</option>
                                 <option value="username">Username</option>
                                 <option value="company">Company Name</option>
+                                <option value="selectQuote">Select from Available Quotes</option>
                             </select>
                         </div>
                         <div class="form-group" id="quoteIdGroup">
@@ -359,6 +482,12 @@
                         <div class="form-group" id="companyGroup" style="display: none;">
                             <label class="form-label">🏢 Company Name</label>
                             <input type="text" id="companyName" class="form-input" placeholder="Enter company name">
+                        </div>
+                        <div class="form-group" id="selectQuoteGroup" style="display: none;">
+                            <label class="form-label">📋 Select Quote</label>
+                            <select id="quoteSelector" class="form-select" onchange="onQuoteSelected()">
+                                <option value="">Choose a quote from the list above</option>
+                            </select>
                         </div>
                     </div>
 
@@ -424,10 +553,12 @@
             const quoteIdGroup = document.getElementById('quoteIdGroup');
             const usernameGroup = document.getElementById('usernameGroup');
             const companyGroup = document.getElementById('companyGroup');
+            const selectQuoteGroup = document.getElementById('selectQuoteGroup');
 
             quoteIdGroup.style.display = 'none';
             usernameGroup.style.display = 'none';
             companyGroup.style.display = 'none';
+            selectQuoteGroup.style.display = 'none';
 
             switch(lookupType) {
                 case 'quoteId':
@@ -438,6 +569,13 @@
                     break;
                 case 'company':
                     companyGroup.style.display = 'block';
+                    break;
+                case 'selectQuote':
+                    selectQuoteGroup.style.display = 'block';
+                    // Ensure quotes are loaded when this option is selected
+                    if (document.getElementById('quotesTableBody').children.length === 0) {
+                        loadAvailableQuotes();
+                    }
                     break;
             }
         }
@@ -617,6 +755,147 @@
                 }
             } catch (error) {
                 showStatus('emailStatus', `❌ Error: ${error.message}`, 'error');
+            }
+        }
+
+        // Load available quotes function
+        async function loadAvailableQuotes() {
+            const statusElement = document.getElementById('quotesLoadingStatus');
+            statusElement.textContent = '🔄 Loading quotes...';
+            statusElement.style.color = '#2196f3';
+
+            try {
+                const response = await fetch('/api/quotes/list');
+                const result = await response.json();
+
+                if (result.success) {
+                    displayAvailableQuotes(result.quotes);
+                    statusElement.textContent = `✅ Loaded ${result.quotes.length} quotes`;
+                    statusElement.style.color = '#4caf50';
+                } else {
+                    statusElement.textContent = `❌ Failed to load quotes: ${result.message}`;
+                    statusElement.style.color = '#f44336';
+                }
+            } catch (error) {
+                statusElement.textContent = `❌ Error: ${error.message}`;
+                statusElement.style.color = '#f44336';
+            }
+        }
+
+        // Display available quotes in table
+        function displayAvailableQuotes(quotes) {
+            const tableBody = document.getElementById('quotesTableBody');
+            const section = document.getElementById('availableQuotesSection');
+            
+            if (quotes.length === 0) {
+                tableBody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 20px;">No quotes available</td></tr>';
+            } else {
+                tableBody.innerHTML = quotes.map(quote => `
+                    <tr>
+                        <td><strong>${quote.id || 'N/A'}</strong></td>
+                        <td>${quote.client_name || 'N/A'}</td>
+                        <td>${quote.company || 'N/A'}</td>
+                        <td>${quote.service_type || 'N/A'}</td>
+                        <td>$${quote.total_amount || '0.00'}</td>
+                        <td><span class="status-badge ${quote.status || 'pending'}">${quote.status || 'Pending'}</span></td>
+                        <td>
+                            <button class="quote-action-btn pdf" onclick="generatePDFFromQuote('${quote.id}')" title="Generate PDF">📄</button>
+                            <button class="quote-action-btn agreement" onclick="generateAgreementFromQuote('${quote.id}')" title="Generate Agreement">📋</button>
+                        </td>
+                    </tr>
+                `).join('');
+            }
+            
+            section.style.display = 'block';
+            
+            // Populate quote selector dropdown
+            populateQuoteSelector(quotes);
+        }
+
+        // Populate quote selector dropdown
+        function populateQuoteSelector(quotes) {
+            const selector = document.getElementById('quoteSelector');
+            selector.innerHTML = '<option value="">Choose a quote from the list above</option>';
+            
+            quotes.forEach(quote => {
+                const option = document.createElement('option');
+                option.value = quote.id;
+                option.textContent = `${quote.client_name} - ${quote.company} ($${quote.total_amount || '0.00'})`;
+                selector.appendChild(option);
+            });
+        }
+
+        // Handle quote selection
+        function onQuoteSelected() {
+            const selectedQuoteId = document.getElementById('quoteSelector').value;
+            if (selectedQuoteId) {
+                // Auto-fill the quote ID field
+                document.getElementById('quoteId').value = selectedQuoteId;
+                // Switch to quote ID lookup type
+                document.getElementById('lookupType').value = 'quoteId';
+                toggleLookupFields();
+            }
+        }
+
+        // Generate PDF directly from quote
+        async function generatePDFFromQuote(quoteId) {
+            showStatus('pdfStatus', '📄 Generating PDF...', 'info');
+            
+            try {
+                const response = await fetch('/api/generate-pdf-by-lookup', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        lookup_type: 'quoteId',
+                        lookup_value: quoteId
+                    })
+                });
+
+                if (response.ok) {
+                    const blob = await response.blob();
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `quote_${quoteId}_${new Date().toISOString().split('T')[0]}.pdf`;
+                    document.body.appendChild(a);
+                    a.click();
+                    window.URL.revokeObjectURL(url);
+                    document.body.removeChild(a);
+                    showStatus('pdfStatus', '✅ PDF generated and downloaded successfully!', 'success');
+                } else {
+                    showStatus('pdfStatus', '❌ PDF generation failed.', 'error');
+                }
+            } catch (error) {
+                showStatus('pdfStatus', `❌ Error: ${error.message}`, 'error');
+            }
+        }
+
+        // Generate agreement directly from quote
+        async function generateAgreementFromQuote(quoteId) {
+            showStatus('agreementStatus', '📋 Generating Agreement...', 'info');
+            
+            try {
+                const response = await fetch('/api/agreements/generate-from-quote', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        quote_id: quoteId
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    showStatus('agreementStatus', '✅ Agreement generated successfully!', 'success');
+                } else {
+                    showStatus('agreementStatus', `❌ Error: ${result.message}`, 'error');
+                }
+            } catch (error) {
+                showStatus('agreementStatus', `❌ Error: ${error.message}`, 'error');
             }
         }
 
