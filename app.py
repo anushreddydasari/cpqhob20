@@ -8,7 +8,8 @@ from mongodb_collections import (
     ClientCollection, PricingCollection, 
     HubSpotContactCollection, HubSpotIntegrationCollection,
     FormTrackingCollection, TemplateCollection, HubSpotQuoteCollection,
-    GeneratedPDFCollection, GeneratedAgreementCollection
+    GeneratedPDFCollection, GeneratedAgreementCollection,
+    ApprovalWorkflowCollection
 )
 from cpq.pricing_logic import calculate_quote
 from flask import send_file
@@ -87,6 +88,7 @@ hubspot_quotes = HubSpotQuoteCollection()
 signatures = SignatureCollection()
 generated_pdfs = GeneratedPDFCollection()
 generated_agreements = GeneratedAgreementCollection()
+approval_workflows = ApprovalWorkflowCollection()
 
 
 
@@ -951,10 +953,58 @@ def send_quote_email():
         # Import email service
         from cpq.email_service import EmailService
         
-        # Send email
+        # Generate PDF first if not exists
+        pdf_path = None
+        try:
+            # Check if PDF already exists for this quote
+            existing_pdfs = generated_pdfs.get_pdfs_by_quote_id(quote_id)
+            if existing_pdfs:
+                pdf_path = existing_pdfs[0].get('file_path')
+            
+            # If no PDF exists, generate one
+            if not pdf_path or not os.path.exists(pdf_path):
+                pdf_buffer = pdf_generator.create_quote_pdf(
+                    quote.get('client', {}), 
+                    quote.get('quote', {}), 
+                    quote.get('configuration', {})
+                )
+                pdf_buffer.seek(0)
+                
+                # Save PDF to documents directory
+                timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+                filename = f"quote_{quote.get('client', {}).get('name', 'client')}_{timestamp}.pdf"
+                file_path = os.path.join('documents', filename)
+                
+                # Ensure documents directory exists
+                os.makedirs('documents', exist_ok=True)
+                
+                # Save PDF file
+                with open(file_path, 'wb') as f:
+                    f.write(pdf_buffer.getvalue())
+                
+                # Store PDF metadata in MongoDB
+                pdf_metadata = {
+                    'quote_id': quote_id,
+                    'filename': filename,
+                    'file_path': file_path,
+                    'client_name': quote.get('client', {}).get('name', 'N/A'),
+                    'company_name': quote.get('client', {}).get('company', 'N/A'),
+                    'service_type': quote.get('client', {}).get('serviceType', 'N/A'),
+                    'file_size': len(pdf_buffer.getvalue())
+                }
+                
+                try:
+                    generated_pdfs.store_pdf_metadata(pdf_metadata)
+                    pdf_path = file_path
+                except Exception as e:
+                    print(f"Warning: Failed to store PDF metadata: {e}")
+        except Exception as e:
+            print(f"Warning: Failed to generate PDF: {e}")
+        
+        # Send email with PDF attachment
         email_service = EmailService()
         email_result = email_service.send_quote_email(
-            recipient_email, recipient_name, company_name, quote.get('quote', {})
+            recipient_email, recipient_name, company_name, quote.get('quote', {}), pdf_path
         )
         
         if email_result['success']:
@@ -1027,10 +1077,42 @@ def send_quote_email_direct():
         # Import email service
         from cpq.email_service import EmailService
         
-        # Send email directly
+        # Generate PDF for the quote data
+        pdf_path = None
+        try:
+            # Create PDF using template
+            pdf_buffer = pdf_generator.create_quote_pdf(
+                {
+                    'name': recipient_name,
+                    'company': company_name,
+                    'email': recipient_email,
+                    'serviceType': quote_data.get('serviceType', 'Migration Services')
+                }, 
+                quote_results, 
+                quote_data.get('configuration', {})
+            )
+            pdf_buffer.seek(0)
+            
+            # Save PDF to documents directory
+            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+            filename = f"quote_{recipient_name}_{timestamp}.pdf"
+            file_path = os.path.join('documents', filename)
+            
+            # Ensure documents directory exists
+            os.makedirs('documents', exist_ok=True)
+            
+            # Save PDF file
+            with open(file_path, 'wb') as f:
+                f.write(pdf_buffer.getvalue())
+            
+            pdf_path = file_path
+        except Exception as e:
+            print(f"Warning: Failed to generate PDF: {e}")
+        
+        # Send email with PDF attachment
         email_service = EmailService()
         email_result = email_service.send_quote_email(
-            recipient_email, recipient_name, company_name, quote_results
+            recipient_email, recipient_name, company_name, quote_results, pdf_path
         )
         
         if email_result['success']:
@@ -1071,6 +1153,10 @@ def serve_quote_management():
 @app.route('/debug-documents')
 def serve_debug_documents():
     return send_from_directory('.', 'debug_document_loading.html')
+
+@app.route('/approval-dashboard')
+def serve_approval_dashboard():
+    return send_from_directory('cpq', 'approval-dashboard.html')
 
 
 
@@ -2246,10 +2332,10 @@ def send_email_with_attachments():
         </html>
         """
         
-        # Send email
-        success = email_service.send_email(recipient_email, subject, body)
+        # Send email with attachments
+        email_result = email_service.send_email_with_attachments(recipient_email, subject, body, attachments)
         
-        if success:
+        if email_result['success']:
             return jsonify({
                 'success': True,
                 'message': f'Email sent successfully with {len(attachments)} attachment(s)',
@@ -2258,11 +2344,554 @@ def send_email_with_attachments():
         else:
             return jsonify({
                 'success': False,
-                'message': 'Failed to send email. Please check Gmail configuration.'
+                'message': f'Failed to send email: {email_result.get("message", "Unknown error")}'
             })
         
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)}), 500
+
+@app.route('/api/email/generate-and-send', methods=['POST'])
+def generate_pdf_and_send_email():
+    """Generate a PDF quote and send it via email with attachment"""
+    try:
+        data = request.get_json()
+        recipient_email = data.get('recipient_email')
+        recipient_name = data.get('recipient_name')
+        company_name = data.get('company_name')
+        service_type = data.get('service_type')
+        requirements = data.get('requirements')
+        
+        if not recipient_email or not recipient_name or not company_name:
+            return jsonify({'success': False, 'message': 'Recipient email, name, and company are required'}), 400
+        
+        print(f"🔍 Debug: Generating PDF and sending email to {recipient_email}")
+        
+        # Create sample quote data for PDF generation
+        quote_data = {
+            'basic': {'perUserCost': 30.0, 'totalUserCost': 1500.0, 'dataCost': 100.0, 'migrationCost': 300.0, 'instanceCost': 1000.0, 'totalCost': 2900.0},
+            'standard': {'perUserCost': 35.0, 'totalUserCost': 1750.0, 'dataCost': 150.0, 'migrationCost': 300.0, 'instanceCost': 1000.0, 'totalCost': 3200.0},
+            'advanced': {'perUserCost': 40.0, 'totalUserCost': 2000.0, 'dataCost': 180.0, 'migrationCost': 300.0, 'instanceCost': 1000.0, 'totalCost': 3480.0}
+        }
+        
+        configuration = {
+            'users': 50, 'instanceType': 'standard', 'instances': 2, 'duration': 6,
+            'migrationType': 'content', 'dataSize': 100
+        }
+        
+        # Generate PDF
+        from templates.pdf_generator import PDFGenerator
+        pdf_generator = PDFGenerator()
+        pdf_buffer = pdf_generator.create_quote_pdf(
+            {'name': recipient_name, 'company': company_name, 'email': recipient_email, 'phone': '', 'serviceType': service_type},
+            quote_data,
+            configuration
+        )
+        
+        # Save PDF to documents directory
+        import os
+        from datetime import datetime
+        
+        os.makedirs('documents', exist_ok=True)
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        filename = f"quote_{recipient_name.replace(' ', '_')}_{timestamp}.pdf"
+        pdf_path = os.path.join('documents', filename)
+        
+        with open(pdf_path, 'wb') as f:
+            f.write(pdf_buffer.getvalue())
+        
+        print(f"✅ Debug: PDF generated and saved to {pdf_path}")
+        print(f"✅ Debug: File size: {os.path.getsize(pdf_path)} bytes")
+        
+        # Store PDF metadata in MongoDB
+        pdf_metadata = {
+            'quote_id': f'auto_{timestamp}',
+            'filename': filename,
+            'file_path': pdf_path,
+            'client_name': recipient_name,
+            'company_name': company_name,
+            'service_type': service_type,
+            'generated_at': datetime.now()
+        }
+        
+        generated_pdfs.store_pdf_metadata(pdf_metadata)
+        print(f"✅ Debug: PDF metadata stored in MongoDB")
+        
+        # Send email with the generated PDF
+        email_service = EmailService()
+        
+        subject = f"Quote for {company_name} - {service_type}"
+        body = f"""
+        <html>
+        <body>
+            <h2>Hello {recipient_name},</h2>
+            <p>Thank you for your interest in our {service_type}.</p>
+            <p>Please find attached your detailed quote for {company_name}.</p>
+            <p><strong>Service Type:</strong> {service_type}</p>
+            <p><strong>Requirements:</strong> {requirements or 'Not specified'}</p>
+            <br>
+            <p>We've prepared three service tiers to meet your needs:</p>
+            <ul>
+                <li><strong>Basic Plan:</strong> ${quote_data['basic']['totalCost']:,.2f}</li>
+                <li><strong>Standard Plan:</strong> ${quote_data['standard']['totalCost']:,.2f}</li>
+                <li><strong>Advanced Plan:</strong> ${quote_data['advanced']['totalCost']:,.2f}</li>
+            </ul>
+            <br>
+            <p>Please review the attached quote and let us know if you have any questions.</p>
+            <p>Best regards,<br>Your Migration Services Team</p>
+        </body>
+        </html>
+        """
+        
+        # Create attachment list
+        attachments = [{
+            'filename': filename,
+            'file_path': pdf_path
+        }]
+        
+        print(f"🔍 Debug: Sending email with PDF attachment")
+        email_result = email_service.send_quote_email(recipient_email, recipient_name, company_name, quote_data, pdf_path)
+        
+        if email_result['success']:
+            return jsonify({
+                'success': True,
+                'message': f'PDF generated and email sent successfully to {recipient_email}',
+                'pdf_path': pdf_path,
+                'filename': filename
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'message': f'PDF generated but email failed: {email_result.get("message", "Unknown error")}',
+                'pdf_path': pdf_path,
+                'filename': filename
+            })
+        
+    except Exception as e:
+        print(f"❌ Debug: Error in generate_pdf_and_send_email: {str(e)}")
+        import traceback
+        print(f"❌ Debug: Full traceback: {traceback.format_exc()}")
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+# Approval Workflow API Endpoints
+@app.route('/api/approval/stats', methods=['GET'])
+def get_approval_stats():
+    """Get approval workflow statistics"""
+    try:
+        stats = approval_workflows.get_workflow_stats()
+        return jsonify({
+            'success': True,
+            'stats': stats
+        }), 200
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': f'Error fetching approval stats: {str(e)}'
+        }), 500
+
+@app.route('/api/approval/pending', methods=['GET'])
+def get_pending_approvals():
+    """Get all pending approval workflows"""
+    try:
+        workflows = approval_workflows.get_pending_workflows(limit=100)
+        
+        # Format workflows for frontend
+        formatted_workflows = []
+        for workflow in workflows:
+            formatted_workflow = {
+                '_id': str(workflow['_id']),
+                'document_id': workflow.get('document_id'),
+                'document_name': workflow.get('document_name', 'N/A'),
+                'client_name': workflow.get('client_name', 'N/A'),
+                'company_name': workflow.get('company_name', 'N/A'),
+                'document_type': workflow.get('document_type', 'N/A'),
+                'current_stage': workflow.get('current_stage', 'N/A'),
+                'status': workflow.get('workflow_status', 'pending'),
+                'created_at': workflow.get('created_at'),
+                'can_approve': True  # This would be determined by user role
+            }
+            formatted_workflows.append(formatted_workflow)
+        
+        return jsonify({
+            'success': True,
+            'workflows': formatted_workflows
+        }), 200
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': f'Error fetching pending approvals: {str(e)}'
+        }), 500
+
+@app.route('/api/approval/my-queue', methods=['GET'])
+def get_my_approval_queue():
+    """Get approval queue for current user"""
+    try:
+        # Get role and email from request parameters
+        user_role = request.args.get('role', 'manager')
+        user_email = request.args.get('email', 'manager@company.com')
+        
+        print(f"🔍 API: Getting approval queue for role: {user_role}, email: {user_email}")
+        
+        workflows = approval_workflows.get_my_approval_queue(user_role, user_email, limit=100)
+        
+        # Format workflows for frontend
+        formatted_workflows = []
+        for workflow in workflows:
+            formatted_workflow = {
+                '_id': str(workflow['_id']),
+                'document_id': workflow.get('document_id'),
+                'document_name': workflow.get('document_name', 'N/A'),
+                'client_name': workflow.get('client_name', 'N/A'),
+                'company_name': workflow.get('company_name', 'N/A'),
+                'document_type': workflow.get('document_type', 'N/A'),
+                'created_at': workflow.get('created_at'),
+                'priority': 'normal'  # This could be calculated based on urgency
+            }
+            formatted_workflows.append(formatted_workflow)
+        
+        return jsonify({
+            'success': True,
+            'workflows': formatted_workflows
+        }), 200
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': f'Error fetching approval queue: {str(e)}'
+        }), 500
+
+@app.route('/api/approval/workflow-status', methods=['GET'])
+def get_workflow_status():
+    """Get all active workflow statuses"""
+    try:
+        workflows = approval_workflows.get_workflow_status(limit=100)
+        
+        # Format workflows for frontend
+        formatted_workflows = []
+        for workflow in workflows:
+            formatted_workflow = {
+                '_id': str(workflow['_id']),
+                'document_id': workflow.get('document_id'),
+                'document_name': workflow.get('document_name', 'N/A'),
+                'document_type': workflow.get('document_type', 'N/A'),
+                'client_name': workflow.get('client_name', 'N/A'),
+                'company_name': workflow.get('company_name', 'N/A'),
+                'manager_status': workflow.get('manager_status', 'pending'),
+                'ceo_status': workflow.get('ceo_status', 'pending'),
+                'client_status': workflow.get('client_status', 'pending'),
+                'created_at': workflow.get('created_at')
+            }
+            formatted_workflows.append(formatted_workflow)
+        
+        return jsonify({
+            'success': True,
+            'workflows': formatted_workflows
+        }), 200
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': f'Error fetching workflow status: {str(e)}'
+        }), 500
+
+@app.route('/api/approval/history', methods=['GET'])
+def get_approval_history():
+    """Get approval history"""
+    try:
+        history = approval_workflows.get_approval_history(limit=100)
+        
+        # Format history for frontend
+        formatted_history = []
+        for item in history:
+            formatted_item = {
+                '_id': str(item['_id']),
+                'document_id': item.get('document_id'),
+                'document_name': item.get('document_name', 'N/A'),
+                'client_name': item.get('client_name', 'N/A'),
+                'company_name': item.get('company_name', 'N/A'),
+                'document_type': item.get('document_type', 'N/A'),
+                'final_status': item.get('final_status', 'completed'),
+                'manager_decision': item.get('manager_status', 'N/A'),
+                'ceo_decision': item.get('ceo_status', 'N/A'),
+                'completed_at': item.get('completed_at') or item.get('updated_at')
+            }
+            formatted_history.append(formatted_item)
+        
+        return jsonify({
+            'success': True,
+            'history': formatted_history
+        }), 200
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': f'Error fetching approval history: {str(e)}'
+        }), 500
+
+@app.route('/api/approval/workflow/<workflow_id>', methods=['GET'])
+def get_workflow_details(workflow_id):
+    """Get specific workflow details"""
+    try:
+        workflow = approval_workflows.get_workflow_by_id(workflow_id)
+        
+        if not workflow:
+            return jsonify({
+                'success': False,
+                'message': 'Workflow not found'
+            }), 404
+        
+        # Format workflow for frontend
+        formatted_workflow = {
+            '_id': str(workflow['_id']),
+            'document_id': workflow.get('document_id'),
+            'document_name': workflow.get('document_name', 'N/A'),
+            'client_name': workflow.get('client_name', 'N/A'),
+            'company_name': workflow.get('company_name', 'N/A'),
+            'document_type': workflow.get('document_type', 'N/A'),
+            'manager_status': workflow.get('manager_status', 'pending'),
+            'ceo_status': workflow.get('ceo_status', 'pending'),
+            'client_status': workflow.get('client_status', 'pending'),
+            'workflow_status': workflow.get('workflow_status', 'active'),
+            'created_at': workflow.get('created_at'),
+            'updated_at': workflow.get('updated_at')
+        }
+        
+        return jsonify({
+            'success': True,
+            'workflow': formatted_workflow
+        }), 200
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': f'Error fetching workflow details: {str(e)}'
+        }), 500
+
+@app.route('/api/approval/approve', methods=['POST'])
+def approve_workflow():
+    """Approve a workflow"""
+    try:
+        data = request.get_json()
+        workflow_id = data.get('workflow_id')
+        role = data.get('role')
+        action = data.get('action')
+        comments = data.get('comments', '')
+        
+        if not all([workflow_id, role, action]):
+            return jsonify({
+                'success': False,
+                'message': 'Workflow ID, role, and action are required'
+            }), 400
+        
+        if action not in ['approve', 'deny']:
+            return jsonify({
+                'success': False,
+                'message': 'Action must be either approve or deny'
+            }), 500
+        
+        # Update workflow status
+        success = approval_workflows.update_workflow_status(workflow_id, role, action, comments)
+        
+        if success:
+            # Get updated workflow details
+            workflow = approval_workflows.get_workflow_by_id(workflow_id)
+            
+            if workflow:
+                try:
+                    # If manager approves, send email to CEO
+                    if role == 'manager' and action == 'approve':
+                        ceo_email = workflow.get('ceo_email')
+                        if ceo_email:
+                            # Get PDF file path for attachment
+                            pdf_path = None
+                            document_type = workflow.get('document_type')
+                            if document_type == 'PDF':
+                                document = generated_pdfs.get_pdf_by_id(workflow.get('document_id'))
+                                pdf_path = document.get('file_path') if document else None
+                            elif document_type == 'Agreement':
+                                document = generated_agreements.get_agreement_by_id(workflow.get('document_id'))
+                                pdf_path = document.get('file_path') if document else None
+                            
+                            # Send approval email to CEO
+                            email_service = EmailService()
+                            email_result = email_service.send_approval_workflow_email(
+                                recipient_email=ceo_email,
+                                recipient_role='ceo',
+                                workflow_data=workflow,
+                                pdf_path=pdf_path
+                            )
+                            
+                            if email_result['success']:
+                                print(f"✅ Approval email sent to CEO: {ceo_email}")
+                            else:
+                                print(f"⚠️ Failed to send approval email to CEO: {email_result['message']}")
+                    
+                    # If CEO approves, send final document to client
+                    elif role == 'ceo' and action == 'approve':
+                        client_email = workflow.get('client_email')
+                        if client_email:
+                            # Send final approved document to client
+                            email_service = EmailService()
+                            # You can customize this email for client delivery
+                            print(f"✅ Workflow approved! Would send final document to client: {client_email}")
+                    
+                    # If anyone denies, notify initiator
+                    elif action == 'deny':
+                        print(f"⚠️ Workflow denied by {role}. Notifying initiator...")
+                        
+                except Exception as email_error:
+                    print(f"⚠️ Error sending workflow notification email: {str(email_error)}")
+                    # Continue with workflow update even if email fails
+            
+            return jsonify({
+                'success': True,
+                'message': f'Workflow {action}d successfully'
+            }), 200
+        else:
+            return jsonify({
+                'success': False,
+                'message': 'Failed to update workflow status'
+            }), 500
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': f'Error approving workflow: {str(e)}'
+        }), 500
+
+@app.route('/api/approval/deny', methods=['POST'])
+def deny_workflow():
+    """Deny a workflow"""
+    try:
+        data = request.get_json()
+        workflow_id = data.get('workflow_id')
+        role = data.get('role')
+        action = data.get('action')
+        comments = data.get('comments', '')
+        
+        if not all([workflow_id, role, action]):
+            return jsonify({
+                'success': False,
+                'message': 'Workflow ID, role, and action are required'
+            }), 400
+        
+        if action != 'deny':
+            return jsonify({
+                'success': False,
+                'message': 'Action must be deny'
+            }), 500
+        
+        # Update workflow status
+        success = approval_workflows.update_workflow_status(workflow_id, role, action, comments)
+        
+        if success:
+            return jsonify({
+                'success': True,
+                'message': 'Workflow denied successfully'
+            }), 200
+        else:
+            return jsonify({
+                'success': False,
+                'message': 'Failed to update workflow status'
+            }), 500
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': f'Error denying workflow: {str(e)}'
+        }), 500
+
+@app.route('/api/approval/start-workflow', methods=['POST'])
+def start_approval_workflow():
+    """Start a new approval workflow for a document"""
+    try:
+        data = request.get_json()
+        document_id = data.get('document_id')
+        document_type = data.get('document_type', 'PDF')
+        manager_email = data.get('manager_email')
+        ceo_email = data.get('ceo_email')
+        
+        if not all([document_id, manager_email, ceo_email]):
+            return jsonify({
+                'success': False,
+                'message': 'Document ID, manager email, and CEO email are required'
+            }), 400
+        
+        # Get document details
+        document = None
+        if document_type == 'PDF':
+            document = generated_pdfs.get_pdf_by_id(document_id)
+        elif document_type == 'Agreement':
+            document = generated_agreements.get_agreement_by_id(document_id)
+        
+        if not document:
+            return jsonify({
+                'success': False,
+                'message': 'Document not found'
+            }), 404
+        
+        # Create workflow data
+        workflow_data = {
+            'document_id': document_id,
+            'document_type': document_type,
+            'document_name': document.get('filename', 'Document'),
+            'client_name': document.get('client_name', 'N/A'),
+            'company_name': document.get('company_name', 'N/A'),
+            'client_email': document.get('client_email', ''),
+            'manager_email': manager_email,
+            'ceo_email': ceo_email,
+            'current_stage': 'manager',
+            'priority': 'normal'
+        }
+        
+        # Create the workflow
+        result = approval_workflows.create_workflow(workflow_data)
+        
+        if result.inserted_id:
+            workflow_id = str(result.inserted_id)
+            
+            # Send approval email to manager
+            try:
+                # Get PDF file path for attachment
+                pdf_path = None
+                if document_type == 'PDF':
+                    pdf_path = document.get('file_path') or document.get('pdf_path')
+                elif document_type == 'Agreement':
+                    pdf_path = document.get('file_path') or document.get('agreement_path')
+                
+                # Add workflow ID to data for email
+                workflow_data['_id'] = workflow_id
+                workflow_data['created_at'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                
+                # Send email to manager
+                email_service = EmailService()
+                email_result = email_service.send_approval_workflow_email(
+                    recipient_email=manager_email,
+                    recipient_role='manager',
+                    workflow_data=workflow_data,
+                    pdf_path=pdf_path
+                )
+                
+                if email_result['success']:
+                    print(f"✅ Approval email sent to manager: {manager_email}")
+                else:
+                    print(f"⚠️ Failed to send approval email to manager: {email_result['message']}")
+                    
+            except Exception as email_error:
+                print(f"⚠️ Error sending approval email: {str(email_error)}")
+                # Continue with workflow creation even if email fails
+            
+            return jsonify({
+                'success': True,
+                'message': 'Approval workflow started successfully and notification sent to manager',
+                'workflow_id': workflow_id
+                }), 201
+        else:
+            return jsonify({
+                'success': False,
+                'message': 'Failed to create approval workflow'
+            }), 500
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': f'Error starting approval workflow: {str(e)}'
+        }), 500
 
 if __name__ == '__main__':
     app.run(

@@ -21,6 +21,10 @@ try:
     hubspot_contacts_collection = db["hubspot_contacts"]  # New collection for HubSpot contacts
     quote_status_collection = db["quote_status"]  # New collection for quote status tracking
     
+    # Add missing collections that are referenced in the code
+    generated_pdfs_collection = db["storinggenratedpdfinqotemangamnet"]
+    generated_agreements_collection = db["storinggenratedaggremntfromquotemangnt"]
+    
 except pymongo.errors.ServerSelectionTimeoutError:
     print("MongoDB connection failed: Server not reachable")
     raise

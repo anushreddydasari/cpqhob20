@@ -14,6 +14,7 @@ from .hubspot_quote_collection import HubSpotQuoteCollection
 from .signature_collection import SignatureCollection
 from .generated_pdf_collection import GeneratedPDFCollection
 from .generated_agreement_collection import GeneratedAgreementCollection
+from .approval_workflow_collection import ApprovalWorkflowCollection
 
 
 
@@ -31,5 +32,5 @@ __all__ = [
     'SignatureCollection',
     'GeneratedPDFCollection',
     'GeneratedAgreementCollection',
-
+    'ApprovalWorkflowCollection',
 ]

@@ -183,6 +183,16 @@
                 <button class="action-btn">Build Templates</button>
             </div>
 
+            <div class="action-card" onclick="goToApprovalDashboard()">
+                <div class="action-icon">📋</div>
+                <div class="action-title">Approval Dashboard</div>
+                <div class="action-description">
+                    Manage document approval workflows. Review, approve, or deny 
+                    documents with professional approval process.
+                </div>
+                <button class="action-btn">Manage Approvals</button>
+            </div>
+
         </div>
 
         <script>
@@ -212,6 +222,10 @@
 
             function goToTemplateBuilder() {
                 window.location.href = '/template-builder';
+            }
+
+            function goToApprovalDashboard() {
+                window.location.href = '/approval-dashboard';
             }
 
         </script>

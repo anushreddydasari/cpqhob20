@@ -1,0 +1,1170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Approval Dashboard - CPQ System</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+
+        .nav-bar {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 15px;
+            margin-bottom: 30px;
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .nav-btn {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            text-decoration: none;
+            display: inline-block;
+            transition: all 0.3s ease;
+        }
+
+        .nav-btn:hover {
+            background: #5a6fd8;
+            transform: translateY(-2px);
+        }
+
+        .refresh-btn {
+            background: #28a745 !important;
+            margin-top: 15px;
+            padding: 10px 20px;
+            font-size: 1rem;
+        }
+
+        .refresh-btn:hover {
+            background: #218838 !important;
+        }
+
+        .main-card {
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+
+        .card-content {
+            padding: 30px;
+        }
+
+        .section {
+            margin-bottom: 40px;
+            padding: 25px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            border-left: 4px solid #667eea;
+        }
+
+        .section h3 {
+            color: #333;
+            font-size: 1.4rem;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .workflow-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .stat-number {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #667eea;
+            margin-bottom: 10px;
+        }
+
+        .stat-label {
+            color: #666;
+            font-size: 0.9rem;
+        }
+
+        .approval-queue {
+            background: white;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .queue-header {
+            background: #667eea;
+            color: white;
+            padding: 15px 20px;
+            font-weight: bold;
+        }
+
+        .queue-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .queue-table th,
+        .queue-table td {
+            padding: 12px 15px;
+            text-align: left;
+            border-bottom: 1px solid #eee;
+        }
+
+        .queue-table th {
+            background: #f8f9fa;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .queue-table tr:hover {
+            background: #f8f9fa;
+        }
+
+        .status-badge {
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            font-weight: 500;
+        }
+
+        .status-pending {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .status-approved {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .status-denied {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .status-manager {
+            background: #e3f2fd;
+            color: #0d47a1;
+        }
+
+        .status-ceo {
+            background: #f3e5f5;
+            color: #4a148c;
+        }
+
+        .status-client {
+            background: #e8f5e8;
+            color: #1b5e20;
+        }
+
+        .status-active {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 8px;
+        }
+
+        .btn-approve {
+            background: #28a745;
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.8rem;
+        }
+
+        .btn-deny {
+            background: #dc3545;
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.8rem;
+        }
+
+        .btn-view {
+            background: #17a2b8;
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.8rem;
+        }
+
+        .pdf-viewer {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            margin-top: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .pdf-viewer h4 {
+            margin-bottom: 15px;
+            color: #333;
+        }
+
+        .pdf-iframe {
+            width: 100%;
+            height: 600px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+
+        .approval-form {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            margin-top: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .form-group textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            resize: vertical;
+            min-height: 80px;
+        }
+
+        .form-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+
+        .no-items {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+            font-style: italic;
+        }
+
+        .back-to-dashboard {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(255,255,255,0.2);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
+        }
+
+        .back-to-dashboard:hover {
+            background: rgba(255,255,255,0.3);
+            transform: translateY(-2px);
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 10px;
+            }
+            
+            .header h1 {
+                font-size: 2rem;
+            }
+            
+            .workflow-stats {
+                grid-template-columns: 1fr;
+            }
+            
+            .queue-table {
+                font-size: 0.9rem;
+            }
+            
+            .action-buttons {
+                flex-direction: column;
+                gap: 5px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <button class="back-to-dashboard" onclick="goToDashboard()">← Back to Dashboard</button>
+    
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>📋 Approval Dashboard</h1>
+            <p>Manage document approvals and workflow status</p>
+            <button class="nav-btn refresh-btn" onclick="refreshDashboard()">
+                🔄 Refresh Dashboard
+            </button>
+        </div>
+
+        <!-- Navigation -->
+        <div class="nav-bar">
+            <button class="nav-btn" onclick="showSection('pending')">⏳ Pending Approvals</button>
+            <button class="nav-btn" onclick="showSection('my-queue')">👤 My Approval Queue</button>
+            <button class="nav-btn" onclick="showSection('workflow-status')">📊 Workflow Status</button>
+            <button class="nav-btn" onclick="showSection('history')">📚 Approval History</button>
+        </div>
+
+        <!-- Main Content -->
+        <div class="main-card">
+            <div class="card-content">
+                <!-- Workflow Statistics -->
+                <div class="section">
+                    <h3>📊 Workflow Statistics</h3>
+                    <div class="workflow-stats">
+                        <div class="stat-card">
+                            <div class="stat-number" id="pendingCount">0</div>
+                            <div class="stat-label">Pending Approvals</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-number" id="myQueueCount">0</div>
+                            <div class="stat-label">My Queue</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-number" id="completedCount">0</div>
+                            <div class="stat-label">Completed Today</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-number" id="avgTime">0h</div>
+                            <div class="stat-label">Avg. Approval Time</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Pending Approvals Section -->
+                <div id="pending-section" class="section">
+                    <h3>⏳ Pending Approvals</h3>
+                    <div class="approval-queue">
+                        <div class="queue-header">
+                            Documents Awaiting Approval
+                        </div>
+                        <div id="pending-queue-content">
+                            <div class="loading">Loading pending approvals...</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- My Approval Queue Section -->
+                <div id="my-queue-section" class="section" style="display: none;">
+                    <h3>👤 My Approval Queue</h3>
+                    <div class="approval-queue">
+                        <div class="queue-header">
+                            Documents Requiring My Action
+                        </div>
+                        <div id="my-queue-content">
+                            <div class="loading">Loading your approval queue...</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Workflow Status Section -->
+                <div id="workflow-status-section" class="section" style="display: none;">
+                    <h3>📊 Workflow Status</h3>
+                    <div class="approval-queue">
+                        <div class="queue-header">
+                            All Active Workflows
+                        </div>
+                        <div id="workflow-status-content">
+                            <div class="loading">Loading workflow status...</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Approval History Section -->
+                <div id="history-section" class="section" style="display: none;">
+                    <h3>📚 Approval History</h3>
+                    <div class="approval-queue">
+                        <div class="queue-header">
+                            Completed Approvals
+                        </div>
+                        <div id="history-content">
+                            <div class="loading">Loading approval history...</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- PDF Viewer Modal -->
+                <div id="pdf-viewer-modal" class="pdf-viewer" style="display: none;">
+                    <h4 id="pdf-document-title">Document Preview</h4>
+                    <iframe id="pdf-iframe" class="pdf-iframe" src=""></iframe>
+                    
+                    <!-- Approval Form -->
+                    <div class="approval-form">
+                        <h4>Approval Decision</h4>
+                        <div class="form-group">
+                            <label for="approval-comments">Comments/Feedback:</label>
+                            <textarea id="approval-comments" placeholder="Enter your comments or feedback..."></textarea>
+                        </div>
+                        <div class="form-actions">
+                            <button class="btn-approve" onclick="approveDocument()">✅ Approve</button>
+                            <button class="btn-deny" onclick="denyDocument()">❌ Deny</button>
+                            <button onclick="closePdfViewer()">Close</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Global variables
+        let currentUser = {
+            email: 'manager@company.com', // This will be set dynamically
+            role: 'manager', // manager, ceo, admin
+            name: 'Manager Name'
+        };
+        
+        let currentDocument = null;
+        let approvalWorkflows = [];
+
+        // Initialize dashboard
+        window.onload = function() {
+            // Debug: Show URL parameters FIRST
+            const urlParams = new URLSearchParams(window.location.search);
+            const roleFromUrl = urlParams.get('role');
+            const emailFromUrl = urlParams.get('email');
+            
+            console.log('🔍 URL Parameters on page load:', {
+                role: roleFromUrl,
+                email: emailFromUrl
+            });
+            
+            // Set user info immediately from URL
+            if (roleFromUrl && emailFromUrl) {
+                currentUser = {
+                    email: emailFromUrl,
+                    role: roleFromUrl,
+                    name: roleFromUrl === 'ceo' ? 'CEO Name' : 'Manager Name'
+                };
+                console.log('✅ User info set from URL:', currentUser);
+            }
+            
+            loadDashboardData();
+            showSection('pending');
+        };
+
+        // Navigation functions
+        function showSection(sectionName) {
+            // Hide all sections
+            document.querySelectorAll('.section').forEach(section => {
+                section.style.display = 'none';
+            });
+            
+            // Show selected section
+            document.getElementById(sectionName + '-section').style.display = 'block';
+            
+            // Load section data
+            switch(sectionName) {
+                case 'pending':
+                    loadPendingApprovals();
+                    break;
+                case 'my-queue':
+                    loadMyApprovalQueue();
+                    break;
+                case 'workflow-status':
+                    loadWorkflowStatus();
+                    break;
+                case 'history':
+                    loadApprovalHistory();
+                    break;
+            }
+        }
+
+        // Load dashboard data
+        async function loadDashboardData() {
+            try {
+                // Load workflow statistics
+                await loadWorkflowStats();
+                
+                // Load user information (this would come from your auth system)
+                await loadUserInfo();
+                
+            } catch (error) {
+                console.error('Error loading dashboard data:', error);
+            }
+        }
+
+        // Load workflow statistics
+        async function loadWorkflowStats() {
+            try {
+                const response = await fetch('/api/approval/stats');
+                const result = await response.json();
+                
+                if (result.success) {
+                    document.getElementById('pendingCount').textContent = result.stats.pending || 0;
+                    document.getElementById('myQueueCount').textContent = result.stats.my_queue || 0;
+                    document.getElementById('completedCount').textContent = result.stats.completed_today || 0;
+                    document.getElementById('avgTime').textContent = result.stats.avg_approval_time || '0h';
+                }
+            } catch (error) {
+                console.error('Error loading workflow stats:', error);
+                // Set default values if API fails
+                document.getElementById('pendingCount').textContent = '0';
+                document.getElementById('myQueueCount').textContent = '0';
+                document.getElementById('completedCount').textContent = '0';
+                document.getElementById('avgTime').textContent = '0h';
+            }
+        }
+
+        // Load user information
+        async function loadUserInfo() {
+            try {
+                // Only set user info if not already set from URL
+                if (!currentUser.role || currentUser.role === 'manager') {
+                    // Check URL parameters for role and email (from Gmail links)
+                    const urlParams = new URLSearchParams(window.location.search);
+                    const roleFromUrl = urlParams.get('role');
+                    const emailFromUrl = urlParams.get('email');
+                    
+                    if (roleFromUrl && emailFromUrl) {
+                        // Set user info from URL parameters
+                        currentUser = {
+                            email: emailFromUrl,
+                            role: roleFromUrl,
+                            name: roleFromUrl === 'ceo' ? 'CEO Name' : 'Manager Name'
+                        };
+                        
+                        console.log('✅ User info updated from URL:', currentUser);
+                    }
+                }
+                
+                // Update UI based on user role
+                updateUIForUserRole();
+                
+            } catch (error) {
+                console.error('Error loading user info:', error);
+            }
+        }
+
+        // Update UI based on user role
+        function updateUIForUserRole() {
+            const role = currentUser.role;
+            
+            if (role === 'ceo') {
+                // CEO sees manager-approved items
+                document.querySelector('.nav-btn[onclick="showSection(\'my-queue\')"]').textContent = '👑 CEO Approvals';
+            } else if (role === 'admin') {
+                // Admin sees everything
+                document.querySelector('.nav-btn[onclick="showSection(\'my-queue\')"]').textContent = '🔧 Admin Queue';
+            }
+        }
+
+        // Load pending approvals
+        async function loadPendingApprovals() {
+            try {
+                console.log('🔄 Loading pending approvals...');
+                const response = await fetch('/api/approval/pending');
+                const result = await response.json();
+                
+                console.log('📊 Pending approvals API response:', result);
+                
+                if (result.success) {
+                    approvalWorkflows = result.workflows || [];
+                    console.log('📋 Workflows loaded:', approvalWorkflows);
+                    
+                    // Debug: Log the first workflow structure
+                    if (approvalWorkflows.length > 0) {
+                        console.log('🔍 First workflow structure:', approvalWorkflows[0]);
+                        console.log('🔍 All workflow keys:', Object.keys(approvalWorkflows[0]));
+                        console.log('🔍 Status field value:', approvalWorkflows[0].status);
+                        console.log('🔍 Current stage value:', approvalWorkflows[0].current_stage);
+                        console.log('🔍 Can approve value:', approvalWorkflows[0].can_approve);
+                    }
+                    
+                    displayPendingApprovals(approvalWorkflows);
+                } else {
+                    console.error('❌ API error:', result.message);
+                    document.getElementById('pending-queue-content').innerHTML = 
+                        '<div class="no-items">No pending approvals found.</div>';
+                }
+            } catch (error) {
+                console.error('❌ Error loading pending approvals:', error);
+                document.getElementById('pending-queue-content').innerHTML = 
+                    '<div class="no-items">Error loading pending approvals.</div>';
+            }
+        }
+
+        // Display pending approvals
+        function displayPendingApprovals(workflows) {
+            if (!workflows || workflows.length === 0) {
+                document.getElementById('pending-queue-content').innerHTML = 
+                    '<div class="no-items">No pending approvals found.</div>';
+                return;
+            }
+
+            console.log('🔍 Displaying workflows:', workflows);
+            console.log('🔍 Current user role:', currentUser.role);
+
+            const tableHTML = `
+                <table class="queue-table">
+                    <thead>
+                        <tr>
+                            <th>Document</th>
+                            <th>Client</th>
+                            <th>Type</th>
+                            <th>Current Stage</th>
+                            <th>Status</th>
+                            <th>Created</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${workflows.map(workflow => {
+                            // Determine if current user can approve this workflow
+                            // Use current_stage and status from API response
+                            const canApprove = (currentUser.role === workflow.current_stage && workflow.status === 'active');
+                            
+                            console.log('🔍 Workflow:', workflow._id, 'Current stage:', workflow.current_stage, 'Status:', workflow.status, 'Can approve:', canApprove);
+                            
+                            // Get document name from document_id if document_name is not available
+                            const documentName = workflow.document_name || 
+                                               (workflow.document_id ? `Document ${workflow.document_id.slice(-8)}` : 'N/A');
+                            
+                            return `
+                                <tr>
+                                    <td>${documentName}</td>
+                                    <td>${workflow.client_name || 'N/A'}</td>
+                                    <td>${workflow.document_type || 'N/A'}</td>
+                                    <td>
+                                        <span class="status-badge status-${workflow.current_stage || 'pending'}">
+                                            ${workflow.current_stage ? workflow.current_stage.charAt(0).toUpperCase() + workflow.current_stage.slice(1) : 'Pending'}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <span class="status-badge status-${workflow.status || 'pending'}">
+                                            ${workflow.status ? workflow.status.charAt(0).toUpperCase() + workflow.status.slice(1) : 'Pending'}
+                                        </span>
+                                    </td>
+                                    <td>${formatDate(workflow.created_at)}</td>
+                                    <td>
+                                        <div class="action-buttons">
+                                            <button class="btn-view" onclick="viewDocument('${workflow._id}')">
+                                                👁️ View
+                                            </button>
+                                            ${canApprove ? `
+                                                <button class="btn-approve" onclick="approveWorkflow('${workflow._id}')">
+                                                    ✅ Approve
+                                                </button>
+                                                <button class="btn-deny" onclick="denyWorkflow('${workflow._id}')">
+                                                    ❌ Deny
+                                                </button>
+                                            ` : ''}
+                                        </div>
+                                    </td>
+                                </tr>
+                            `;
+                        }).join('')}
+                    </tbody>
+                </table>
+            `;
+
+            document.getElementById('pending-queue-content').innerHTML = tableHTML;
+        }
+
+        // Load my approval queue
+        async function loadMyApprovalQueue() {
+            try {
+                // Send current user role to get the right approval queue
+                const currentRole = currentUser.role || 'manager';
+                const currentEmail = currentUser.email || 'user@company.com';
+                
+                console.log('🔍 Loading approval queue for role:', currentRole, 'email:', currentEmail);
+                
+                const response = await fetch(`/api/approval/my-queue?role=${currentRole}&email=${currentEmail}`);
+                const result = await response.json();
+                
+                if (result.success) {
+                    const myWorkflows = result.workflows || [];
+                    console.log('📋 My approval queue workflows:', myWorkflows);
+                    displayMyApprovalQueue(myWorkflows);
+                } else {
+                    document.getElementById('my-queue-content').innerHTML = 
+                        '<div class="no-items">No items in your approval queue.</div>';
+                }
+            } catch (error) {
+                console.error('Error loading my approval queue:', error);
+                document.getElementById('my-queue-content').innerHTML = 
+                    '<div class="no-items">Error loading your approval queue.</div>';
+            }
+        }
+
+        // Display my approval queue
+        function displayMyApprovalQueue(workflows) {
+            if (!workflows || workflows.length === 0) {
+                document.getElementById('my-queue-content').innerHTML = 
+                    '<div class="no-items">No items in your approval queue.</div>';
+                return;
+            }
+
+            const tableHTML = `
+                <table class="queue-table">
+                    <thead>
+                        <tr>
+                            <th>Document</th>
+                            <th>Client</th>
+                            <th>Type</th>
+                            <th>Waiting Since</th>
+                            <th>Priority</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${workflows.map(workflow => `
+                            <tr>
+                                <td>${workflow.document_name || 'N/A'}</td>
+                                <td>${workflow.client_name || 'N/A'}</td>
+                                <td>${workflow.document_type || 'N/A'}</td>
+                                <td>${formatDate(workflow.created_at)}</td>
+                                <td>
+                                    <span class="status-badge status-${workflow.priority || 'normal'}">
+                                        ${workflow.priority || 'Normal'}
+                                    </span>
+                                </td>
+                                <td>
+                                    <div class="action-buttons">
+                                        <button class="btn-view" onclick="viewDocument('${workflow._id}')">
+                                            👁️ View
+                                        </button>
+                                        <button class="btn-approve" onclick="approveWorkflow('${workflow._id}')">
+                                            ✅ Approve
+                                        </button>
+                                        <button class="btn-deny" onclick="denyWorkflow('${workflow._id}')">
+                                            ❌ Deny
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `;
+
+            document.getElementById('my-queue-content').innerHTML = tableHTML;
+        }
+
+        // Load workflow status
+        async function loadWorkflowStatus() {
+            try {
+                const response = await fetch('/api/approval/workflow-status');
+                const result = await response.json();
+                
+                if (result.success) {
+                    const workflows = result.workflows || [];
+                    displayWorkflowStatus(workflows);
+                } else {
+                    document.getElementById('workflow-status-content').innerHTML = 
+                        '<div class="no-items">No active workflows found.</div>';
+                }
+            } catch (error) {
+                console.error('Error loading workflow status:', error);
+                document.getElementById('workflow-status-content').innerHTML = 
+                    '<div class="no-items">Error loading workflow status.</div>';
+            }
+        }
+
+        // Display workflow status
+        function displayWorkflowStatus(workflows) {
+            if (!workflows || workflows.length === 0) {
+                document.getElementById('workflow-status-content').innerHTML = 
+                    '<div class="no-items">No active workflows found.</div>';
+                return;
+            }
+
+            const tableHTML = `
+                <table class="queue-table">
+                    <thead>
+                        <tr>
+                            <th>Document</th>
+                            <th>Client</th>
+                            <th>Manager Status</th>
+                            <th>CEO Status</th>
+                            <th>Client Status</th>
+                            <th>Created</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${workflows.map(workflow => `
+                            <tr>
+                                <td>${workflow.document_name || 'N/A'}</td>
+                                <td>${workflow.client_name || 'N/A'}</td>
+                                <td>
+                                    <span class="status-badge status-${workflow.manager_status || 'pending'}">
+                                        ${workflow.manager_status || 'Pending'}
+                                    </span>
+                                </td>
+                                <td>
+                                    <span class="status-badge status-${workflow.ceo_status || 'pending'}">
+                                        ${workflow.ceo_status || 'Pending'}
+                                    </span>
+                                </td>
+                                <td>
+                                    <span class="status-badge status-${workflow.client_status || 'pending'}">
+                                        ${workflow.client_status || 'Pending'}
+                                    </span>
+                                </td>
+                                <td>${formatDate(workflow.created_at)}</td>
+                                <td>
+                                    <div class="action-buttons">
+                                        <button class="btn-view" onclick="viewDocument('${workflow._id}')">
+                                            👁️ View
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `;
+
+            document.getElementById('workflow-status-content').innerHTML = tableHTML;
+        }
+
+        // Load approval history
+        async function loadApprovalHistory() {
+            try {
+                const response = await fetch('/api/approval/history');
+                const result = await response.json();
+                
+                if (result.success) {
+                    const history = result.history || [];
+                    displayApprovalHistory(history);
+                } else {
+                    document.getElementById('history-content').innerHTML = 
+                        '<div class="no-items">No approval history found.</div>';
+                }
+            } catch (error) {
+                console.error('Error loading approval history:', error);
+                document.getElementById('history-content').innerHTML = 
+                    '<div class="no-items">Error loading approval history.</div>';
+            }
+        }
+
+        // Display approval history
+        function displayApprovalHistory(history) {
+            if (!history || history.length === 0) {
+                document.getElementById('history-content').innerHTML = 
+                    '<div class="no-items">No approval history found.</div>';
+                return;
+            }
+
+            const tableHTML = `
+                <table class="queue-table">
+                    <thead>
+                        <tr>
+                            <th>Document</th>
+                            <th>Client</th>
+                            <th>Final Status</th>
+                            <th>Manager Decision</th>
+                            <th>CEO Decision</th>
+                            <th>Completed</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${history.map(item => `
+                            <tr>
+                                <td>${item.document_name || 'N/A'}</td>
+                                <td>${item.client_name || 'N/A'}</td>
+                                <td>
+                                    <span class="status-badge status-${item.final_status || 'completed'}">
+                                        ${item.final_status || 'Completed'}
+                                    </span>
+                                </td>
+                                <td>${item.manager_decision || 'N/A'}</td>
+                                <td>${item.ceo_decision || 'N/A'}</td>
+                                <td>${formatDate(item.completed_at)}</td>
+                                <td>
+                                    <div class="action-buttons">
+                                        <button class="btn-view" onclick="viewDocument('${item._id}')">
+                                            👁️ View
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `;
+
+            document.getElementById('history-content').innerHTML = tableHTML;
+        }
+
+        // View document
+        async function viewDocument(workflowId) {
+            try {
+                const response = await fetch(`/api/approval/workflow/${workflowId}`);
+                const result = await response.json();
+                
+                if (result.success) {
+                    currentDocument = result.workflow;
+                    showPdfViewer(result.workflow);
+                } else {
+                    alert('Error loading document: ' + result.message);
+                }
+            } catch (error) {
+                console.error('Error viewing document:', error);
+                alert('Error loading document');
+            }
+        }
+
+        // Show PDF viewer
+        function showPdfViewer(workflow) {
+            document.getElementById('pdf-document-title').textContent = 
+                `${workflow.document_name} - ${workflow.client_name}`;
+            
+            // Set PDF source
+            const pdfUrl = `/api/documents/preview/${workflow.document_id}`;
+            document.getElementById('pdf-iframe').src = pdfUrl;
+            
+            // Show the modal
+            document.getElementById('pdf-viewer-modal').style.display = 'block';
+            
+            // Scroll to viewer
+            document.getElementById('pdf-viewer-modal').scrollIntoView({ behavior: 'smooth' });
+        }
+
+        // Close PDF viewer
+        function closePdfViewer() {
+            document.getElementById('pdf-viewer-modal').style.display = 'none';
+            document.getElementById('pdf-iframe').src = '';
+            currentDocument = null;
+        }
+
+        // Approve workflow
+        async function approveWorkflow(workflowId) {
+            console.log('🔍 approveWorkflow called with ID:', workflowId);
+            console.log('🔍 currentDocument:', currentDocument);
+            console.log('🔍 currentUser:', currentUser);
+            
+            if (!currentDocument) {
+                alert('Please view the document first before approving.');
+                return;
+            }
+
+            const comments = document.getElementById('approval-comments').value.trim();
+            console.log('🔍 Comments:', comments);
+            
+            try {
+                console.log('🚀 Sending approval request...');
+                const response = await fetch('/api/approval/approve', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        workflow_id: workflowId,
+                        role: currentUser.role,
+                        action: 'approve',
+                        comments: comments
+                    })
+                });
+                
+                console.log('📡 Response status:', response.status);
+                console.log('📡 Response headers:', response.headers);
+                
+                const result = await response.json();
+                console.log('📄 Response JSON:', result);
+                
+                if (result.success) {
+                    alert('Document approved successfully!');
+                    closePdfViewer();
+                    
+                    // Clear the approval comments
+                    document.getElementById('approval-comments').value = '';
+                    
+                    // Force refresh all data
+                    await loadDashboardData();
+                    
+                    // Refresh the current section
+                    const currentSection = document.querySelector('.section[style="display: block;"]');
+                    if (currentSection) {
+                        const sectionId = currentSection.id.replace('-section', '');
+                        showSection(sectionId);
+                    }
+                    
+                    console.log('✅ Dashboard refreshed after approval');
+                } else {
+                    alert('Error approving document: ' + result.message);
+                }
+            } catch (error) {
+                console.error('❌ Error approving workflow:', error);
+                alert('Error approving document');
+            }
+        }
+
+        // Deny workflow
+        async function denyWorkflow(workflowId) {
+            if (!currentDocument) {
+                alert('Please view the document first before denying.');
+                return;
+            }
+
+            const comments = document.getElementById('approval-comments').value.trim();
+            
+            if (!comments) {
+                alert('Please provide comments when denying a document.');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/approval/deny', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        workflow_id: workflowId,
+                        role: currentUser.role,
+                        action: 'deny',
+                        comments: comments
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    alert('Document denied successfully!');
+                    closePdfViewer();
+                    
+                    // Clear the approval comments
+                    document.getElementById('approval-comments').value = '';
+                    
+                    // Force refresh all data
+                    await loadDashboardData();
+                    
+                    // Refresh the current section
+                    const currentSection = document.querySelector('.section[style="display: block;"]');
+                    if (currentSection) {
+                        const sectionId = currentSection.id.replace('-section', '');
+                        showSection(sectionId);
+                    }
+                    
+                    console.log('✅ Dashboard refreshed after denial');
+                } else {
+                    alert('Error denying document: ' + result.message);
+                }
+            } catch (error) {
+                console.error('Error denying workflow:', error);
+                alert('Error denying document');
+            }
+        }
+
+        // Approve document (from PDF viewer)
+        async function approveDocument() {
+            if (!currentDocument) {
+                alert('No document selected for approval.');
+                return;
+            }
+            
+            await approveWorkflow(currentDocument._id);
+        }
+
+        // Deny document (from PDF viewer)
+        async function denyDocument() {
+            if (!currentDocument) {
+                alert('No document selected for denial.');
+                return;
+            }
+            
+            await denyWorkflow(currentDocument._id);
+        }
+
+        // Utility functions
+        function formatDate(dateString) {
+            if (!dateString) return 'N/A';
+            
+            try {
+                const date = new Date(dateString);
+                return date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+            } catch (error) {
+                return 'N/A';
+            }
+        }
+
+        function goToDashboard() {
+            window.location.href = '/';
+        }
+
+        async function refreshDashboard() {
+            await loadDashboardData();
+            console.log('Dashboard refreshed.');
+        }
+    </script>
+</body>
+</html>
