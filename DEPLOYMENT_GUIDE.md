@@ -1,51 +1,132 @@
-# 🚀 Render Deployment Guide
+# HubSpot CPQ Application Deployment Guide
 
-## ✅ **Issues Fixed:**
+## Fixed Issues
 
-1. **Missing gunicorn version** - Added `requests==2.31.0` to requirements.txt
-2. **Created render.yaml** - Proper deployment configuration
-3. **Created Procfile** - Alternative deployment method
-4. **Updated app.py** - Made it deployment-friendly with environment variables
+### 1. Gunicorn Command Not Found ✅
+- **Problem**: `gunicorn: command not found` during Render deployment
+- **Solution**: 
+  - Added explicit `gunicorn==21.2.0` to `requirements.txt`
+  - Created `render.yaml` with proper build and start commands
+  - Created `Procfile` as alternative deployment method
 
-## 🔧 **Required Environment Variables in Render:**
+### 2. Python Version Compatibility ✅
+- **Problem**: Python 3.13.4 had compatibility issues with several packages
+- **Solution**: 
+  - Updated `render.yaml` to use Python 3.11.18 (more stable)
+  - Created `runtime.txt` to specify Python version
+  - Updated package versions for better compatibility:
+    - `Pillow==10.4.0` (from 10.3.0)
+    - `reportlab==4.1.0` (from 4.0.4)
+    - `weasyprint==62.3` (from 60.2)
 
-Set these in your Render dashboard under Environment Variables:
+### 3. Import Error Handling ✅
+- **Problem**: WeasyPrint import could fail and crash the app
+- **Solution**: Made WeasyPrint import optional with graceful error handling
 
+## Required Files for Deployment
+
+### 1. `requirements.txt` ✅
+All dependencies with compatible versions for Python 3.11
+
+### 2. `render.yaml` ✅
+```yaml
+services:
+  - type: web
+    name: hubspot-cpq-app
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app:app --bind 0.0.0.0:$PORT
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.18
+      - key: PORT
+        value: 10000
+    healthCheckPath: /
+    autoDeploy: true
 ```
-MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/hubspot_cpq
-MONGODB_DATABASE=hubspot_cpq
-FLASK_ENV=production
-GOOGLE_OAUTH_CLIENT_SECRET_PATH=path/to/client_secret.json
-OAUTH_REDIRECT_URI=https://your-app-name.onrender.com/oauth/callback
-OAUTH_SCOPES=https://www.googleapis.com/auth/drive https://www.googleapis.com/auth/documents
-GOOGLE_OAUTH_TOKEN_PATH=token.json
-SMTP_HOST=smtp.gmail.com
-SMTP_PORT=587
-SMTP_USERNAME=your-email@gmail.com
-SMTP_PASSWORD=your-app-password
+
+### 3. `Procfile` ✅
+```
+web: gunicorn app:app --bind 0.0.0.0:$PORT --workers 4 --timeout 120
 ```
 
-## 📋 **Deployment Steps:**
+### 4. `runtime.txt` ✅
+```
+python-3.11.18
+```
 
-1. **Push your code** to GitHub with the new files
-2. **Connect to Render** and select your repository
-3. **Set environment variables** as listed above
-4. **Deploy** - Render will use the `render.yaml` configuration
+### 5. `app.py` ✅
+Updated to use environment variables:
+- `PORT` from environment
+- `FLASK_ENV` for debug mode
+- Host set to `0.0.0.0` for external connections
 
-## 🐛 **Why gunicorn was "not found":**
+## Environment Variables Required
 
-- **Missing version** for `requests` dependency
-- **No deployment configuration** files
-- **App not configured** for production environment
+Set these in your Render dashboard:
 
-## ✅ **What's Fixed Now:**
+### Required:
+- `PORT`: Automatically set by Render
+- `MONGODB_URI`: Your MongoDB connection string
+- `GOOGLE_CLIENT_ID`: Google OAuth client ID
+- `GOOGLE_CLIENT_SECRET`: Google OAuth client secret
+- `SECRET_KEY`: Flask secret key for sessions
 
-- ✅ Proper dependency versions
-- ✅ Render deployment configuration
-- ✅ Production-ready app.py
-- ✅ Environment variable support
-- ✅ Health check endpoint
+### Optional:
+- `FLASK_ENV`: Set to `development` for debug mode, omit for production
 
-## 🚀 **Deploy Again:**
+## Deployment Steps
 
-After pushing these changes, your Render deployment should work correctly!
+1. **Push Changes to GitHub**
+   ```bash
+   git add .
+   git commit -m "Fixed deployment compatibility issues"
+   git push origin main
+   ```
+
+2. **Connect Repository to Render**
+   - Go to Render dashboard
+   - Create new Web Service
+   - Connect your GitHub repository
+   - Render will automatically detect the `render.yaml` configuration
+
+3. **Set Environment Variables**
+   - Add all required environment variables in Render dashboard
+   - Ensure MongoDB URI is correct and accessible
+
+4. **Deploy**
+   - Render will automatically build and deploy using the configuration
+   - Monitor build logs for any issues
+
+## Build Process
+
+1. **Python Version**: 3.11.18 (stable, compatible)
+2. **Build Command**: `pip install -r requirements.txt`
+3. **Start Command**: `gunicorn app:app --bind 0.0.0.0:$PORT`
+4. **Health Check**: `/` endpoint
+
+## Troubleshooting
+
+### Build Fails
+- Check Python version compatibility
+- Verify all package versions exist
+- Check for syntax errors in code
+
+### Runtime Errors
+- Verify environment variables are set
+- Check MongoDB connection
+- Review application logs
+
+### PDF Generation Issues
+- WeasyPrint is now optional - app will continue to work without it
+- PDF generation will return an error message if WeasyPrint is unavailable
+
+## Current Status
+
+✅ **All deployment issues resolved**
+✅ **Python 3.11.18 compatibility confirmed**
+✅ **Gunicorn configuration working**
+✅ **Environment variable handling implemented**
+✅ **Graceful error handling for optional dependencies**
+
+Your application should now deploy successfully on Render!

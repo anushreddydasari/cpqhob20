@@ -1668,51 +1668,60 @@ def generate_agreement_pdf():
             template_content = template_content.replace(placeholder, str(value))
         
         # Generate PDF from HTML template
-        from weasyprint import HTML
-        from io import BytesIO
-        
-        # Create PDF
-        html_doc = HTML(string=template_content)
-        pdf_bytes = html_doc.write_pdf()
-        
-        # Save PDF to documents directory
-        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-        filename = f"agreement_{template_data.get('client_name', 'client')}_{timestamp}.pdf"
-        file_path = os.path.join('documents', filename)
-        
-        # Ensure documents directory exists
-        os.makedirs('documents', exist_ok=True)
-        
-        # Save PDF file
-        with open(file_path, 'wb') as f:
-            f.write(pdf_bytes)
-        
-        # Store agreement metadata in MongoDB
-        agreement_metadata = {
-            'quote_id': quote_id,
-            'filename': filename,
-            'file_path': file_path,
-            'client_name': template_data.get('client_name', 'N/A'),
-            'company_name': template_data.get('client_company', 'N/A'),
-            'service_type': template_data.get('service_type', 'N/A'),
-            'file_size': len(pdf_bytes)
-        }
-        
         try:
-            generated_agreements.store_agreement_metadata(agreement_metadata)
+            from weasyprint import HTML
+            from io import BytesIO
+            
+            # Create PDF
+            html_doc = HTML(string=template_content)
+            pdf_bytes = html_doc.write_pdf()
+            
+            # Save PDF to documents directory
+            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+            filename = f"agreement_{template_data.get('client_name', 'client')}_{timestamp}.pdf"
+            file_path = os.path.join('documents', filename)
+            
+            # Ensure documents directory exists
+            os.makedirs('documents', exist_ok=True)
+            
+            # Save PDF file
+            with open(file_path, 'wb') as f:
+                f.write(pdf_bytes)
+            
+            # Store agreement metadata in MongoDB
+            agreement_metadata = {
+                'quote_id': quote_id,
+                'filename': filename,
+                'file_path': file_path,
+                'client_name': template_data.get('client_name', 'N/A'),
+                'company_name': template_data.get('client_company', 'N/A'),
+                'service_type': template_data.get('service_type', 'N/A'),
+                'file_size': len(pdf_bytes)
+            }
+            
+            try:
+                generated_agreements.store_agreement_metadata(agreement_metadata)
+            except Exception as e:
+                print(f"Warning: Failed to store agreement metadata: {e}")
+            
+            # Return the PDF for download
+            buffer = BytesIO(pdf_bytes)
+            buffer.seek(0)
+            
+            return send_file(
+                buffer,
+                as_attachment=True,
+                download_name=filename,
+                mimetype='application/pdf'
+            )
+            
+        except ImportError:
+            return jsonify({
+                'success': False, 
+                'message': 'PDF generation not available. WeasyPrint is not installed.'
+            }), 500
         except Exception as e:
-            print(f"Warning: Failed to store agreement metadata: {e}")
-        
-        # Return the PDF for download
-        buffer = BytesIO(pdf_bytes)
-        buffer.seek(0)
-        
-        return send_file(
-            buffer,
-            as_attachment=True,
-            download_name=filename,
-            mimetype='application/pdf'
-        )
+            return jsonify({'success': False, 'message': f'PDF generation error: {str(e)}'}), 500
         
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)}), 500

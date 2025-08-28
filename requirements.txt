@@ -3,14 +3,14 @@ Flask-CORS==4.0.0
 pymongo==4.5.0
 python-dotenv==1.0.0
 Werkzeug==3.0.0
-reportlab==4.0.4
+reportlab==4.1.0
 email-validator==2.0.0
 gunicorn==21.2.0
 requests==2.31.0
 python-docx==0.8.11
 mammoth==1.6.0
-Pillow==10.3.0
+Pillow==10.4.0
 google-api-python-client==2.129.0
 google-auth==2.33.0
 google-auth-oauthlib==1.2.0
-weasyprint==60.2
+weasyprint==62.3
