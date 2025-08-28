@@ -1593,8 +1593,8 @@ def generate_agreement_from_quote():
         # Store agreement metadata in MongoDB
         agreement_metadata = {
             'quote_id': quote_id,
-            'filename': f"agreement_{client.get('name', 'client')}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt",
-            'file_path': f"documents/agreement_{client.get('name', 'client')}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt",
+            'filename': f"agreement_{client.get('name', 'client')}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf",
+            'file_path': f"documents/agreement_{client.get('name', 'client')}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf",
             'client_name': client.get('name', 'N/A'),
             'company_name': client.get('company', 'N/A'),
             'service_type': client.get('serviceType', 'N/A'),
@@ -1607,13 +1607,71 @@ def generate_agreement_from_quote():
             # Ensure documents directory exists
             os.makedirs('documents', exist_ok=True)
             
-            # Save agreement content to file
-            with open(agreement_metadata['file_path'], 'w', encoding='utf-8') as f:
-                f.write(personalized_content)
-            
+            # Generate PDF from the agreement content
+            try:
+                from weasyprint import HTML
+                from io import BytesIO
+                
+                # Create a simple HTML template for the agreement
+                html_content = f"""
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <meta charset="UTF-8">
+                    <title>Agreement - {client.get('name', 'Client')}</title>
+                    <style>
+                        body {{ font-family: Arial, sans-serif; margin: 40px; line-height: 1.6; }}
+                        .header {{ text-align: center; border-bottom: 2px solid #667eea; padding-bottom: 20px; margin-bottom: 30px; }}
+                        .content {{ white-space: pre-wrap; font-size: 14px; }}
+                        .footer {{ margin-top: 40px; padding-top: 20px; border-top: 1px solid #ddd; text-align: center; color: #666; }}
+                        .company-info {{ background: #f8f9fa; padding: 15px; border-radius: 5px; margin-bottom: 20px; }}
+                        .company-info strong {{ color: #667eea; }}
+                    </style>
+                </head>
+                <body>
+                    <div class="header">
+                        <h1>📋 Service Agreement</h1>
+                        <div class="company-info">
+                            <strong>Client:</strong> {client.get('name', 'N/A')}<br>
+                            <strong>Company:</strong> {client.get('company', 'N/A')}<br>
+                            <strong>Service Type:</strong> {client.get('serviceType', 'N/A')}<br>
+                            <strong>Date:</strong> {datetime.now().strftime('%B %d, %Y')}
+                        </div>
+                    </div>
+                    <div class="content">{personalized_content}</div>
+                    <div class="footer">
+                        <p>Generated on {datetime.now().strftime('%B %d, %Y at %I:%M %p')}</p>
+                    </div>
+                </body>
+                </html>
+                """
+                
+                # Create PDF
+                html_doc = HTML(string=html_content)
+                pdf_bytes = html_doc.write_pdf()
+                
+                # Save PDF file
+                with open(agreement_metadata['file_path'], 'wb') as f:
+                    f.write(pdf_bytes)
+                
+                # Update file size to actual PDF size
+                agreement_metadata['file_size'] = len(pdf_bytes)
+                
+                print(f"✅ PDF Agreement generated: {agreement_metadata['filename']}")
+                
+            except ImportError:
+                print("⚠️ WeasyPrint not available, falling back to text file")
+                # Fallback to text file if WeasyPrint is not available
+                with open(agreement_metadata['file_path'].replace('.pdf', '.txt'), 'w', encoding='utf-8') as f:
+                    f.write(personalized_content)
+                # Update metadata for text file
+                agreement_metadata['filename'] = agreement_metadata['filename'].replace('.pdf', '.txt')
+                agreement_metadata['file_path'] = agreement_metadata['file_path'].replace('.pdf', '.txt')
+                
             # Store agreement metadata in MongoDB
             generated_agreements.store_agreement_metadata(agreement_metadata)
             print(f"✅ Agreement stored in MongoDB: {agreement_metadata['filename']}")
+            
         except Exception as e:
             print(f"Warning: Failed to store agreement metadata: {e}")
         
@@ -2291,24 +2349,118 @@ def download_document(document_id):
 def preview_document(document_id):
     """Preview a specific document by ID (for managers to view before approval)"""
     try:
+        print(f"🔍 Preview request for document ID: {document_id}")
+        
         # Try to find in PDFs first
         pdf = generated_pdfs.get_pdf_by_id(document_id)
         if pdf:
+            print(f"✅ Found PDF: {pdf.get('filename', 'Unknown')}")
             file_path = pdf.get('file_path')
             if file_path and os.path.exists(file_path):
+                print(f"✅ PDF file exists at: {file_path}")
                 return send_file(file_path, mimetype='application/pdf')
+            else:
+                print(f"❌ PDF file not found at: {file_path}")
+                return jsonify({'success': False, 'message': f'PDF file not found at path: {file_path}'}), 404
         
         # Try to find in agreements
         agreement = generated_agreements.get_agreement_by_id(document_id)
         if agreement:
+            print(f"✅ Found Agreement: {agreement.get('filename', 'Unknown')}")
             file_path = agreement.get('file_path')
             if file_path and os.path.exists(file_path):
-                return send_file(file_path, mimetype='application/pdf')
+                print(f"✅ Agreement file exists at: {file_path}")
+                
+                # Check file extension to determine how to serve it
+                file_extension = os.path.splitext(file_path)[1].lower()
+                
+                if file_extension == '.pdf':
+                    # If it's actually a PDF, serve as PDF
+                    return send_file(file_path, mimetype='application/pdf')
+                elif file_extension == '.txt':
+                    # If it's a text file, read and format it for browser display
+                    try:
+                        with open(file_path, 'r', encoding='utf-8') as f:
+                            content = f.read()
+                        
+                        # Create a formatted HTML page for text content
+                        html_content = f"""
+                        <!DOCTYPE html>
+                        <html>
+                        <head>
+                            <meta charset="UTF-8">
+                            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                            <title>Agreement Preview - {agreement.get('filename', 'Document')}</title>
+                            <style>
+                                body {{ font-family: Arial, sans-serif; margin: 40px; line-height: 1.6; }}
+                                .header {{ border-bottom: 2px solid #667eea; padding-bottom: 20px; margin-bottom: 30px; }}
+                                .content {{ white-space: pre-wrap; font-size: 14px; }}
+                                .footer {{ margin-top: 40px; padding-top: 20px; border-top: 1px solid #ddd; color: #666; }}
+                                .document-info {{ background: #f8f9fa; padding: 15px; border-radius: 5px; margin-bottom: 20px; }}
+                                .document-info strong {{ color: #667eea; }}
+                            </style>
+                        </head>
+                        <body>
+                            <div class="header">
+                                <h1>📋 Agreement Preview</h1>
+                                <div class="document-info">
+                                    <strong>Filename:</strong> {agreement.get('filename', 'N/A')}<br>
+                                    <strong>Client:</strong> {agreement.get('client_name', 'N/A')}<br>
+                                    <strong>Company:</strong> {agreement.get('company_name', 'N/A')}<br>
+                                    <strong>Service Type:</strong> {agreement.get('service_type', 'N/A')}<br>
+                                    <strong>Generated:</strong> {agreement.get('generated_at', 'N/A')}
+                                </div>
+                            </div>
+                            <div class="content">{content}</div>
+                            <div class="footer">
+                                <p>This is a text-based agreement document. For PDF version, please contact the system administrator.</p>
+                            </div>
+                        </body>
+                        </html>
+                        """
+                        
+                        return html_content, 200, {'Content-Type': 'text/html; charset=utf-8'}
+                        
+                    except Exception as read_error:
+                        print(f"❌ Error reading agreement file: {read_error}")
+                        return jsonify({'success': False, 'message': f'Error reading agreement file: {str(read_error)}'}), 500
+                else:
+                    # For other file types, try to serve as-is
+                    return send_file(file_path)
+            else:
+                print(f"❌ Agreement file not found at: {file_path}")
+                return jsonify({'success': False, 'message': f'Agreement file not found at path: {file_path}'}), 404
         
-        return jsonify({'success': False, 'message': 'Document not found'}), 404
+        # If we get here, document wasn't found in either collection
+        print(f"❌ Document not found in any collection: {document_id}")
+        
+        # Try to get more information about what's stored
+        try:
+            # Check if it's a valid ObjectId
+            from bson import ObjectId
+            obj_id = ObjectId(document_id)
+            print(f"✅ Document ID is valid ObjectId: {obj_id}")
+            
+            # Check what collections actually contain this ID
+            pdf_check = list(generated_pdfs.collection.find({"_id": obj_id}))
+            agreement_check = list(generated_agreements.collection.find({"_id": obj_id}))
+            
+            print(f"📊 PDF collection results: {len(pdf_check)} documents")
+            print(f"📊 Agreement collection results: {len(agreement_check)} documents")
+            
+            if pdf_check:
+                print(f"📄 PDF found: {pdf_check[0]}")
+            if agreement_check:
+                print(f"📋 Agreement found: {agreement_check[0]}")
+                
+        except Exception as obj_error:
+            print(f"⚠️ Error checking ObjectId: {obj_error}")
+        
+        return jsonify({'success': False, 'message': 'Document not found in database'}), 404
         
     except Exception as e:
-        return jsonify({'success': False, 'message': str(e)}), 500
+        print(f"❌ Error in preview_document: {str(e)}")
+        return jsonify({'success': False, 'message': f'Error previewing document: {str(e)}'}), 500
 
 @app.route('/api/email/send-with-attachments', methods=['POST'])
 def send_email_with_attachments():
@@ -2966,6 +3118,239 @@ def start_approval_workflow():
             'success': False,
             'message': f'Error starting approval workflow: {str(e)}'
         }), 500
+
+@app.route('/api/documents/list', methods=['GET'])
+def list_documents_for_approval():
+    """Get all documents for approval workflow selection"""
+    try:
+        # Get all PDFs and agreements
+        all_pdfs = generated_pdfs.get_all_pdfs(limit=100)
+        all_agreements = generated_agreements.get_all_agreements(limit=100)
+        
+        # Combine and format documents
+        documents = []
+        
+        # Add PDFs
+        for pdf in all_pdfs:
+            documents.append({
+                'id': str(pdf['_id']),
+                'document_type': 'PDF',
+                'filename': pdf.get('filename', 'Unknown'),
+                'client_name': pdf.get('client_name', 'Unknown'),
+                'company_name': pdf.get('company_name', 'Unknown'),
+                'generated_at': pdf.get('generated_at', datetime.now()),
+                'quote_id': pdf.get('quote_id', 'Unknown')
+            })
+        
+        # Add Agreements
+        for agreement in all_agreements:
+            documents.append({
+                'id': str(agreement['_id']),
+                'document_type': 'Agreement',
+                'filename': agreement.get('filename', 'Unknown'),
+                'client_name': agreement.get('client_name', 'Unknown'),
+                'company_name': agreement.get('company_name', 'Unknown'),
+                'generated_at': agreement.get('generated_at', datetime.now()),
+                'quote_id': agreement.get('quote_id', 'Unknown')
+            })
+        
+        # Sort by generation date (newest first)
+        documents.sort(key=lambda x: x['generated_at'], reverse=True)
+        
+        return jsonify({
+            'success': True,
+            'documents': documents,
+            'count': len(documents)
+        })
+        
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+@app.route('/api/approval/debug/<workflow_id>', methods=['GET'])
+def debug_approval_workflow(workflow_id):
+    """Debug endpoint to troubleshoot approval workflow issues"""
+    try:
+        print(f"🔍 Debug request for workflow ID: {workflow_id}")
+        
+        # Get the workflow
+        workflow = approval_workflows.get_workflow_by_id(workflow_id)
+        if not workflow:
+            return jsonify({'success': False, 'message': 'Workflow not found'}), 404
+        
+        print(f"✅ Found workflow: {workflow}")
+        
+        # Get document details
+        document_id = workflow.get('document_id')
+        document_type = workflow.get('document_type')
+        
+        print(f"📄 Document ID: {document_id}")
+        print(f"📋 Document Type: {document_type}")
+        
+        # Try to find the actual document
+        document = None
+        if document_type == 'PDF':
+            document = generated_pdfs.get_pdf_by_id(document_id)
+        elif document_type == 'Agreement':
+            document = generated_agreements.get_agreement_by_id(document_id)
+        
+        # Check if document exists
+        document_exists = document is not None
+        file_exists = False
+        file_path = None
+        
+        if document:
+            file_path = document.get('file_path')
+            file_exists = file_path and os.path.exists(file_path)
+            print(f"✅ Document found in database: {document.get('filename', 'Unknown')}")
+            print(f"📁 File path: {file_path}")
+            print(f"📁 File exists: {file_exists}")
+        else:
+            print(f"❌ Document not found in database")
+        
+        # Return debug information
+        debug_info = {
+            'success': True,
+            'workflow': {
+                'id': str(workflow['_id']),
+                'document_id': document_id,
+                'document_type': document_type,
+                'document_name': workflow.get('document_name'),
+                'client_name': workflow.get('client_name'),
+                'company_name': workflow.get('company_name'),
+                'manager_email': workflow.get('manager_email'),
+                'ceo_email': workflow.get('ceo_email'),
+                'current_stage': workflow.get('current_stage'),
+                'manager_status': workflow.get('manager_status'),
+                'ceo_status': workflow.get('ceo_status'),
+                'created_at': workflow.get('created_at'),
+                'updated_at': workflow.get('updated_at')
+            },
+            'document': {
+                'exists_in_database': document_exists,
+                'filename': document.get('filename') if document else None,
+                'file_path': file_path,
+                'file_exists_on_disk': file_exists,
+                'client_name': document.get('client_name') if document else None,
+                'company_name': document.get('company_name') if document else None
+            },
+            'collections_info': {
+                'pdf_collection_name': generated_pdfs.collection.name,
+                'agreement_collection_name': generated_agreements.collection.name,
+                'workflow_collection_name': approval_workflows.collection.name
+            }
+        }
+        
+        return jsonify(debug_info), 200
+        
+    except Exception as e:
+        print(f"❌ Error in debug endpoint: {str(e)}")
+        return jsonify({'success': False, 'message': f'Error debugging workflow: {str(e)}'}), 500
+
+@app.route('/api/agreements/convert-to-pdf/<agreement_id>', methods=['POST'])
+def convert_agreement_to_pdf(agreement_id):
+    """Convert an existing text agreement to PDF format"""
+    try:
+        print(f"🔍 Converting agreement to PDF: {agreement_id}")
+        
+        # Get the agreement
+        agreement = generated_agreements.get_agreement_by_id(agreement_id)
+        if not agreement:
+            return jsonify({'success': False, 'message': 'Agreement not found'}), 404
+        
+        file_path = agreement.get('file_path')
+        if not file_path or not os.path.exists(file_path):
+            return jsonify({'success': False, 'message': 'Agreement file not found'}), 404
+        
+        # Check if it's already a PDF
+        if file_path.lower().endswith('.pdf'):
+            return jsonify({'success': False, 'message': 'Agreement is already a PDF'}), 400
+        
+        try:
+            from weasyprint import HTML
+            
+            # Read the text content
+            with open(file_path, 'r', encoding='utf-8') as f:
+                content = f.read()
+            
+            # Create HTML template
+            html_content = f"""
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <meta charset="UTF-8">
+                <title>Agreement - {agreement.get('client_name', 'Client')}</title>
+                <style>
+                    body {{ font-family: Arial, sans-serif; margin: 40px; line-height: 1.6; }}
+                    .header {{ text-align: center; border-bottom: 2px solid #667eea; padding-bottom: 20px; margin-bottom: 30px; }}
+                    .content {{ white-space: pre-wrap; font-size: 14px; }}
+                    .footer {{ margin-top: 40px; padding-top: 20px; border-top: 1px solid #ddd; text-align: center; color: #666; }}
+                    .company-info {{ background: #f8f9fa; padding: 15px; border-radius: 5px; margin-bottom: 20px; }}
+                    .company-info strong {{ color: #667eea; }}
+                </style>
+            </head>
+            <body>
+                <div class="header">
+                    <h1>📋 Service Agreement</h1>
+                    <div class="company-info">
+                        <strong>Client:</strong> {agreement.get('client_name', 'N/A')}<br>
+                        <strong>Company:</strong> {agreement.get('company_name', 'N/A')}<br>
+                        <strong>Service Type:</strong> {agreement.get('service_type', 'N/A')}<br>
+                        <strong>Generated:</strong> {agreement.get('generated_at', 'N/A')}
+                    </div>
+                </div>
+                <div class="content">{content}</div>
+                <div class="footer">
+                    <p>Converted to PDF on {datetime.now().strftime('%B %d, %Y at %I:%M %p')}</p>
+                </div>
+            </body>
+            </html>
+            """
+            
+            # Generate PDF
+            html_doc = HTML(string=html_content)
+            pdf_bytes = html_doc.write_pdf()
+            
+            # Create new PDF file path
+            pdf_filename = agreement['filename'].replace('.txt', '.pdf')
+            pdf_file_path = file_path.replace('.txt', '.pdf')
+            
+            # Save PDF file
+            with open(pdf_file_path, 'wb') as f:
+                f.write(pdf_bytes)
+            
+            # Update agreement metadata
+            updated_metadata = {
+                'filename': pdf_filename,
+                'file_path': pdf_file_path,
+                'file_size': len(pdf_bytes),
+                'converted_at': datetime.now(),
+                'original_file': file_path
+            }
+            
+            # Update in MongoDB
+            generated_agreements.collection.update_one(
+                {'_id': agreement['_id']},
+                {'$set': updated_metadata}
+            )
+            
+            print(f"✅ Agreement converted to PDF: {pdf_filename}")
+            
+            return jsonify({
+                'success': True,
+                'message': 'Agreement converted to PDF successfully',
+                'pdf_filename': pdf_filename,
+                'pdf_path': pdf_file_path
+            }), 200
+            
+        except ImportError:
+            return jsonify({
+                'success': False, 
+                'message': 'PDF conversion not available. WeasyPrint is not installed.'
+            }), 500
+            
+    except Exception as e:
+        print(f"❌ Error converting agreement to PDF: {str(e)}")
+        return jsonify({'success': False, 'message': f'Error converting agreement: {str(e)}'}), 500
 
 if __name__ == '__main__':
     # Get port from environment variable for deployment (Render, Heroku, etc.)

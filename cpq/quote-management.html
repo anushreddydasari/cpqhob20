@@ -350,6 +350,109 @@
             color: #0c5460;
             border: 1px solid #bee5eb;
         }
+
+        /* Document Loader Styles */
+        .document-loader {
+            background: #f0f4ff;
+            border: 1px solid #d1e7ff;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 25px;
+        }
+
+        .document-loader h4 {
+            color: #2c5aa0;
+            margin-bottom: 10px;
+            font-size: 1.1rem;
+        }
+
+        .document-loader p {
+            color: #555;
+            margin-bottom: 15px;
+            font-size: 0.9rem;
+        }
+
+        .document-loader .btn-secondary {
+            background: #6c757d;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: all 0.3s ease;
+        }
+
+        .document-loader .btn-secondary:hover {
+            background: #5a6268;
+            transform: translateY(-1px);
+        }
+
+        .table-container {
+            margin-top: 20px;
+            overflow-x: auto;
+        }
+
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .data-table th {
+            background: #667eea;
+            color: white;
+            padding: 12px 8px;
+            text-align: left;
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+
+        .data-table td {
+            padding: 10px 8px;
+            border-bottom: 1px solid #eee;
+            font-size: 0.85rem;
+        }
+
+        .data-table tr:hover {
+            background: #f8f9fa;
+        }
+
+        .data-table input[type="radio"] {
+            cursor: pointer;
+        }
+
+        .data-table strong {
+            color: #667eea;
+            font-family: 'Courier New', monospace;
+            font-size: 0.8rem;
+        }
+
+        .form-help {
+            font-size: 0.85rem;
+            color: #666;
+            margin-top: 5px;
+            font-style: italic;
+        }
+
+        /* Responsive adjustments */
+        @media (max-width: 768px) {
+            .document-loader {
+                padding: 15px;
+            }
+            
+            .data-table {
+                font-size: 0.8rem;
+            }
+            
+            .data-table th,
+            .data-table td {
+                padding: 8px 6px;
+            }
+        }
     </style>
 </head>
 <body>
@@ -375,60 +478,6 @@
         <!-- Main Content -->
         <div class="main-card">
             <div class="card-content">
-                <!-- Email with PDF Generation Section -->
-                <div class="section">
-                    <h3>📧 Send Email with PDF Quote</h3>
-                    
-                    <!-- Email Configuration -->
-                    <div class="form-grid">
-                        <div class="form-group">
-                            <label class="form-label">👤 Client Name *</label>
-                            <input type="text" id="clientName" class="form-input" placeholder="Enter client name" required>
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">📧 Client Email *</label>
-                            <input type="email" id="clientEmail" class="form-input" placeholder="Enter client email" required>
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">🏢 Company Name *</label>
-                            <input type="text" id="companyName" class="form-input" placeholder="Enter company name" required>
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">📱 Client Phone</label>
-                            <input type="text" id="clientPhone" class="form-input" placeholder="Enter client phone">
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">🔄 Service Type *</label>
-                            <select id="serviceType" class="form-select" required>
-                                <option value="">Select service type</option>
-                                <option value="Migration Services">Migration Services</option>
-                                <option value="Consulting">Consulting</option>
-                                <option value="Support">Support</option>
-                                <option value="Custom Development">Custom Development</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">📋 Requirements</label>
-                            <textarea id="requirements" class="form-input" rows="3" placeholder="Brief description of requirements"></textarea>
-                        </div>
-                    </div>
-
-                    <!-- Action Buttons -->
-                    <div style="margin-top: 20px;">
-                        <button class="btn btn-primary" onclick="generateAndSendPDF()">🚀 Generate PDF & Send Email</button>
-                        <button class="btn btn-info" onclick="loadStoredDocuments()">📋 Load Available Documents</button>
-                        <button class="btn btn-success" onclick="sendEmailWithAttachments()">📧 Send Email with Attachments</button>
-                    </div>
-
-                    <!-- Stored Documents Section -->
-                    <div id="storedDocumentsSection" class="documents-section" style="display: none;">
-                        <h4>📄 Available Documents for Attachment</h4>
-                        <div id="storedDocumentsTable" class="documents-table"></div>
-                    </div>
-
-                    <div id="emailStatus"></div>
-                </div>
-
                 <!-- PDF Generation Section -->
                 <div class="section">
                     <h3>📄 PDF Generation</h3>
@@ -505,6 +554,36 @@
                     <h3>📋 Start Approval Workflow</h3>
                     <p>Send documents through the approval process (Manager → CEO → Client).</p>
                     
+                    <!-- Document Loading Section -->
+                    <div class="document-loader">
+                        <h4>📚 Load Available Documents</h4>
+                        <p>Select a document to automatically populate the form fields below.</p>
+                        <button onclick="loadAvailableDocumentsForApproval()" class="btn btn-secondary">
+                            🔄 Load Available Documents
+                        </button>
+                        
+                        <div id="documentsTableContainer" style="display: none;">
+                            <div class="table-container">
+                                <table class="data-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Select</th>
+                                            <th>Document ID</th>
+                                            <th>Document Name</th>
+                                            <th>Client Name</th>
+                                            <th>Company</th>
+                                            <th>Type</th>
+                                            <th>Created</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="documentsTableBody">
+                                        <!-- Documents will be loaded here -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                    
                     <div class="form-grid">
                         <div class="form-group">
                             <label for="approvalDocumentType">Document Type:</label>
@@ -515,7 +594,8 @@
                         </div>
                         <div class="form-group">
                             <label for="approvalDocumentId">Document ID:</label>
-                            <input type="text" id="approvalDocumentId" class="form-input" placeholder="Enter document ID...">
+                            <input type="text" id="approvalDocumentId" class="form-input" placeholder="Enter document ID..." readonly>
+                            <small class="form-help">Document ID will be auto-filled when you select a document above</small>
                         </div>
                         <div class="form-group">
                             <label for="managerEmail">Manager Email:</label>
@@ -530,6 +610,59 @@
                     <button onclick="startApprovalWorkflow()" class="btn btn-info">🚀 Start Approval Workflow</button>
                     <div id="approvalWorkflowStatus"></div>
                 </div>
+
+                <!-- Email with PDF Generation Section -->
+                <div class="section">
+                    <h3>📧 Send Email with PDF Quote</h3>
+                    
+                    <!-- Email Configuration -->
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label class="form-label">👤 Client Name *</label>
+                            <input type="text" id="clientName" class="form-input" placeholder="Enter client name" required>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">📧 Client Email *</label>
+                            <input type="email" id="clientEmail" class="form-input" placeholder="Enter client email" required>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">🏢 Company Name *</label>
+                            <input type="text" id="companyName" class="form-input" placeholder="Enter company name" required>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">📱 Client Phone</label>
+                            <input type="text" id="clientPhone" class="form-input" placeholder="Enter client phone">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">🔄 Service Type *</label>
+                            <select id="serviceType" class="form-select" required>
+                                <option value="">Select service type</option>
+                                <option value="Migration Services">Migration Services</option>
+                                <option value="Consulting">Consulting</option>
+                                <option value="Support">Support</option>
+                                <option value="Custom Development">Custom Development</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">📋 Requirements</label>
+                            <textarea id="requirements" class="form-input" rows="3" placeholder="Brief description of requirements"></textarea>
+                        </div>
+                    </div>
+
+                    <!-- Action Buttons -->
+                    <div style="margin-top: 20px;">
+                        <button class="btn btn-primary" onclick="generateAndSendPDF()">🚀 Generate PDF & Send Email</button>
+                        <button class="btn btn-info" onclick="loadStoredDocuments()">📋 Load Available Documents</button>
+                        <button class="btn btn-success" onclick="sendEmailWithAttachments()">📧 Send Email with Attachments</button>
+                    </div>
+
+                    <!-- Stored Documents Section -->
+                    <div id="storedDocumentsSection" class="documents-section" style="display: none;">
+                        <h4>📄 Available Documents for Attachment</h4>
+                        <div id="storedDocumentsTable" class="documents-table"></div>
+                    </div>
+
+                    <div id="emailStatus"></div>
                 </div>
             </div>
         </div>
@@ -1091,6 +1224,72 @@
             } catch (error) {
                 showStatus('approvalWorkflowStatus', `❌ Error: ${error.message}`, 'error');
             }
+        }
+
+        // Function to load available documents for approval workflow
+        async function loadAvailableDocumentsForApproval() {
+            const documentsTableContainer = document.getElementById('documentsTableContainer');
+            const documentsTableBody = document.getElementById('documentsTableBody');
+            const loadButton = document.querySelector('.document-loader button');
+
+            if (documentsTableContainer.style.display === 'none') {
+                documentsTableContainer.style.display = 'block';
+                loadButton.textContent = '🔄 Hide Documents';
+                showStatus('approvalWorkflowStatus', '📋 Loading available documents...', 'info');
+
+                try {
+                    const response = await fetch('/api/documents/list'); // Assuming this endpoint exists
+                    const result = await response.json();
+
+                    if (result.success && result.documents.length > 0) {
+                        documentsTableBody.innerHTML = result.documents.map(doc => `
+                            <tr>
+                                <td><input type="radio" name="approvalDocument" value="${doc.id}" onchange="onDocumentSelectedForApproval('${doc.id}')"></td>
+                                <td><strong>${doc.id}</strong></td>
+                                <td>${doc.filename}</td>
+                                <td>${doc.client_name}</td>
+                                <td>${doc.company_name}</td>
+                                <td>${doc.document_type}</td>
+                                <td>${new Date(doc.generated_at).toLocaleDateString()}</td>
+                            </tr>
+                        `).join('');
+                        showStatus('approvalWorkflowStatus', `✅ Loaded ${result.documents.length} documents for approval.`, 'success');
+                    } else {
+                        documentsTableBody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 20px;">No documents found for approval.</td></tr>';
+                        showStatus('approvalWorkflowStatus', 'ℹ️ No documents found for approval.', 'info');
+                    }
+                } catch (error) {
+                    showStatus('approvalWorkflowStatus', `❌ Error loading documents: ${error.message}`, 'error');
+                }
+            } else {
+                documentsTableContainer.style.display = 'none';
+                loadButton.textContent = '🔄 Load Available Documents';
+                showStatus('approvalWorkflowStatus', '📋 Documents hidden.', 'info');
+            }
+        }
+
+        // Function to handle document selection for approval workflow
+        function onDocumentSelectedForApproval(documentId) {
+            document.getElementById('approvalDocumentId').value = documentId;
+            
+            // Find the selected document in the table to get its type
+            const selectedRow = document.querySelector(`input[name="approvalDocument"][value="${documentId}"]`).closest('tr');
+            const documentType = selectedRow.cells[5].textContent; // Type column
+            
+            // Auto-populate the document type
+            const documentTypeSelect = document.getElementById('approvalDocumentType');
+            if (documentType === 'PDF') {
+                documentTypeSelect.value = 'PDF';
+            } else if (documentType === 'Agreement') {
+                documentTypeSelect.value = 'Agreement';
+            }
+            
+            // Show success message
+            showStatus('approvalWorkflowStatus', `✅ Document selected: ${selectedRow.cells[2].textContent}`, 'success');
+            
+            // Highlight the selected row
+            document.querySelectorAll('.data-table tr').forEach(row => row.style.backgroundColor = '');
+            selectedRow.style.backgroundColor = '#e8f5e8';
         }
     </script>
 </body>

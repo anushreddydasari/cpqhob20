@@ -553,6 +553,8 @@
                             <button class="btn-approve" onclick="approveDocument()">✅ Approve</button>
                             <button class="btn-deny" onclick="denyDocument()">❌ Deny</button>
                             <button onclick="closePdfViewer()">Close</button>
+                            <button onclick="debugCurrentWorkflow()" style="background: #6c757d; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; margin-left: 10px;">🐛 Debug</button>
+                            <button onclick="convertAgreementToPdf()" id="convertPdfBtn" style="background: #17a2b8; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; margin-left: 10px; display: none;">📄 Convert to PDF</button>
                         </div>
                     </div>
                 </div>
@@ -1186,18 +1188,77 @@
 
         // Show PDF viewer
         function showPdfViewer(workflow) {
+            console.log('🔍 showPdfViewer called with workflow:', workflow);
+            
             document.getElementById('pdf-document-title').textContent = 
                 `${workflow.document_name} - ${workflow.client_name}`;
             
+            // Show/hide convert button based on document type
+            const convertBtn = document.getElementById('convertPdfBtn');
+            if (workflow.document_type === 'Agreement' && workflow.filename && workflow.filename.endsWith('.txt')) {
+                convertBtn.style.display = 'inline-block';
+                convertBtn.onclick = () => convertAgreementToPdf();
+            } else {
+                convertBtn.style.display = 'none';
+            }
+            
             // Set PDF source
             const pdfUrl = `/api/documents/preview/${workflow.document_id}`;
-            document.getElementById('pdf-iframe').src = pdfUrl;
+            console.log('🔍 PDF URL:', pdfUrl);
             
-            // Show the modal
+            // Show the modal first
             document.getElementById('pdf-viewer-modal').style.display = 'block';
+            
+            // Add error handling for PDF loading
+            const pdfIframe = document.getElementById('pdf-iframe');
+            
+            // Clear previous content
+            pdfIframe.src = '';
+            
+            // Add load event listener for success
+            pdfIframe.onload = function() {
+                console.log('✅ PDF loaded successfully');
+            };
+            
+            // Add error event listener
+            pdfIframe.onerror = function() {
+                console.error('❌ PDF failed to load');
+                showPdfError('Failed to load PDF document. Please check the console for details.');
+            };
+            
+            // Set the source after adding event listeners
+            pdfIframe.src = pdfUrl;
             
             // Scroll to viewer
             document.getElementById('pdf-viewer-modal').scrollIntoView({ behavior: 'smooth' });
+            
+            // Set current document for approval actions
+            currentDocument = workflow;
+        }
+
+        // Function to show PDF loading errors
+        function showPdfError(message) {
+            const pdfIframe = document.getElementById('pdf-iframe');
+            pdfIframe.srcdoc = `
+                <html>
+                <body style="margin: 0; padding: 20px; font-family: Arial, sans-serif; background: #f8f9fa; display: flex; align-items: center; justify-content: center; height: 100vh;">
+                    <div style="text-align: center; background: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+                        <div style="font-size: 48px; margin-bottom: 20px;">❌</div>
+                        <h3 style="color: #dc3545; margin-bottom: 15px;">Document Loading Error</h3>
+                        <p style="color: #6c757d; margin-bottom: 20px;">${message}</p>
+                        <button onclick="retryPdfLoad()" style="background: #007bff; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer;">🔄 Retry</button>
+                    </div>
+                </body>
+                </html>
+            `;
+        }
+
+        // Function to retry PDF loading
+        function retryPdfLoad() {
+            if (currentDocument) {
+                console.log('🔄 Retrying PDF load for document:', currentDocument.document_id);
+                showPdfViewer(currentDocument);
+            }
         }
 
         // Close PDF viewer
@@ -1365,6 +1426,105 @@
         async function refreshDashboard() {
             await loadDashboardData();
             console.log('Dashboard refreshed.');
+        }
+
+        // Debug function to display current workflow details
+        async function debugCurrentWorkflow() {
+            if (!currentDocument || !currentDocument._id) {
+                alert('No document currently selected for viewing.');
+                return;
+            }
+            
+            try {
+                console.log('🔍 Debugging workflow:', currentDocument._id);
+                
+                const response = await fetch(`/api/approval/debug/${currentDocument._id}`);
+                const result = await response.json();
+                
+                if (result.success) {
+                    // Create a detailed debug message
+                    let debugMessage = '🔍 WORKFLOW DEBUG INFORMATION\n\n';
+                    debugMessage += '📋 WORKFLOW DETAILS:\n';
+                    debugMessage += `ID: ${result.workflow.id}\n`;
+                    debugMessage += `Document ID: ${result.workflow.document_id}\n`;
+                    debugMessage += `Document Type: ${result.workflow.document_type}\n`;
+                    debugMessage += `Document Name: ${result.workflow.document_name}\n`;
+                    debugMessage += `Client: ${result.workflow.client_name}\n`;
+                    debugMessage += `Company: ${result.workflow.company_name}\n`;
+                    debugMessage += `Current Stage: ${result.workflow.current_stage}\n`;
+                    debugMessage += `Manager Status: ${result.workflow.manager_status}\n`;
+                    debugMessage += `CEO Status: ${result.workflow.ceo_status}\n\n`;
+                    
+                    debugMessage += '📄 DOCUMENT STATUS:\n';
+                    debugMessage += `Exists in Database: ${result.document.exists_in_database ? '✅ Yes' : '❌ No'}\n`;
+                    debugMessage += `Filename: ${result.document.filename || 'N/A'}\n`;
+                    debugMessage += `File Path: ${result.document.file_path || 'N/A'}\n`;
+                    debugMessage += `File Exists on Disk: ${result.document.file_exists_on_disk ? '✅ Yes' : '❌ No'}\n\n`;
+                    
+                    debugMessage += '🗄️ COLLECTION INFO:\n';
+                    debugMessage += `PDF Collection: ${result.collections_info.pdf_collection_name}\n`;
+                    debugMessage += `Agreement Collection: ${result.collections_info.agreement_collection_name}\n`;
+                    debugMessage += `Workflow Collection: ${result.collections_info.workflow_collection_name}\n\n`;
+                    
+                    // Add troubleshooting tips
+                    if (!result.document.exists_in_database) {
+                        debugMessage += '⚠️ TROUBLESHOOTING:\n';
+                        debugMessage += '• Document not found in database\n';
+                        debugMessage += '• Check if document was properly generated\n';
+                        debugMessage += '• Verify document ID format\n';
+                    } else if (!result.document.file_exists_on_disk) {
+                        debugMessage += '⚠️ TROUBLESHOOTING:\n';
+                        debugMessage += '• Document exists in database but file is missing\n';
+                        debugMessage += '• Check file path: ' + result.document.file_path + '\n';
+                        debugMessage += '• Verify file was not deleted or moved\n';
+                    }
+                    
+                    // Show in console for developers
+                    console.log('🔍 Debug Information:', result);
+                    
+                    // Show to user
+                    alert(debugMessage);
+                    
+                } else {
+                    alert('❌ Failed to get debug information: ' + result.message);
+                }
+                
+            } catch (error) {
+                console.error('❌ Error debugging workflow:', error);
+                alert('❌ Error getting debug information: ' + error.message);
+            }
+        }
+
+        // Function to convert text agreement to PDF
+        async function convertAgreementToPdf() {
+            if (!currentDocument || !currentDocument.document_id) {
+                alert('No document selected for conversion.');
+                return;
+            }
+
+            if (confirm('Are you sure you want to convert this text agreement to a PDF for viewing? This action cannot be undone.')) {
+                try {
+                    const response = await fetch(`/api/agreements/convert-to-pdf/${currentDocument.document_id}`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        }
+                    });
+
+                    const result = await response.json();
+
+                    if (result.success) {
+                        alert('Text agreement converted to PDF successfully!');
+                        // Reload the document to show the new PDF
+                        showPdfViewer(currentDocument);
+                    } else {
+                        alert('Error converting text agreement to PDF: ' + result.message);
+                    }
+                } catch (error) {
+                    console.error('Error converting text agreement to PDF:', error);
+                    alert('Error converting text agreement to PDF');
+                }
+            }
         }
     </script>
 </body>
