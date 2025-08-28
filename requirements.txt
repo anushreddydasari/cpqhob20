@@ -1,12 +1,11 @@
-Flask==2.3.3
+Flask==3.0.0
 Flask-CORS==4.0.0
 pymongo==4.5.0
 python-dotenv==1.0.0
-Werkzeug==2.3.7
+Werkzeug==3.0.0
 reportlab==4.0.4
 email-validator==2.0.0
-
-gunicorn
+gunicorn==21.2.0
 requests
 python-docx==0.8.11
 mammoth==1.6.0
