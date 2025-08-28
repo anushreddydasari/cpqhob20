@@ -177,4 +177,44 @@ class EmailService:
                 "message": f"Gmail SMTP connection failed: {str(e)}"
             }
 
+    def send_email(self, recipient_email, subject, body):
+        """
+        Send a simple email
+        
+        Args:
+            recipient_email (str): Recipient's email address
+            subject (str): Email subject
+            body (str): Email body (can be HTML)
+        
+        Returns:
+            bool: True if email sent successfully, False otherwise
+        """
+        try:
+            # Create message
+            msg = MIMEMultipart()
+            msg['From'] = self.sender_email
+            msg['To'] = recipient_email
+            msg['Subject'] = subject
+            
+            # Check if body is HTML
+            if '<html>' in body or '<body>' in body:
+                msg.attach(MIMEText(body, 'html'))
+            else:
+                msg.attach(MIMEText(body, 'plain'))
+            
+            # Send email
+            server = smtplib.SMTP(self.smtp_server, self.smtp_port)
+            server.starttls()
+            server.login(self.sender_email, self.sender_password)
+            
+            text = msg.as_string()
+            server.sendmail(self.sender_email, recipient_email, text)
+            server.quit()
+            
+            return True
+            
+        except Exception as e:
+            print(f"❌ Email sending failed: {str(e)}")
+            return False
+
 

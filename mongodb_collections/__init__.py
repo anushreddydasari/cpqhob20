@@ -11,6 +11,9 @@ from .hubspot_integration_collection import HubSpotIntegrationCollection
 from .form_tracking_collection import FormTrackingCollection
 from .template_collection import TemplateCollection
 from .hubspot_quote_collection import HubSpotQuoteCollection
+from .signature_collection import SignatureCollection
+from .generated_pdf_collection import GeneratedPDFCollection
+from .generated_agreement_collection import GeneratedAgreementCollection
 
 
 
@@ -25,5 +28,8 @@ __all__ = [
     'FormTrackingCollection',
     'TemplateCollection',
     'HubSpotQuoteCollection',
+    'SignatureCollection',
+    'GeneratedPDFCollection',
+    'GeneratedAgreementCollection',
 
 ]

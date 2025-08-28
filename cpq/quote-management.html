@@ -231,24 +231,64 @@
         <!-- Navigation -->
         <div class="nav-bar">
             <a href="/" class="nav-btn">🏠 Home</a>
-            <a href="/quote-management" class="nav-btn">📊 Quote Management</a>
+            <a href="/quote-management" class="nav-btn">�� Quote Management</a>
             
             <a href="/hubspot-data" class="nav-btn">🔗 HubSpot</a>
-            <a href="/quote-calculator" class="nav-btn">🧮 Quote Calculator</a>
+            <a href="/quote-calculator" class="nav-btn">�� Quote Calculator</a>
             <a href="/client-management" class="nav-btn">👥 Clients</a>
         </div>
 
         <!-- Main Content -->
         <div class="main-card">
-            <div class="card-header">
-                <h2>📝 Generate New Quote</h2>
-                <p>Create professional quotes for your clients</p>
-            </div>
-            
             <div class="card-content">
+                <!-- PDF Generation Section -->
+                <div class="section">
+                    <h3>�� PDF Generation</h3>
+                    
+                    <!-- Available Quotes List -->
+                    <div style="margin-bottom: 20px;">
+                        <button class="btn btn-info" onclick="loadAvailableQuotes()" style="margin-bottom: 15px;">
+                            📋 Load Available Quotes
+                        </button>
+                        <div id="quotesList" style="display: none;">
+                            <h4 style="color: #333; margin-bottom: 15px;">Available Quotes:</h4>
+                            <div id="quotesTable" style="background: white; border-radius: 8px; padding: 15px; max-height: 300px; overflow-y: auto;"></div>
+                        </div>
+                    </div>
+                    
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label class="form-label">�� Lookup By</label>
+                            <select id="lookupType" class="form-select" onchange="toggleLookupFields()">
+                                <option value="quoteId">Quote ID</option>
+                                <option value="username">Username</option>
+                                <option value="company">Company Name</option>
+                            </select>
+                        </div>
+                        <div class="form-group" id="quoteIdGroup">
+                            <label class="form-label">🆔 Quote ID</label>
+                            <input type="text" id="quoteId" class="form-input" placeholder="Enter quote ID">
+                        </div>
+                        <div class="form-group" id="usernameGroup" style="display: none;">
+                            <label class="form-label">👤 Username</label>
+                            <input type="text" id="username" class="form-input" placeholder="Enter username">
+                        </div>
+                        <div class="form-group" id="companyGroup" style="display: none;">
+                            <label class="form-label">🏢 Company Name</label>
+                            <input type="text" id="pdfCompanyName" class="form-input" placeholder="Enter company name">
+                        </div>
+                    </div>
+                                            <button class="btn btn-info" onclick="generatePDF()">📄 Generate PDF</button>
+                        <button class="btn btn-info" onclick="generateAgreement()">�� Generate Agreement</button>
+                        <div id="pdfStatus"></div>
+                        <div id="agreementStatus"></div>
+                </div>
+
                 <!-- Gmail Sending Section -->
                 <div class="section">
-                    <h3>📧 Gmail Sending</h3>
+                    <h3>�� Gmail Sending with PDF Attachments</h3>
+                    
+                    <!-- Email Configuration -->
                     <div class="form-grid">
                         <div class="form-group">
                             <label class="form-label">👤 Client Name *</label>
@@ -260,7 +300,7 @@
                         </div>
                         <div class="form-group">
                             <label class="form-label">🏢 Company Name *</label>
-                            <input type="text" id="companyName" class="form-input" placeholder="Enter company name" required>
+                            <input type="text" id="emailCompanyName" class="form-input" placeholder="Enter company name" required>
                         </div>
                         <div class="form-group">
                             <label class="form-label">📱 Client Phone</label>
@@ -281,51 +321,48 @@
                             <textarea id="requirements" class="form-input" rows="3" placeholder="Brief description of requirements"></textarea>
                         </div>
                     </div>
-                    <button class="btn btn-success" onclick="sendGmail()">📧 Send Gmail</button>
-                    <div id="gmailStatus"></div>
-                </div>
 
-                <!-- PDF Generation Section -->
-                <div class="section">
-                    <h3>📄 PDF Generation</h3>
-                    
-                    <!-- Available Quotes List -->
-                    <div style="margin-bottom: 20px;">
-                        <button class="btn btn-info" onclick="loadAvailableQuotes()" style="margin-bottom: 15px;">
-                            📋 Load Available Quotes
-                        </button>
-                        <div id="quotesList" style="display: none;">
-                            <h4 style="color: #333; margin-bottom: 15px;">Available Quotes:</h4>
-                            <div id="quotesTable" style="background: white; border-radius: 8px; padding: 15px; max-height: 300px; overflow-y: auto;"></div>
+                    <!-- PDF Attachment Options -->
+                    <div style="margin: 20px 0; padding: 20px; background: #e3f2fd; border-radius: 8px; border-left: 4px solid #2196f3;">
+                        <h4 style="color: #1976d2; margin-bottom: 15px;">�� Attach Stored PDFs & Agreements</h4>
+                        
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label class="form-label">�� Lookup By</label>
+                                <select id="emailLookupType" class="form-select" onchange="toggleEmailLookupFields()">
+                                    <option value="quoteId">Quote ID</option>
+                                    <option value="username">Username</option>
+                                    <option value="company">Company Name</option>
+                                </select>
+                            </div>
+                            <div class="form-group" id="emailQuoteIdGroup">
+                                <label class="form-label">🆔 Quote ID</label>
+                                <input type="text" id="emailQuoteId" class="form-input" placeholder="Enter quote ID">
+                            </div>
+                            <div class="form-group" id="emailUsernameGroup" style="display: none;">
+                                <label class="form-label">👤 Username</label>
+                                <input type="text" id="emailUsername" class="form-input" placeholder="Enter username">
+                            </div>
+                            <div class="form-group" id="emailCompanyGroup" style="display: none;">
+                                <label class="form-label">🏢 Company Name</label>
+                                <input type="text" id="emailCompanyName" class="form-input" placeholder="Enter company name">
+                            </div>
+                        </div>
+
+                        <div style="margin-top: 15px;">
+                            <button class="btn btn-info" onclick="loadStoredDocuments()">📋 Load Available Documents</button>
+                            <button class="btn btn-success" onclick="sendGmailWithAttachments()">📧 Send Email with Attachments</button>
+                            <button class="btn btn-secondary" onclick="sendGmail()">📧 Send Basic Email Only</button>
+                        </div>
+
+                        <!-- Stored Documents List -->
+                        <div id="storedDocumentsList" style="display: none; margin-top: 20px;">
+                            <h5 style="color: #1976d2; margin-bottom: 10px;">📄 Available Documents:</h5>
+                            <div id="storedDocumentsTable" style="background: white; border-radius: 8px; padding: 15px; max-height: 200px; overflow-y: auto;"></div>
                         </div>
                     </div>
-                    
-                    <div class="form-grid">
-                        <div class="form-group">
-                            <label class="form-label">🔍 Lookup By</label>
-                            <select id="lookupType" class="form-select" onchange="toggleLookupFields()">
-                                <option value="quoteId">Quote ID</option>
-                                <option value="username">Username</option>
-                                <option value="company">Company Name</option>
-                            </select>
-                        </div>
-                        <div class="form-group" id="quoteIdGroup">
-                            <label class="form-label">🆔 Quote ID</label>
-                            <input type="text" id="quoteId" class="form-input" placeholder="Enter quote ID">
-                        </div>
-                        <div class="form-group" id="usernameGroup" style="display: none;">
-                            <label class="form-label">👤 Username</label>
-                            <input type="text" id="username" class="form-input" placeholder="Enter username">
-                        </div>
-                        <div class="form-group" id="companyGroup" style="display: none;">
-                            <label class="form-label">🏢 Company Name</label>
-                            <input type="text" id="companyName" class="form-input" placeholder="Enter company name">
-                        </div>
-                    </div>
-                                            <button class="btn btn-info" onclick="generatePDF()">📄 Generate PDF</button>
-                        <button class="btn btn-info" onclick="generateAgreement()">📋 Generate Agreement</button>
-                        <div id="pdfStatus"></div>
-                        <div id="agreementStatus"></div>
+
+                    <div id="gmailStatus"></div>
                 </div>
 
 
@@ -333,6 +370,8 @@
     </div>
 
     <script>
+        console.log('✅ JavaScript loaded successfully!');
+        
         function goBack() {
             window.location.href = '/';
         }
@@ -362,11 +401,36 @@
             }
         }
 
+        function toggleEmailLookupFields() {
+            const lookupType = document.getElementById('emailLookupType').value;
+            const quoteIdGroup = document.getElementById('emailQuoteIdGroup');
+            const usernameGroup = document.getElementById('emailUsernameGroup');
+            const companyGroup = document.getElementById('emailCompanyGroup');
+
+            // Hide all groups first
+            quoteIdGroup.style.display = 'none';
+            usernameGroup.style.display = 'none';
+            companyGroup.style.display = 'none';
+
+            // Show the selected group
+            switch(lookupType) {
+                case 'quoteId':
+                    quoteIdGroup.style.display = 'block';
+                    break;
+                case 'username':
+                    usernameGroup.style.display = 'block';
+                    break;
+                case 'company':
+                    companyGroup.style.display = 'block';
+                    break;
+            }
+        }
+
         // Gmail Sending Function
         async function sendGmail() {
             const clientName = document.getElementById('clientName').value;
             const clientEmail = document.getElementById('clientEmail').value;
-            const companyName = document.getElementById('companyName').value;
+            const companyName = document.getElementById('emailCompanyName').value;
             const clientPhone = document.getElementById('clientPhone').value;
             const serviceType = document.getElementById('serviceType').value;
             const requirements = document.getElementById('requirements').value;
@@ -376,7 +440,7 @@
                 return;
             }
 
-            showStatus('gmailStatus', '📧 Sending Gmail...', 'info');
+            showStatus('gmailStatus', '�� Sending Gmail...', 'info');
 
             try {
                 const emailData = {
@@ -403,7 +467,7 @@
                     // Clear form
                     document.getElementById('clientName').value = '';
                     document.getElementById('clientEmail').value = '';
-                    document.getElementById('companyName').value = '';
+                    document.getElementById('emailCompanyName').value = '';
                     document.getElementById('clientPhone').value = '';
                     document.getElementById('serviceType').value = '';
                     document.getElementById('requirements').value = '';
@@ -428,7 +492,7 @@
                     lookupValue = document.getElementById('username').value;
                     break;
                 case 'company':
-                    lookupValue = document.getElementById('companyName').value;
+                    lookupValue = document.getElementById('pdfCompanyName').value;
                     break;
             }
 
@@ -485,7 +549,7 @@
                     lookupValue = document.getElementById('username').value;
                     break;
                 case 'company':
-                    lookupValue = document.getElementById('companyName').value;
+                    lookupValue = document.getElementById('pdfCompanyName').value;
                     break;
             }
 
@@ -598,15 +662,15 @@
                         <h3>📊 Agreement Details</h3>
                         <p><strong>Quote ID:</strong> ${agreement.quote_id}</p>
                         <p><strong>Generated:</strong> ${new Date(agreement.generated_at).toLocaleString()}</p>
-                        <p><strong>Agreement ID:</strong> ${agreement.template_data.agreement_id}</p>
+                        <p><strong>Agreement ID:</strong> ${agreement.agreement_data?.agreement_id || 'N/A'}</p>
                     </div>
                     
                     <div style="margin-bottom: 20px;">
-                        <h3>👤 Client Information</h3>
-                        <p><strong>Name:</strong> ${agreement.template_data.client_name}</p>
-                        <p><strong>Company:</strong> ${agreement.template_data.client_company}</p>
-                        <p><strong>Service:</strong> ${agreement.template_data.service_type}</p>
-                        <p><strong>Total Cost:</strong> $${agreement.template_data.total_cost}</p>
+                        <h3>�� Client Information</h3>
+                        <p><strong>Name:</strong> ${agreement.agreement_data?.client_name || 'N/A'}</p>
+                        <p><strong>Company:</strong> ${agreement.agreement_data?.client_company || 'N/A'}</p>
+                        <p><strong>Service:</strong> ${agreement.agreement_data?.service_type || 'N/A'}</p>
+                        <p><strong>Total Cost:</strong> $${agreement.agreement_data?.standard_plan_total || 'N/A'}</p>
                     </div>
                     
                     <div style="margin-bottom: 20px;">
@@ -633,7 +697,7 @@
                             border-radius: 8px;
                             cursor: pointer;
                             margin: 10px;
-                        ">💾 Download Agreement</button>
+                        ">�� Download Agreement</button>
                         
                         <button onclick="sendAgreementEmail('${agreement.quote_id}')" style="
                             background: #17a2b8;
@@ -737,6 +801,175 @@
                 }
             } catch (error) {
                 showStatus('pdfStatus', `❌ Error loading quotes: ${error.message}`, 'error');
+            }
+        }
+
+        // Load and display stored documents for email attachments
+        async function loadStoredDocuments() {
+            const documentsListDiv = document.getElementById('storedDocumentsList');
+            const documentsTableDiv = document.getElementById('storedDocumentsTable');
+            
+            showStatus('gmailStatus', '📋 Loading stored documents...', 'info');
+            
+            try {
+                const response = await fetch('/api/documents/stored');
+                const result = await response.json();
+                
+                if (result.success && result.documents.length > 0) {
+                    // Show documents list
+                    documentsListDiv.style.display = 'block';
+                    
+                    // Create table HTML
+                    let tableHTML = `
+                        <table style="width: 100%; border-collapse: collapse; font-size: 0.9rem;">
+                            <thead>
+                                <tr style="background: #2196f3; color: white;">
+                                    <th style="padding: 8px; text-align: left; border: 1px solid #ddd;">📄 Document</th>
+                                    <th style="padding: 8px; text-align: left; border: 1px solid #ddd;">👤 Client</th>
+                                    <th style="padding: 8px; text-align: left; border: 1px solid #ddd;">🏢 Company</th>
+                                    <th style="padding: 8px; text-align: left; border: 1px solid #ddd;">📅 Generated</th>
+                                    <th style="padding: 8px; text-align: left; border: 1px solid #ddd;">📎 Attach</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                    `;
+                    
+                    result.documents.forEach(doc => {
+                        tableHTML += `
+                            <tr style="background: #f8f9fa;">
+                                <td style="padding: 8px; border: 1px solid #ddd;">
+                                    <strong>${doc.document_type}</strong><br>
+                                    <small style="color: #666;">${doc.filename}</small>
+                                </td>
+                                <td style="padding: 8px; border: 1px solid #ddd;">${doc.client_name}</td>
+                                <td style="padding: 8px; border: 1px solid #ddd;">${doc.company_name}</td>
+                                <td style="padding: 8px; border: 1px solid #ddd;">${new Date(doc.generated_at).toLocaleDateString()}</td>
+                                <td style="padding: 8px; border: 1px solid #ddd;">
+                                    <input type="checkbox" id="attach_${doc.id}" value="${doc.id}" style="transform: scale(1.2);">
+                                    <label for="attach_${doc.id}" style="margin-left: 5px; font-size: 0.8rem;">Attach</label>
+                                </td>
+                            </tr>
+                        `;
+                    });
+                    
+                    tableHTML += `
+                            </tbody>
+                        </table>
+                        <p style="margin-top: 15px; font-size: 0.9rem; color: #666;">
+                            💡 <strong>Tip:</strong> Check the documents you want to attach, then click "Send Email with Attachments"
+                        </p>
+                    `;
+                    
+                    documentsTableDiv.innerHTML = tableHTML;
+                    showStatus('gmailStatus', `✅ Loaded ${result.count} stored documents!`, 'success');
+                } else {
+                    documentsListDiv.style.display = 'none';
+                    showStatus('gmailStatus', 'ℹ️ No stored documents found. Generate some PDFs first!', 'info');
+                }
+            } catch (error) {
+                showStatus('gmailStatus', `❌ Error loading documents: ${error.message}`, 'error');
+            }
+        }
+
+        // Send email with selected document attachments
+        async function sendGmailWithAttachments() {
+            alert('🚀 Function called! Check console for details.');
+            console.log('🚀 sendGmailWithAttachments function called!');
+            
+            // Add more debug alerts
+            alert('About to read form fields...');
+            
+            // Declare variables at function scope so they're accessible throughout
+            let clientName, clientEmail, companyName, clientPhone, serviceType, requirements, selectedDocs;
+            
+            try {
+                alert('Starting to read form fields...');
+                
+                clientName = document.getElementById('clientName').value;
+                clientEmail = document.getElementById('clientEmail').value;
+                companyName = document.getElementById('emailCompanyName').value;
+                clientPhone = document.getElementById('clientPhone').value;
+                serviceType = document.getElementById('serviceType').value;
+                requirements = document.getElementById('requirements').value;
+
+                // Debug: Log the values being checked
+                console.log('Debug - Values being validated:', {
+                    clientName: `"${clientName}"`,
+                    clientEmail: `"${clientEmail}"`,
+                    companyName: `"${companyName}"`,
+                    serviceType: `"${serviceType}"`
+                });
+
+                // Debug: Check each field individually
+                console.log('Debug - Individual field checks:');
+                console.log('clientName empty?', !clientName);
+                console.log('clientEmail empty?', !clientEmail);
+                console.log('companyName empty?', !companyName);
+                console.log('serviceType empty?', !serviceType);
+
+                if (!clientName || !clientEmail || !companyName || !serviceType) {
+                    showStatus('gmailStatus', '❌ Please fill in all required fields.', 'error');
+                    console.log('❌ Validation failed - missing fields detected');
+                    return;
+                }
+
+                // Get selected document attachments
+                selectedDocs = [];
+                const checkboxes = document.querySelectorAll('#storedDocumentsTable input[type="checkbox"]:checked');
+                checkboxes.forEach(checkbox => {
+                    selectedDocs.push(checkbox.value);
+                });
+
+                if (selectedDocs.length === 0) {
+                    showStatus('gmailStatus', '❌ Please select at least one document to attach.', 'error');
+                    return;
+                }
+
+                showStatus('gmailStatus', '�� Sending email with attachments...', 'info');
+            } catch (error) {
+                showStatus('gmailStatus', `❌ Error reading form fields: ${error.message}`, 'error');
+                return;
+            }
+
+            try {
+                const emailData = {
+                    recipient_email: clientEmail,
+                    recipient_name: clientName,
+                    company_name: companyName,
+                    client_phone: clientPhone,
+                    service_type: serviceType,
+                    requirements: requirements,
+                    document_ids: selectedDocs
+                };
+
+                const response = await fetch('/api/email/send-with-attachments', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(emailData)
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    showStatus('gmailStatus', `✅ Email sent successfully with ${selectedDocs.length} attachment(s)!`, 'success');
+                    // Clear form
+                    document.getElementById('clientName').value = '';
+                    document.getElementById('clientEmail').value = '';
+                    document.getElementById('emailCompanyName').value = '';
+                    document.getElementById('clientPhone').value = '';
+                    document.getElementById('serviceType').value = '';
+                    document.getElementById('requirements').value = '';
+                    
+                    // Uncheck all checkboxes
+                    const allCheckboxes = document.querySelectorAll('#storedDocumentsTable input[type="checkbox"]');
+                    allCheckboxes.forEach(checkbox => checkbox.checked = false);
+                } else {
+                    showStatus('gmailStatus', `❌ Failed to send email: ${result.message}`, 'error');
+                }
+            } catch (error) {
+                showStatus('gmailStatus', `❌ Error: ${error.message}`, 'error');
             }
         }
     </script>

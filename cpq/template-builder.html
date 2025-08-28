@@ -663,6 +663,12 @@
                     <button class="btn btn-info" onclick="previewTemplate()" style="width: 100%; margin-bottom: 10px;">👁️ Preview</button>
                     <button class="btn btn-success" onclick="saveTemplate()" style="width: 100%; margin-bottom: 10px;">💾 Save Template</button>
                     <button class="btn btn-warning" onclick="loadTemplate()" style="width: 100%; margin-bottom: 10px;">📂 Load Template</button>
+                    <div class="form-group" style="margin-top: 10px; display:flex; gap:8px; flex-wrap:wrap;">
+                        <button class="btn" onclick="openSignatureModal('client')">✍️ Capture Client Signature</button>
+                        <button class="btn" onclick="openSignatureModal('manager')">✍️ Capture Company Signature</button>
+                        <button class="btn" onclick="syncToGoogleDoc()">🟢 Sync to Google Doc</button>
+                        <button class="btn" onclick="exportGoogleDocPDF()">⬇️ Export Google Doc PDF</button>
+                    </div>
                     <div class="form-group" style="margin-top: 10px;">
                         <label class="form-label">Upload DOCX Template</label>
                         <input type="file" id="docxFile" accept=".docx" class="form-input">
@@ -755,7 +761,27 @@
     </div>
 
     <!-- Signature Manager Modal -->
-
+    <div id="sigModalTB" class="preview-modal" style="background: rgba(0,0,0,0.5);">
+        <div class="preview-content" style="max-width:780px;">
+            <button class="close-btn" onclick="closeSignatureModalTB()">&times;</button>
+            <h2>✍️ Add Signature</h2>
+            <div style="display:flex; gap:10px; align-items:center; margin-bottom:10px;">
+                <button id="tbModeDraw" class="btn">Draw</button>
+                <button id="tbModeType" class="btn">Type</button>
+                <button id="tbClear" class="btn btn-warning" style="margin-left:auto;">Clear</button>
+            </div>
+            <div id="tbDrawArea">
+                <canvas id="tbCanvas" width="700" height="220" style="border:2px solid #dee2e6; border-radius:8px; width:100%"></canvas>
+            </div>
+            <div id="tbTypeArea" style="display:none;">
+                <input id="tbTypeInput" placeholder="Type your name" class="form-input" style="font-size:22px;">
+                <div style="margin-top:6px; color:#666;">It will be rendered in a cursive style.</div>
+            </div>
+            <div style="text-align:right; margin-top:12px;">
+                <button class="btn btn-success" onclick="saveSignatureTB()">Save to Editor</button>
+            </div>
+        </div>
+    </div>
 
     <script>
         let editor;
@@ -764,6 +790,7 @@
         let placeholders = [];
         let clauses = [];
         let availableFields = new Set();
+        let sigTargetRoleTB = 'client';
 
         function resolveTipTapGlobals() {
             const Core = window.tiptap || window.tiptapCore || window['@tiptap/core'];
@@ -1353,6 +1380,69 @@
             if (name) insertPlaceholder(name.trim());
         }
 
+        // ================= Signature insertion (Template Builder) =================
+        function openSignatureModal(role){
+            sigTargetRoleTB = role || 'client';
+            document.getElementById('sigModalTB').style.display = 'block';
+            // ensure canvas is sized
+            setTimeout(resizeTBCanvas, 0);
+        }
+        function closeSignatureModalTB(){ document.getElementById('sigModalTB').style.display = 'none'; }
+
+        function resizeTBCanvas(){ const c=document.getElementById('tbCanvas'); const w=c.parentElement.clientWidth-4; const r=c.height/c.width; c.width=w; c.height=Math.max(160, w*r); }
+        window.addEventListener('resize', resizeTBCanvas);
+
+        (function initTBDraw(){
+            const c = document.getElementById('tbCanvas');
+            const ctx = c.getContext('2d'); ctx.lineWidth=2.5; ctx.lineCap='round';
+            let drawing=false; const pos=e=>{const r=c.getBoundingClientRect(); const x=(e.touches?e.touches[0].clientX:e.clientX)-r.left; const y=(e.touches?e.touches[0].clientY:e.clientY)-r.top; return {x,y};};
+            const start=e=>{drawing=true; const p=pos(e); ctx.beginPath(); ctx.moveTo(p.x,p.y);};
+            const move=e=>{ if(!drawing) return; const p=pos(e); ctx.lineTo(p.x,p.y); ctx.stroke(); };
+            const end=()=>{drawing=false;};
+            c.addEventListener('mousedown', start); c.addEventListener('mousemove', move); window.addEventListener('mouseup', end);
+            c.addEventListener('touchstart', start, {passive:true}); c.addEventListener('touchmove', move, {passive:true}); window.addEventListener('touchend', end);
+            document.getElementById('tbClear').onclick = ()=>{ ctx.clearRect(0,0,c.width,c.height); };
+            document.getElementById('tbModeDraw').onclick = ()=>{ document.getElementById('tbDrawArea').style.display='block'; document.getElementById('tbTypeArea').style.display='none'; };
+            document.getElementById('tbModeType').onclick = ()=>{ document.getElementById('tbDrawArea').style.display='none'; document.getElementById('tbTypeArea').style.display='block'; };
+        })();
+
+        async function saveSignatureTB(){
+            const drawActive = document.getElementById('tbDrawArea').style.display!=='none';
+            const c = document.getElementById('tbCanvas');
+            if(!drawActive){
+                const name = document.getElementById('tbTypeInput').value.trim();
+                if(!name){ alert('Type your name first'); return; }
+                const ctx = c.getContext('2d'); ctx.clearRect(0,0,c.width,c.height); ctx.fillStyle='#000'; ctx.font='48px "Brush Script MT", "Lucida Handwriting", cursive'; ctx.fillText(name, 24, c.height/1.8);
+            }
+            const dataUrl = c.toDataURL('image/png');
+            try {
+                // save to backend (optional but keeps history)
+                await fetch('/api/signatures', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ role: sigTargetRoleTB, name: sigTargetRoleTB==='client'?'Client':'Manager', email: sigTargetRoleTB==='client'?'': '', company:'', signature_data: dataUrl }) });
+            } catch(e){}
+
+            // Replace known placeholder variants; else insert image at cursor
+            let html = editor.getHTML();
+            const clientTokens = ['{{client_signature}}','{{client_signature_1}}'];
+            const companyTokens = ['{{company_signature}}','{{company_signature1}}','{{company_signature_1}}'];
+            const tokens = sigTargetRoleTB==='client' ? clientTokens : companyTokens;
+            let replaced = false;
+            for (const t of tokens) {
+                if (html.includes(t)) {
+                    html = html.replace(t, `<img src="${dataUrl}" style="height:80px">`);
+                    replaced = true;
+                    break;
+                }
+            }
+            if (replaced) {
+                editor.commands.setContent(html);
+            } else {
+                try { editor.chain().focus().insertContent(`<img src="${dataUrl}" style="height:80px">`).run(); }
+                catch(e){ editor.commands.setContent(html + `<img src="${dataUrl}" style="height:80px">`); }
+            }
+            closeSignatureModalTB();
+            showStatus('✅ Signature inserted into template.', 'success');
+        }
+
         function validatePlaceholders() {
             const content = editor.getHTML();
             const re = /\{\{(\w+)\}\}/g;
@@ -1535,6 +1625,42 @@
                 }
             } catch (err) {
                 showStatus(`❌ Error uploading template: ${err.message}`, 'error');
+            }
+        }
+
+        // Google Docs sync/export
+        async function syncToGoogleDoc(){
+            try {
+                const title = document.getElementById('templateName').value || 'CPQ Template';
+                const template_content = editor.getHTML();
+                // Provide a minimal set of placeholders (optional); users can load live fields via available-fields
+                const placeholders = {};
+                const res = await fetch('/api/gdocs/upsert', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ title, template_content, placeholders }) });
+                const json = await res.json();
+                if (!json.success) { showStatus('❌ Google Doc sync failed: ' + (json.message||'Unknown'), 'error'); return; }
+                window.lastGDocId = json.document_id;
+                showStatus('✅ Synced to Google Doc: ' + json.document_id, 'success');
+            } catch (e) {
+                showStatus('❌ Google Doc sync error: ' + e.message, 'error');
+            }
+        }
+
+        async function exportGoogleDocPDF(){
+            try {
+                const document_id = window.lastGDocId || prompt('Enter Google Doc ID to export as PDF');
+                if (!document_id) return;
+                const res = await fetch('/api/gdocs/export-pdf', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ document_id }) });
+                if (res.headers.get('content-type')?.includes('application/pdf')){
+                    const blob = await res.blob();
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a'); a.href = url; a.download = `${document_id}.pdf`; document.body.appendChild(a); a.click(); document.body.removeChild(a); window.URL.revokeObjectURL(url);
+                    showStatus('✅ Downloaded Google Doc PDF.', 'success');
+                } else {
+                    const json = await res.json();
+                    showStatus('❌ Export failed: ' + (json.message||'Unknown'), 'error');
+                }
+            } catch (e) {
+                showStatus('❌ Google Doc export error: ' + e.message, 'error');
             }
         }
     </script>

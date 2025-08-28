@@ -329,6 +329,25 @@
       </table>
     </div>
     
+    <!-- Signature Section -->
+    <div class="terms-section">
+      <h3>Signatures</h3>
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+        <div>
+          <div style="margin-bottom: 8px; color: #495057; font-weight: 600;">Client Signature</div>
+          <div id="clientSignatureBox" style="height: 120px; border: 2px dashed #ced4da; border-radius: 6px; display: flex; align-items: center; justify-content: center; background: #fff;">
+            <span style="color:#6c757d">Click to sign</span>
+          </div>
+        </div>
+        <div>
+          <div style="margin-bottom: 8px; color: #495057; font-weight: 600;">Company Manager Signature</div>
+          <div id="managerSignatureBox" style="height: 120px; border: 2px dashed #ced4da; border-radius: 6px; display: flex; align-items: center; justify-content: center; background: #fff;">
+            <span style="color:#6c757d">Click to sign</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- Terms Section -->
     <div class="terms-section">
       <h3>Terms & Conditions</h3>
@@ -383,6 +402,142 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
   
   <script>
+    // Signature Modal
+    const signatureModal = document.createElement('div');
+    signatureModal.style.cssText = 'position:fixed; inset:0; background:rgba(0,0,0,0.5); display:none; align-items:center; justify-content:center; z-index:1000;';
+    signatureModal.innerHTML = `
+      <div style="background:#fff; width:720px; max-width:95vw; border-radius:8px; box-shadow:0 10px 30px rgba(0,0,0,0.2);">
+        <div style="padding:16px 20px; border-bottom:1px solid #e9ecef; display:flex; align-items:center; justify-content:space-between;">
+          <div style="font-weight:600; color:#343a40">Add Signature</div>
+          <button id="sigCloseBtn" style="background:#dc3545; color:#fff; border:none; padding:8px 12px; border-radius:6px; cursor:pointer">Close</button>
+        </div>
+        <div style="padding:16px 20px;">
+          <div style="display:flex; gap:12px; margin-bottom:12px;">
+            <button id="sigModeDraw" class="sig-mode">✍️ Draw</button>
+            <button id="sigModeType" class="sig-mode">⌨️ Type</button>
+            <button id="sigClear" style="margin-left:auto" class="sig-mode">🧹 Clear</button>
+          </div>
+          <div id="sigDrawArea" style="display:block;">
+            <canvas id="sigCanvas" width="660" height="200" style="border:2px solid #e9ecef; border-radius:6px; width:100%"></canvas>
+          </div>
+          <div id="sigTypeArea" style="display:none;">
+            <input id="sigTypeInput" placeholder="Type your name" style="width:100%; padding:12px; border:2px solid #e9ecef; border-radius:6px; font-size:20px;">
+            <div style="margin-top:10px; color:#6c757d">Your signature will be rendered in a cursive font.</div>
+          </div>
+          <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:12px;">
+            <button id="sigSaveBtn" style="background:#28a745; color:#fff; border:none; padding:10px 16px; border-radius:6px; cursor:pointer">Save</button>
+          </div>
+        </div>
+      </div>`;
+    document.body.appendChild(signatureModal);
+
+    function styleSigModeButtons() {
+      document.querySelectorAll('.sig-mode').forEach(btn => {
+        btn.style.background = '#667eea';
+        btn.style.color = '#fff';
+        btn.style.border = 'none';
+        btn.style.padding = '8px 12px';
+        btn.style.borderRadius = '6px';
+        btn.style.cursor = 'pointer';
+      });
+    }
+    styleSigModeButtons();
+
+    let sigContext, isDrawing = false, sigTargetRole = 'client';
+    const canvas = () => document.getElementById('sigCanvas');
+    const ctx = () => canvas().getContext('2d');
+
+    function openSignature(role) {
+      sigTargetRole = role;
+      signatureModal.style.display = 'flex';
+      setTimeout(() => { resizeCanvas(); }, 0);
+    }
+    function closeSignature() { signatureModal.style.display = 'none'; }
+
+    function resizeCanvas() {
+      const c = canvas();
+      const parentWidth = c.parentElement.clientWidth;
+      const ratio = c.height / c.width;
+      c.width = parentWidth - 4;
+      c.height = Math.max(160, c.width * ratio);
+    }
+    window.addEventListener('resize', resizeCanvas);
+
+    function initDrawEvents() {
+      const c = canvas(); const context = ctx(); context.lineWidth = 2.5; context.lineCap = 'round';
+      const getPos = (e) => {
+        const rect = c.getBoundingClientRect();
+        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+        const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+        return { x: clientX - rect.left, y: clientY - rect.top };
+      };
+      const start = (e) => { isDrawing = true; const p = getPos(e); context.beginPath(); context.moveTo(p.x, p.y); };
+      const move = (e) => { if (!isDrawing) return; const p = getPos(e); context.lineTo(p.x, p.y); context.stroke(); };
+      const end = () => { isDrawing = false; };
+      c.addEventListener('mousedown', start); c.addEventListener('mousemove', move); window.addEventListener('mouseup', end);
+      c.addEventListener('touchstart', start, { passive: true }); c.addEventListener('touchmove', move, { passive: true }); window.addEventListener('touchend', end);
+    }
+    initDrawEvents();
+
+    function clearCanvas() { const c = canvas(); ctx().clearRect(0, 0, c.width, c.height); }
+
+    document.getElementById('sigModeDraw').onclick = () => {
+      document.getElementById('sigDrawArea').style.display = 'block';
+      document.getElementById('sigTypeArea').style.display = 'none';
+    };
+    document.getElementById('sigModeType').onclick = () => {
+      document.getElementById('sigDrawArea').style.display = 'none';
+      document.getElementById('sigTypeArea').style.display = 'block';
+    };
+    document.getElementById('sigClear').onclick = clearCanvas;
+    document.getElementById('sigCloseBtn').onclick = closeSignature;
+
+    async function saveSignatureDataUrl(dataUrl) {
+      const clientData = JSON.parse(localStorage.getItem('clientData') || '{}');
+      const payload = {
+        role: sigTargetRole,
+        name: sigTargetRole === 'client' ? clientData.clientName : 'Company Manager',
+        email: sigTargetRole === 'client' ? clientData.email : 'manager@yourcompany.com',
+        company: sigTargetRole === 'client' ? clientData.companyName : 'Your Company LLC',
+        signature_data: dataUrl
+      };
+      const resp = await fetch('/api/signatures', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+      const result = await resp.json();
+      if (!resp.ok || !result.success) throw new Error(result.message || 'Failed to save signature');
+      return result.signature_id;
+    }
+
+    function placeSignaturePreview(role, dataUrl) {
+      const box = role === 'client' ? document.getElementById('clientSignatureBox') : document.getElementById('managerSignatureBox');
+      box.innerHTML = `<img src="${dataUrl}" alt="signature" style="max-height:110px; max-width:100%; object-fit:contain;">`;
+    }
+
+    document.getElementById('sigSaveBtn').onclick = async () => {
+      try {
+        const drawActive = document.getElementById('sigDrawArea').style.display !== 'none';
+        let dataUrl;
+        if (drawActive) {
+          dataUrl = canvas().toDataURL('image/png');
+        } else {
+          const name = document.getElementById('sigTypeInput').value.trim();
+          if (!name) { alert('Please type your name'); return; }
+          // Render typed signature on canvas for consistent image output
+          clearCanvas();
+          const c = canvas(); const context = ctx(); context.fillStyle = '#000'; context.font = '48px "Brush Script MT", "Lucida Handwriting", cursive';
+          context.fillText(name, 24, c.height / 1.8);
+          dataUrl = c.toDataURL('image/png');
+        }
+        await saveSignatureDataUrl(dataUrl);
+        placeSignaturePreview(sigTargetRole, dataUrl);
+        closeSignature();
+      } catch (err) {
+        alert('Failed to save signature: ' + err.message);
+      }
+    };
+
+    // Open signature modal on click boxes
+    document.getElementById('clientSignatureBox').onclick = () => openSignature('client');
+    document.getElementById('managerSignatureBox').onclick = () => openSignature('manager');
     // Load quote data from localStorage
     window.onload = function() {
       const clientData = JSON.parse(localStorage.getItem('clientData') || '{}');
@@ -407,6 +562,7 @@
       
       // Populate template with data
       populateTemplate();
+      loadLatestSignatures();
     };
     
     // Enhanced populate template function
@@ -493,6 +649,21 @@
       // Enable download button after data is populated
       document.querySelector('.download-btn').disabled = false;
       document.querySelector('.download-btn').textContent = 'Download PDF Quote';
+    }
+
+    // Embed signatures into PDF by drawing them into the DOM (already previewed) so html2pdf picks them up.
+    // Optionally pull latest client signature by email on load.
+    async function loadLatestSignatures() {
+      try {
+        const clientData = JSON.parse(localStorage.getItem('clientData') || '{}');
+        if (clientData.email) {
+          const resp = await fetch(`/api/signatures/latest?role=client&email=${encodeURIComponent(clientData.email)}`);
+          const result = await resp.json();
+          if (result.success && result.signature && result.signature.signature_data) {
+            placeSignaturePreview('client', result.signature.signature_data);
+          }
+        }
+      } catch (e) { /* non-blocking */ }
     }
     
     // Download PDF function with improved error handling

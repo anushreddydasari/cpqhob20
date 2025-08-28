@@ -8,15 +8,65 @@ from mongodb_collections import (
     ClientCollection, PricingCollection, 
     HubSpotContactCollection, HubSpotIntegrationCollection,
     FormTrackingCollection, TemplateCollection, HubSpotQuoteCollection,
-
+    GeneratedPDFCollection, GeneratedAgreementCollection
 )
 from cpq.pricing_logic import calculate_quote
 from flask import send_file
 from templates import PDFGenerator
 from cpq.email_service import EmailService
 from werkzeug.utils import secure_filename
+from mongodb_collections.signature_collection import SignatureCollection
+from integrations.google_docs import upsert_doc_from_template, export_doc_as_pdf
+try:
+    from googleapiclient.errors import HttpError as GHttpError
+except Exception:  # pragma: no cover
+    GHttpError = Exception
 
+load_dotenv()
+# Enable OAuth over http for local development if not already set
+if not os.getenv('OAUTHLIB_INSECURE_TRANSPORT'):
+    os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'
 app = Flask(__name__)
+# OAuth endpoints for Google
+@app.route('/oauth/login')
+def oauth_login():
+    try:
+        from google_auth_oauthlib.flow import Flow
+        from flask import request, redirect
+        client_path = os.getenv('GOOGLE_OAUTH_CLIENT_SECRET_PATH')
+        redirect_uri = os.getenv('OAUTH_REDIRECT_URI', 'http://localhost:5000/oauth/callback')
+        scopes = (os.getenv('OAUTH_SCOPES') or 'https://www.googleapis.com/auth/drive https://www.googleapis.com/auth/documents').split()
+        flow = Flow.from_client_secrets_file(client_path, scopes=scopes)
+        flow.redirect_uri = redirect_uri
+        auth_url, state = flow.authorization_url(access_type='offline', include_granted_scopes='true', prompt='consent')
+        # If the user wants a JSON payload add ?raw=1, otherwise redirect to Google
+        if request.args.get('raw'):
+            return jsonify({'success': True, 'auth_url': auth_url, 'state': state})
+        return redirect(auth_url)
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+@app.route('/oauth/callback')
+def oauth_callback():
+    try:
+        from google_auth_oauthlib.flow import Flow
+        from google.auth.transport.requests import Request
+        client_path = os.getenv('GOOGLE_OAUTH_CLIENT_SECRET_PATH')
+        redirect_uri = os.getenv('OAUTH_REDIRECT_URI', 'http://localhost:5000/oauth/callback')
+        scopes = (os.getenv('OAUTH_SCOPES') or 'https://www.googleapis.com/auth/drive https://www.googleapis.com/auth/documents').split()
+        flow = Flow.from_client_secrets_file(client_path, scopes=scopes)
+        flow.redirect_uri = redirect_uri
+        # full URL with query string
+        import flask
+        authorization_response = flask.request.url
+        flow.fetch_token(authorization_response=authorization_response)
+        creds = flow.credentials
+        token_path = os.getenv('GOOGLE_OAUTH_TOKEN_PATH', 'token.json')
+        with open(token_path, 'w') as f:
+            f.write(creds.to_json())
+        return jsonify({'success': True, 'message': 'OAuth token saved.', 'token_path': token_path})
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
 CORS(app)
 UPLOAD_FOLDER = os.path.join(os.getcwd(), 'uploaded_docs')
 ALLOWED_DOCX_EXTENSIONS = {'docx'}
@@ -34,6 +84,9 @@ pricing = PricingCollection()
 form_tracking = FormTrackingCollection()
 template_collection = TemplateCollection()
 hubspot_quotes = HubSpotQuoteCollection()
+signatures = SignatureCollection()
+generated_pdfs = GeneratedPDFCollection()
+generated_agreements = GeneratedAgreementCollection()
 
 
 
@@ -803,6 +856,30 @@ def sync_client_from_hubspot():
             'message': f'Failed to sync client from HubSpot: {str(e)}'
         }), 500
 
+# Signature APIs
+@app.route('/api/signatures', methods=['POST'])
+def save_signature():
+    try:
+        data = request.get_json() or {}
+        data['signed_ip'] = request.headers.get('X-Forwarded-For', request.remote_addr)
+        data['signed_user_agent'] = request.headers.get('User-Agent')
+        new_id = signatures.save_signature(data)
+        return jsonify({'success': True, 'signature_id': new_id}), 201
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'Error saving signature: {str(e)}'}), 500
+
+@app.route('/api/signatures/latest', methods=['GET'])
+def get_latest_signature():
+    try:
+        role = request.args.get('role')
+        email = request.args.get('email')
+        if not role or not email:
+            return jsonify({'success': False, 'message': 'role and email are required'}), 400
+        sig = signatures.get_latest_signature(role, email)
+        return jsonify({'success': True, 'signature': sig}), 200
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'Error fetching signature: {str(e)}'}), 500
+
 # Quote Status Tracking & Email APIs
 @app.route('/api/quote/status', methods=['POST'])
 def update_quote_status():
@@ -991,6 +1068,10 @@ def send_quote_email_direct():
 def serve_quote_management():
     return send_from_directory('cpq', 'quote-management.html')
 
+@app.route('/debug-documents')
+def serve_debug_documents():
+    return send_from_directory('.', 'debug_document_loading.html')
+
 
 
 @app.route('/api/email/send-quote', methods=['POST'])
@@ -1038,6 +1119,7 @@ def send_quote_email_new():
 
 @app.route('/api/generate-pdf-by-lookup', methods=['POST'])
 def generate_pdf_by_lookup():
+    """Generate PDF from quote lookup and store it"""
     try:
         data = request.json
         lookup_type = data.get('lookup_type')
@@ -1169,10 +1251,40 @@ def generate_pdf_by_lookup():
         doc.build(story)
         buffer.seek(0)
 
+        # Save PDF to documents directory
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        filename = f"quote_{client.get('name', 'client')}_{timestamp}.pdf"
+        file_path = os.path.join('documents', filename)
+        
+        # Ensure documents directory exists
+        os.makedirs('documents', exist_ok=True)
+        
+        # Save PDF file
+        with open(file_path, 'wb') as f:
+            f.write(buffer.getvalue())
+        
+        # Store PDF metadata in MongoDB
+        pdf_metadata = {
+            'quote_id': str(quote_data.get('_id')),
+            'filename': filename,
+            'file_path': file_path,
+            'client_name': client.get('name', 'N/A'),
+            'company_name': client.get('company', 'N/A'),
+            'service_type': client.get('serviceType', 'N/A'),
+            'file_size': len(buffer.getvalue())
+        }
+        
+        try:
+            generated_pdfs.store_pdf_metadata(pdf_metadata)
+        except Exception as e:
+            print(f"Warning: Failed to store PDF metadata: {e}")
+        
+        # Return the PDF for download
+        buffer.seek(0)
         return send_file(
             buffer,
             as_attachment=True,
-            download_name=f"quote_{client.get('name', 'client')}_{datetime.now().strftime('%Y%m%d')}.pdf",
+            download_name=filename,
             mimetype='application/pdf'
         )
 
@@ -1183,6 +1295,7 @@ def generate_pdf_by_lookup():
 
 @app.route('/api/quotes/list')
 def list_quotes():
+    """Get all quotes with basic info for lookup"""
     try:
         from mongodb_collections.quote_collection import QuoteCollection
         quote_collection = QuoteCollection()
@@ -1391,6 +1504,33 @@ def generate_agreement_from_quote():
             }
         ]
         
+        # Store agreement metadata in MongoDB
+        agreement_metadata = {
+            'quote_id': quote_id,
+            'filename': f"agreement_{client.get('name', 'client')}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt",
+            'file_path': f"documents/agreement_{client.get('name', 'client')}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt",
+            'client_name': client.get('name', 'N/A'),
+            'company_name': client.get('company', 'N/A'),
+            'service_type': client.get('serviceType', 'N/A'),
+            'file_size': len(personalized_content.encode('utf-8')),
+            'content': personalized_content,
+            'agreement_data': agreement_data
+        }
+        
+        try:
+            # Ensure documents directory exists
+            os.makedirs('documents', exist_ok=True)
+            
+            # Save agreement content to file
+            with open(agreement_metadata['file_path'], 'w', encoding='utf-8') as f:
+                f.write(personalized_content)
+            
+            # Store agreement metadata in MongoDB
+            generated_agreements.store_agreement_metadata(agreement_metadata)
+            print(f"✅ Agreement stored in MongoDB: {agreement_metadata['filename']}")
+        except Exception as e:
+            print(f"Warning: Failed to store agreement metadata: {e}")
+        
         return jsonify({
             'success': True,
             'agreement': {
@@ -1409,6 +1549,84 @@ def generate_agreement_from_quote():
             },
             'message': 'Personalized agreement generated successfully'
         })
+        
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+@app.route('/api/agreements/generate-pdf', methods=['POST'])
+def generate_agreement_pdf():
+    """Generate and store agreement PDF from quote data"""
+    try:
+        data = request.get_json()
+        quote_id = data.get('quote_id')
+        
+        if not quote_id:
+            return jsonify({'success': False, 'message': 'Quote ID is required'}), 400
+        
+        # Get quote data
+        quote = quotes.get_quote_by_id(quote_id)
+        if not quote:
+            return jsonify({'success': False, 'message': 'Quote not found'}), 404
+        
+        # Build template data
+        template_data = _build_template_data_from_quote(quote)
+        
+        # Read the agreement template
+        template_path = os.path.join('cpq', 'purchase_agreement_pdf_template.html')
+        with open(template_path, 'r', encoding='utf-8') as f:
+            template_content = f.read()
+        
+        # Replace placeholders with actual data
+        for key, value in template_data.items():
+            placeholder = f'{{{{{key}}}}}'
+            template_content = template_content.replace(placeholder, str(value))
+        
+        # Generate PDF from HTML template
+        from weasyprint import HTML
+        from io import BytesIO
+        
+        # Create PDF
+        html_doc = HTML(string=template_content)
+        pdf_bytes = html_doc.write_pdf()
+        
+        # Save PDF to documents directory
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        filename = f"agreement_{template_data.get('client_name', 'client')}_{timestamp}.pdf"
+        file_path = os.path.join('documents', filename)
+        
+        # Ensure documents directory exists
+        os.makedirs('documents', exist_ok=True)
+        
+        # Save PDF file
+        with open(file_path, 'wb') as f:
+            f.write(pdf_bytes)
+        
+        # Store agreement metadata in MongoDB
+        agreement_metadata = {
+            'quote_id': quote_id,
+            'filename': filename,
+            'file_path': file_path,
+            'client_name': template_data.get('client_name', 'N/A'),
+            'company_name': template_data.get('client_company', 'N/A'),
+            'service_type': template_data.get('service_type', 'N/A'),
+            'file_size': len(pdf_bytes)
+        }
+        
+        try:
+            generated_agreements.store_agreement_metadata(agreement_metadata)
+        except Exception as e:
+            print(f"Warning: Failed to store agreement metadata: {e}")
+        
+        # Return the PDF for download
+        buffer = BytesIO(pdf_bytes)
+        buffer.seek(0)
+        
+        return send_file(
+            buffer,
+            as_attachment=True,
+            download_name=filename,
+            mimetype='application/pdf'
+        )
         
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)}), 500
@@ -1800,6 +2018,15 @@ def get_available_template_fields():
             quote = _find_quote_by_identifier(quote_id)
             if quote:
                 template_data = _build_template_data_from_quote(quote)
+                # Try to attach latest signature images if available
+                try:
+                    client_email = template_data.get('client_email')
+                    if client_email:
+                        sig = signatures.get_latest_signature('client', client_email)
+                        if sig and sig.get('signature_data'):
+                            template_data['client_signature'] = sig['signature_data']
+                except Exception:
+                    pass
             else:
                 return jsonify({'success': False, 'message': 'Quote not found'}), 404
         else:
@@ -1832,33 +2059,210 @@ def get_available_template_fields():
         return jsonify({'success': False, 'message': f'Error fetching fields: {str(e)}'}), 500
 
 
+# Google Docs integration endpoints
+@app.route('/api/gdocs/upsert', methods=['POST'])
+def gdocs_upsert():
+    """Create/update a Google Doc from HTML template content and placeholders.
 
+    Request JSON: { title, template_content, placeholders }
+    Returns: { success, document_id }
+    """
+    try:
+        data = request.get_json() or {}
+        title = data.get('title') or 'CPQ Template'
+        html = data.get('template_content') or ''
+        placeholders = data.get('placeholders') or {}
+        doc_id = upsert_doc_from_template(title, html, placeholders)
+        return jsonify({'success': True, 'document_id': doc_id})
+    except Exception as e:
+        import traceback
+        # Improve HttpError visibility
+        if isinstance(e, GHttpError):
+            try:
+                status = getattr(e, 'status_code', None) or getattr(e, 'resp', {}).status
+            except Exception:
+                status = ''
+            reason = ''
+            try:
+                reason = e._get_reason()
+            except Exception:
+                reason = str(e)
+            err = f"HttpError {status}: {reason}"
+        else:
+            err = f"{e.__class__.__name__}: {str(e)}"
+        print('Google Docs upsert error:', err)
+        traceback.print_exc()
+        return jsonify({'success': False, 'message': err}), 500
 
+@app.route('/api/gdocs/export-pdf', methods=['POST'])
+def gdocs_export_pdf():
+    """Export a Google Doc as PDF and return binary response."""
+    try:
+        data = request.get_json() or {}
+        document_id = data.get('document_id')
+        if not document_id:
+            return jsonify({'success': False, 'message': 'document_id is required'}), 400
+        pdf_bytes = export_doc_as_pdf(document_id)
+        from flask import send_file
+        from io import BytesIO
+        buf = BytesIO(pdf_bytes)
+        buf.seek(0)
+        return send_file(buf, mimetype='application/pdf', as_attachment=True, download_name=f'{document_id}.pdf')
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
 
+# Document Storage and Retrieval API Endpoints
+@app.route('/api/documents/stored', methods=['GET'])
+def get_stored_documents():
+    """Get all stored documents (PDFs and Agreements)"""
+    try:
+        print("🔍 Debug: Starting get_stored_documents...")
+        
+        # Get all PDFs and agreements
+        all_pdfs = generated_pdfs.get_all_pdfs(limit=100)
+        print(f"🔍 Debug: Found {len(all_pdfs)} PDFs")
+        
+        all_agreements = generated_agreements.get_all_agreements(limit=100)
+        print(f"🔍 Debug: Found {len(all_agreements)} agreements")
+        
+        # Combine and format documents
+        documents = []
+        
+        # Add PDFs
+        for pdf in all_pdfs:
+            documents.append({
+                'id': str(pdf['_id']),
+                'document_type': 'PDF',
+                'filename': pdf.get('filename', 'Unknown'),
+                'client_name': pdf.get('client_name', 'Unknown'),
+                'company_name': pdf.get('company_name', 'Unknown'),
+                'generated_at': pdf.get('generated_at', datetime.now()),
+                'quote_id': pdf.get('quote_id', 'Unknown'),
+                'file_path': pdf.get('file_path', 'Unknown')
+            })
+        
+        # Add Agreements
+        for agreement in all_agreements:
+            documents.append({
+                'id': str(agreement['_id']),
+                'document_type': 'Agreement',
+                'filename': agreement.get('filename', 'Unknown'),
+                'client_name': agreement.get('client_name', 'Unknown'),
+                'company_name': agreement.get('company_name', 'Unknown'),
+                'generated_at': agreement.get('generated_at', datetime.now()),
+                'quote_id': agreement.get('quote_id', 'Unknown'),
+                'file_path': agreement.get('file_path', 'Unknown')
+            })
+        
+        print(f"🔍 Debug: Total documents: {len(documents)}")
+        
+        # Sort by generation date (newest first)
+        documents.sort(key=lambda x: x['generated_at'], reverse=True)
+        
+        return jsonify({
+            'success': True,
+            'documents': documents,
+            'count': len(documents)
+        })
+        
+    except Exception as e:
+        print(f"❌ Debug: Error in get_stored_documents: {e}")
+        return jsonify({'success': False, 'message': str(e)}), 500
 
+@app.route('/api/documents/download/<document_id>', methods=['GET'])
+def download_document(document_id):
+    """Download a specific document by ID"""
+    try:
+        # Try to find in PDFs first
+        pdf = generated_pdfs.get_pdf_by_id(document_id)
+        if pdf:
+            file_path = pdf.get('file_path')
+            if file_path and os.path.exists(file_path):
+                return send_file(file_path, as_attachment=True, download_name=pdf.get('filename', 'document.pdf'))
+        
+        # Try to find in agreements
+        agreement = generated_agreements.get_agreement_by_id(document_id)
+        if agreement:
+            file_path = agreement.get('file_path')
+            if file_path and os.path.exists(file_path):
+                return send_file(file_path, as_attachment=True, download_name=agreement.get('filename', 'document.pdf'))
+        
+        return jsonify({'success': False, 'message': 'Document not found'}), 404
+        
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+@app.route('/api/email/send-with-attachments', methods=['POST'])
+def send_email_with_attachments():
+    """Send email with document attachments"""
+    try:
+        data = request.get_json()
+        recipient_email = data.get('recipient_email')
+        recipient_name = data.get('recipient_name')
+        company_name = data.get('company_name')
+        service_type = data.get('service_type')
+        requirements = data.get('requirements')
+        document_ids = data.get('document_ids', [])
+        
+        if not recipient_email or not recipient_name:
+            return jsonify({'success': False, 'message': 'Recipient email and name are required'}), 400
+        
+        # Get document details for attachments
+        attachments = []
+        for doc_id in document_ids:
+            # Try PDFs first
+            pdf = generated_pdfs.get_pdf_by_id(doc_id)
+            if pdf and pdf.get('file_path') and os.path.exists(pdf.get('file_path')):
+                attachments.append({
+                    'filename': pdf.get('filename', 'document.pdf'),
+                    'file_path': pdf.get('file_path')
+                })
+                continue
+            
+            # Try agreements
+            agreement = generated_agreements.get_agreement_by_id(doc_id)
+            if agreement and agreement.get('file_path') and os.path.exists(agreement.get('file_path')):
+                attachments.append({
+                    'filename': agreement.get('filename', 'document.pdf'),
+                    'file_path': agreement.get('file_path')
+                })
+        
+        # Send email with attachments using EmailService
+        email_service = EmailService()
+        
+        # Create email subject and body
+        subject = f"Documents for {company_name} - {service_type}"
+        body = f"""
+        <html>
+        <body>
+            <h2>Hello {recipient_name},</h2>
+            <p>Please find attached the requested documents for {company_name}.</p>
+            <p><strong>Service Type:</strong> {service_type}</p>
+            <p><strong>Requirements:</strong> {requirements or 'Not specified'}</p>
+            <p><strong>Attachments:</strong> {len(attachments)} document(s)</p>
+            <br>
+            <p>Best regards,<br>Your Team</p>
+        </body>
+        </html>
+        """
+        
+        # Send email
+        success = email_service.send_email(recipient_email, subject, body)
+        
+        if success:
+            return jsonify({
+                'success': True,
+                'message': f'Email sent successfully with {len(attachments)} attachment(s)',
+                'attachments_count': len(attachments)
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'message': 'Failed to send email. Please check Gmail configuration.'
+            })
+        
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
 
 if __name__ == '__main__':
     app.run(

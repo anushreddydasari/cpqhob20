@@ -97,7 +97,11 @@ class DocxGenerator:
             
             def replace_placeholder(match):
                 placeholder_name = match.group(1)
-                return str(data.get(placeholder_name, f'[{placeholder_name}]'))
+                value = data.get(placeholder_name)
+                if isinstance(value, str) and value.startswith('data:image'):
+                    # Render image tags for data URL values (e.g., signatures)
+                    return f'<img src="{value}" style="height:80px">'
+                return str(value if value is not None else f'[{placeholder_name}]')
             
             processed_content = re.sub(placeholder_pattern, replace_placeholder, content)
             return processed_content
