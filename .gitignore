@@ -73,3 +73,9 @@ node_modules/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+.env
+*.pem
+*.p12
+token.json
+client_secret_*.json
+shining-courage-*.json
