@@ -2894,10 +2894,14 @@ def start_approval_workflow():
         }), 500
 
 if __name__ == '__main__':
+    # Get port from environment variable for deployment (Render, Heroku, etc.)
+    port = int(os.environ.get('PORT', 5000))
+    debug = os.environ.get('FLASK_ENV') == 'development'
+    
     app.run(
-        debug=True,
-        host='127.0.0.1',
-        port=5000,  # Back to port 5000 since we're in root
+        debug=debug,
+        host='0.0.0.0',  # Allow external connections for deployment
+        port=port,
         use_reloader=False,  # Prevents duplicate processes
         threaded=True
     )
