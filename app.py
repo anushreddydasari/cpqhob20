@@ -2805,6 +2805,48 @@ def deny_workflow():
             'message': f'Error denying workflow: {str(e)}'
         }), 500
 
+@app.route('/api/approval/denied', methods=['GET'])
+def get_denied_workflows():
+    """Get all denied workflows with comments"""
+    try:
+        # Get denied workflows from the database
+        denied_workflows = approval_workflows.get_denied_workflows()
+        
+        if denied_workflows:
+            # Format the data for frontend display
+            formatted_workflows = []
+            for workflow in denied_workflows:
+                formatted_workflow = {
+                    '_id': str(workflow.get('_id')),
+                    'document_name': workflow.get('document_name', 'N/A'),
+                    'document_type': workflow.get('document_type', 'Document'),
+                    'client_name': workflow.get('client_name', 'N/A'),
+                    'denied_by_role': workflow.get('denied_by_role', 'Unknown'),
+                    'denied_by_email': workflow.get('denied_by_email', 'Unknown'),
+                    'denied_at': workflow.get('denied_at'),
+                    'comments': workflow.get('comments', 'No comments provided'),
+                    'workflow_id': str(workflow.get('_id'))
+                }
+                formatted_workflows.append(formatted_workflow)
+            
+            return jsonify({
+                'success': True,
+                'denied_requests': formatted_workflows,
+                'count': len(formatted_workflows)
+            }), 200
+        else:
+            return jsonify({
+                'success': True,
+                'denied_requests': [],
+                'count': 0
+            }), 200
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': f'Error retrieving denied workflows: {str(e)}'
+        }), 500
+
 @app.route('/api/approval/start-workflow', methods=['POST'])
 def start_approval_workflow():
     """Start a new approval workflow for a document"""

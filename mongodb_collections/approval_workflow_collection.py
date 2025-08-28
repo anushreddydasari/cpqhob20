@@ -223,3 +223,39 @@ class ApprovalWorkflowCollection:
         }
         
         return list(self.collection.find(search_query).sort("created_at", -1).limit(limit))
+
+    def get_denied_workflows(self, limit=100):
+        """Get all denied workflows with comments and feedback"""
+        try:
+            # Find workflows that were denied by manager or CEO
+            denied_workflows = list(self.collection.find({
+                "$or": [
+                    {"manager_status": "denied"},
+                    {"ceo_status": "denied"}
+                ]
+            }).sort("updated_at", -1).limit(limit))
+            
+            # Format the data to include denial information
+            formatted_workflows = []
+            for workflow in denied_workflows:
+                formatted_workflow = workflow.copy()
+                
+                # Determine who denied the workflow
+                if workflow.get("manager_status") == "denied":
+                    formatted_workflow["denied_by_role"] = "Manager"
+                    formatted_workflow["denied_by_email"] = workflow.get("manager_email", "Unknown")
+                    formatted_workflow["denied_at"] = workflow.get("manager_approval_date")
+                    formatted_workflow["comments"] = workflow.get("manager_comments", "No comments provided")
+                elif workflow.get("ceo_status") == "denied":
+                    formatted_workflow["denied_by_role"] = "CEO"
+                    formatted_workflow["denied_by_email"] = workflow.get("ceo_email", "Unknown")
+                    formatted_workflow["denied_at"] = workflow.get("ceo_approval_date")
+                    formatted_workflow["comments"] = workflow.get("ceo_comments", "No comments provided")
+                
+                formatted_workflows.append(formatted_workflow)
+            
+            return formatted_workflows
+            
+        except Exception as e:
+            print(f"Error getting denied workflows: {e}")
+            return []

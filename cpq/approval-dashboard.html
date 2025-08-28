@@ -193,6 +193,65 @@
             color: #721c24;
         }
 
+        /* Comments section styling */
+        .comments-section {
+            max-width: 300px;
+        }
+
+        .comment-text {
+            background: #f8f9fa;
+            padding: 8px;
+            border-radius: 4px;
+            margin: 5px 0;
+            border-left: 3px solid #dc3545;
+            font-style: italic;
+        }
+
+        /* Resubmit button */
+        .btn-resubmit {
+            background: #ffc107;
+            color: #212529;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.8rem;
+            margin: 2px;
+        }
+
+        .btn-resubmit:hover {
+            background: #e0a800;
+        }
+
+        /* Refresh button */
+        .btn-refresh {
+            background: #17a2b8;
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.8rem;
+        }
+
+        .btn-refresh:hover {
+            background: #138496;
+        }
+
+        /* Count badge for notifications */
+        .count-badge {
+            background: #dc3545;
+            color: white;
+            border-radius: 50%;
+            padding: 2px 6px;
+            font-size: 0.7rem;
+            font-weight: bold;
+            margin-left: 5px;
+            min-width: 18px;
+            text-align: center;
+            display: inline-block;
+        }
+
         .status-manager {
             background: #e3f2fd;
             color: #0d47a1;
@@ -376,8 +435,12 @@
         <div class="nav-bar">
             <button class="nav-btn" onclick="showSection('pending')">⏳ Pending Approvals</button>
             <button class="nav-btn" onclick="showSection('my-queue')">👤 My Approval Queue</button>
-            <button class="nav-btn" onclick="showSection('workflow-status')">📊 Workflow Status</button>
-            <button class="nav-btn" onclick="showSection('history')">📚 Approval History</button>
+                                    <button class="nav-btn" onclick="showSection('workflow-status')">📊 Workflow Status</button>
+                        <button class="nav-btn" onclick="showSection('denied')">
+                            ❌ Denied Requests
+                            <span id="denied-count-badge" class="count-badge" style="display: none;">0</span>
+                        </button>
+                        <button class="nav-btn" onclick="showSection('history')">📚 Approval History</button>
         </div>
 
         <!-- Main Content -->
@@ -441,6 +504,22 @@
                         </div>
                         <div id="workflow-status-content">
                             <div class="loading">Loading workflow status...</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Denied Requests Section -->
+                <div id="denied-section" class="section" style="display: none;">
+                    <h3>❌ Denied Requests & Feedback</h3>
+                    <div class="approval-queue">
+                        <div class="queue-header">
+                            View Denied Requests and Manager/CEO Comments
+                            <button class="btn-refresh" onclick="loadDeniedRequests()" style="float: right; margin-top: -5px;">
+                                🔄 Refresh
+                            </button>
+                        </div>
+                        <div id="denied-content">
+                            <div class="loading">Loading denied requests...</div>
                         </div>
                     </div>
                 </div>
@@ -539,6 +618,9 @@
                 case 'workflow-status':
                     loadWorkflowStatus();
                     break;
+                case 'denied':
+                    loadDeniedRequests();
+                    break;
                 case 'history':
                     loadApprovalHistory();
                     break;
@@ -553,6 +635,9 @@
                 
                 // Load user information (this would come from your auth system)
                 await loadUserInfo();
+                
+                // Load denied requests count for notification badge
+                await loadDeniedCount();
                 
             } catch (error) {
                 console.error('Error loading dashboard data:', error);
@@ -578,6 +663,30 @@
                 document.getElementById('myQueueCount').textContent = '0';
                 document.getElementById('completedCount').textContent = '0';
                 document.getElementById('avgTime').textContent = '0h';
+            }
+        }
+
+        // Load denied requests count for notification badge
+        async function loadDeniedCount() {
+            try {
+                const response = await fetch('/api/approval/denied');
+                const result = await response.json();
+                
+                if (result.success) {
+                    const deniedCount = result.count || 0;
+                    const badge = document.getElementById('denied-count-badge');
+                    
+                    if (deniedCount > 0) {
+                        badge.textContent = deniedCount;
+                        badge.style.display = 'inline-block';
+                    } else {
+                        badge.style.display = 'none';
+                    }
+                }
+            } catch (error) {
+                console.error('Error loading denied count:', error);
+                // Hide badge on error
+                document.getElementById('denied-count-badge').style.display = 'none';
             }
         }
 
@@ -963,6 +1072,98 @@
             `;
 
             document.getElementById('history-content').innerHTML = tableHTML;
+        }
+
+        // Load denied requests
+        async function loadDeniedRequests() {
+            try {
+                const response = await fetch('/api/approval/denied');
+                const result = await response.json();
+                
+                if (result.success) {
+                    const deniedRequests = result.denied_requests || [];
+                    displayDeniedRequests(deniedRequests);
+                } else {
+                    document.getElementById('denied-content').innerHTML = 
+                        '<div class="no-items">No denied requests found.</div>';
+                }
+            } catch (error) {
+                console.error('Error loading denied requests:', error);
+                document.getElementById('denied-content').innerHTML = 
+                    '<div class="no-items">Error loading denied requests.</div>';
+            }
+        }
+
+        // Display denied requests
+        function displayDeniedRequests(deniedRequests) {
+            if (!deniedRequests || deniedRequests.length === 0) {
+                document.getElementById('denied-content').innerHTML = 
+                    '<div class="no-items">No denied requests found. All your requests have been approved! 🎉</div>';
+                return;
+            }
+
+            const tableHTML = `
+                <table class="queue-table">
+                    <thead>
+                        <tr>
+                            <th>Document</th>
+                            <th>Client</th>
+                            <th>Denied By</th>
+                            <th>Denial Date</th>
+                            <th>Comments/Feedback</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${deniedRequests.map(request => `
+                            <tr>
+                                <td>
+                                    <strong>${request.document_name || 'N/A'}</strong><br>
+                                    <small style="color: #666;">${request.document_type || 'Document'}</small>
+                                </td>
+                                <td>${request.client_name || 'N/A'}</td>
+                                <td>
+                                    <span class="status-badge status-denied">
+                                        ${request.denied_by_role || 'Unknown'}
+                                    </span>
+                                </td>
+                                <td>${formatDate(request.denied_at)}</td>
+                                <td>
+                                    <div class="comments-section">
+                                        <strong>Feedback:</strong><br>
+                                        <div class="comment-text">
+                                            ${request.comments || 'No comments provided'}
+                                        </div>
+                                        <small style="color: #666;">
+                                            Denied by: ${request.denied_by_email || 'Unknown'}
+                                        </small>
+                                    </div>
+                                </td>
+                                <td>
+                                    <div class="action-buttons">
+                                        <button class="btn-view" onclick="viewDocument('${request._id}')">
+                                            👁️ View
+                                        </button>
+                                        <button class="btn-resubmit" onclick="resubmitRequest('${request._id}')" title="Resubmit with changes">
+                                            🔄 Resubmit
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `;
+
+            document.getElementById('denied-content').innerHTML = tableHTML;
+        }
+
+        // Resubmit denied request
+        async function resubmitRequest(workflowId) {
+            if (confirm('Would you like to resubmit this request? You can make changes before resubmitting.')) {
+                // Redirect to quote management to make changes
+                window.location.href = '/quote-management';
+            }
         }
 
         // View document
