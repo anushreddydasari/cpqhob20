@@ -435,12 +435,17 @@
         <div class="nav-bar">
             <button class="nav-btn" onclick="showSection('pending')">⏳ Pending Approvals</button>
             <button class="nav-btn" onclick="showSection('my-queue')">👤 My Approval Queue</button>
-                                    <button class="nav-btn" onclick="showSection('workflow-status')">📊 Workflow Status</button>
-                        <button class="nav-btn" onclick="showSection('denied')">
-                            ❌ Denied Requests
-                            <span id="denied-count-badge" class="count-badge" style="display: none;">0</span>
-                        </button>
-                        <button class="nav-btn" onclick="showSection('history')">📚 Approval History</button>
+            <button class="nav-btn" onclick="showSection('workflow-status')">📊 Workflow Status</button>
+            <button class="nav-btn" onclick="showSection('denied')">
+                ❌ Denied Requests
+                <span id="denied-count-badge" class="count-badge" style="display: none;">0</span>
+            </button>
+            <button class="nav-btn" onclick="showSection('history')">📚 Approval History</button>
+            <button class="nav-btn" onclick="showSection('approval-comments')">💬 Approval Comments</button>
+            <button class="nav-btn" onclick="showSection('client-feedback')">
+                👥 Client Feedback
+                <span id="client-feedback-count-badge" class="count-badge" style="display: none;">0</span>
+            </button>
         </div>
 
         <!-- Main Content -->
@@ -537,6 +542,35 @@
                     </div>
                 </div>
 
+                <!-- Approval Comments Section -->
+                <div id="approval-comments-section" class="section" style="display: none;">
+                    <h3>💬 Approval Comments</h3>
+                    <div class="approval-queue">
+                        <div class="queue-header">
+                            Manager & CEO Approval Comments
+                        </div>
+                        <div id="approval-comments-content">
+                            <div class="loading">Loading approval comments...</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Client Feedback Section -->
+                <div id="client-feedback-section" class="section" style="display: none;">
+                    <h3>👥 Client Feedback</h3>
+                    <div class="approval-queue">
+                        <div class="queue-header">
+                            Workflows Awaiting Client Feedback
+                            <button class="btn-refresh" onclick="loadClientFeedback()" style="float: right; margin-top: -5px;">
+                                🔄 Refresh
+                            </button>
+                        </div>
+                        <div id="client-feedback-content">
+                            <div class="loading">Loading client feedback workflows...</div>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- PDF Viewer Modal -->
                 <div id="pdf-viewer-modal" class="pdf-viewer" style="display: none;">
                     <h4 id="pdf-document-title">Document Preview</h4>
@@ -579,10 +613,12 @@
             const urlParams = new URLSearchParams(window.location.search);
             const roleFromUrl = urlParams.get('role');
             const emailFromUrl = urlParams.get('email');
+            const workflowFromUrl = urlParams.get('workflow');
             
             console.log('🔍 URL Parameters on page load:', {
                 role: roleFromUrl,
-                email: emailFromUrl
+                email: emailFromUrl,
+                workflow: workflowFromUrl
             });
             
             // Set user info immediately from URL
@@ -597,6 +633,15 @@
             
             loadDashboardData();
             showSection('pending');
+            
+            // If workflow ID is provided in URL, automatically open it after dashboard loads
+            if (workflowFromUrl) {
+                console.log('🔍 Auto-opening workflow from URL:', workflowFromUrl);
+                // Wait for dashboard to load, then open the workflow
+                setTimeout(() => {
+                    autoOpenWorkflow(workflowFromUrl);
+                }, 2000); // Wait 2 seconds for dashboard to fully load
+            }
         };
 
         // Navigation functions
@@ -626,6 +671,12 @@
                 case 'history':
                     loadApprovalHistory();
                     break;
+                case 'approval-comments':
+                    loadApprovalComments();
+                    break;
+                case 'client-feedback':
+                    loadClientFeedback();
+                    break;
             }
         }
 
@@ -640,6 +691,9 @@
                 
                 // Load denied requests count for notification badge
                 await loadDeniedCount();
+                
+                // Load client feedback count for notification badge
+                await loadClientFeedbackCount();
                 
             } catch (error) {
                 console.error('Error loading dashboard data:', error);
@@ -689,6 +743,30 @@
                 console.error('Error loading denied count:', error);
                 // Hide badge on error
                 document.getElementById('denied-count-badge').style.display = 'none';
+            }
+        }
+
+        // Load client feedback count for notification badge
+        async function loadClientFeedbackCount() {
+            try {
+                const response = await fetch('/api/client/feedback-workflows');
+                const result = await response.json();
+                
+                if (result.success) {
+                    const feedbackCount = result.workflows ? result.workflows.length : 0;
+                    const badge = document.getElementById('client-feedback-count-badge');
+                    
+                    if (feedbackCount > 0) {
+                        badge.textContent = feedbackCount;
+                        badge.style.display = 'inline-block';
+                    } else {
+                        badge.style.display = 'none';
+                    }
+                }
+            } catch (error) {
+                console.error('Error loading client feedback count:', error);
+                // Hide badge on error
+                document.getElementById('client-feedback-count-badge').style.display = 'none';
             }
         }
 
@@ -1043,6 +1121,8 @@
                             <th>Final Status</th>
                             <th>Manager Decision</th>
                             <th>CEO Decision</th>
+                            <th>Manager Comments</th>
+                            <th>CEO Comments</th>
                             <th>Completed</th>
                             <th>Actions</th>
                         </tr>
@@ -1057,8 +1137,30 @@
                                         ${item.final_status || 'Completed'}
                                     </span>
                                 </td>
-                                <td>${item.manager_decision || 'N/A'}</td>
-                                <td>${item.ceo_decision || 'N/A'}</td>
+                                <td>
+                                    <span class="status-badge status-${item.manager_decision || 'pending'}">
+                                        ${item.manager_decision || 'Pending'}
+                                    </span>
+                                </td>
+                                <td>
+                                    <span class="status-badge status-${item.ceo_decision || 'pending'}">
+                                        ${item.ceo_decision || 'Pending'}
+                                    </span>
+                                </td>
+                                <td>
+                                    <div class="comments-section">
+                                        <div class="comment-text" style="border-left-color: #28a745;">
+                                            ${item.manager_comments || 'No comments'}
+                                        </div>
+                                    </div>
+                                </td>
+                                <td>
+                                    <div class="comments-section">
+                                        <div class="comment-text" style="border-left-color: #17a2b8;">
+                                            ${item.ceo_comments || 'No comments'}
+                                        </div>
+                                    </div>
+                                </td>
                                 <td>${formatDate(item.completed_at)}</td>
                                 <td>
                                     <div class="action-buttons">
@@ -1074,6 +1176,179 @@
             `;
 
             document.getElementById('history-content').innerHTML = tableHTML;
+        }
+
+        // Load approval comments
+        async function loadApprovalComments() {
+            try {
+                const response = await fetch('/api/approval/comments');
+                const result = await response.json();
+                
+                if (result.success) {
+                    const comments = result.comments || [];
+                    console.log('💬 Approval comments loaded:', comments);
+                    displayApprovalComments(comments);
+                } else {
+                    document.getElementById('approval-comments-content').innerHTML = 
+                        '<div class="no-items">No approval comments found.</div>';
+                }
+            } catch (error) {
+                console.error('Error loading approval comments:', error);
+                document.getElementById('approval-comments-content').innerHTML = 
+                    '<div class="no-items">Error loading approval comments.</div>';
+            }
+        }
+
+        // Display approval comments
+        function displayApprovalComments(comments) {
+            if (!comments || comments.length === 0) {
+                document.getElementById('approval-comments-content').innerHTML = 
+                    '<div class="no-items">No approval comments found. All approved workflows will show comments here.</div>';
+                return;
+            }
+
+            const tableHTML = `
+                <table class="queue-table">
+                    <thead>
+                        <tr>
+                            <th>Document</th>
+                            <th>Client</th>
+                            <th>Type</th>
+                            <th>Manager Comments</th>
+                            <th>CEO Comments</th>
+                            <th>Manager Approved</th>
+                            <th>CEO Approved</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${comments.map(item => `
+                            <tr>
+                                <td>
+                                    <strong>${item.document_name || 'N/A'}</strong><br>
+                                    <small style="color: #666;">${item.document_type || 'Document'}</small>
+                                </td>
+                                <td>${item.client_name || 'N/A'}</td>
+                                <td>
+                                    <span class="status-badge status-${item.document_type || 'document'}">
+                                        ${item.document_type || 'Document'}
+                                    </span>
+                                </td>
+                                <td>
+                                    <div class="comments-section">
+                                        <div class="comment-text" style="border-left-color: #28a745;">
+                                            ${item.manager_comments || 'No comments provided'}
+                                        </div>
+                                        <small style="color: #666;">
+                                            Manager: ${item.manager_email || 'Unknown'}
+                                        </small>
+                                    </div>
+                                </td>
+                                <td>
+                                    <div class="comments-section">
+                                        <div class="comment-text" style="border-left-color: #17a2b8;">
+                                            ${item.ceo_comments || 'No comments provided'}
+                                        </div>
+                                        <small style="color: #666;">
+                                            CEO: ${item.ceo_email || 'Unknown'}
+                                        </small>
+                                    </div>
+                                </td>
+                                <td>${formatDate(item.manager_approval_date)}</td>
+                                <td>${formatDate(item.ceo_approval_date)}</td>
+                                <td>
+                                    <div class="action-buttons">
+                                        <button class="btn-view" onclick="viewDocument('${item._id}')">
+                                            👁️ View
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `;
+
+            document.getElementById('approval-comments-content').innerHTML = tableHTML;
+        }
+
+        // Load client feedback workflows
+        async function loadClientFeedback() {
+            try {
+                const response = await fetch('/api/client/feedback-workflows');
+                const result = await response.json();
+                
+                if (result.success) {
+                    const feedbackWorkflows = result.workflows || [];
+                    console.log('👥 Client feedback workflows loaded:', feedbackWorkflows);
+                    displayClientFeedback(feedbackWorkflows);
+                } else {
+                    document.getElementById('client-feedback-content').innerHTML = 
+                        '<div class="no-items">No client feedback workflows found.</div>';
+                }
+            } catch (error) {
+                console.error('Error loading client feedback workflows:', error);
+                document.getElementById('client-feedback-content').innerHTML = 
+                    '<div class="no-items">Error loading client feedback workflows.</div>';
+            }
+        }
+
+        // Display client feedback workflows
+        function displayClientFeedback(feedbackWorkflows) {
+            if (!feedbackWorkflows || feedbackWorkflows.length === 0) {
+                document.getElementById('client-feedback-content').innerHTML = 
+                    '<div class="no-items">No workflows awaiting client feedback. All clients have responded! 🎉</div>';
+                return;
+            }
+
+            const tableHTML = `
+                <table class="queue-table">
+                    <thead>
+                        <tr>
+                            <th>Document</th>
+                            <th>Client</th>
+                            <th>Type</th>
+                            <th>Status</th>
+                            <th>CEO Approved</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${feedbackWorkflows.map(workflow => `
+                            <tr>
+                                <td>
+                                    <strong>${workflow.document_id || 'N/A'}</strong><br>
+                                    <small style="color: #666;">${workflow.document_type || 'Document'}</small>
+                                </td>
+                                <td>
+                                    ${workflow.client_name || 'N/A'}<br>
+                                    <small style="color: #666;">${workflow.client_email || 'N/A'}</small>
+                                </td>
+                                <td>
+                                    <span class="status-badge status-${workflow.document_type || 'document'}">
+                                        ${workflow.document_type || 'Document'}
+                                    </span>
+                                </td>
+                                <td>
+                                    <span class="status-badge status-pending">
+                                        Awaiting Client Feedback
+                                    </span>
+                                </td>
+                                <td>${formatDate(workflow.ceo_approval_date)}</td>
+                                <td>
+                                    <div class="action-buttons">
+                                        <button class="btn-view" onclick="viewDocument('${workflow.document_id}')">
+                                            👁️ View
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `;
+
+            document.getElementById('client-feedback-content').innerHTML = tableHTML;
         }
 
         // Load denied requests
@@ -1524,6 +1799,45 @@
                     console.error('Error converting text agreement to PDF:', error);
                     alert('Error converting text agreement to PDF');
                 }
+            }
+        }
+
+        // Function to automatically open a workflow when accessed via email link
+        async function autoOpenWorkflow(workflowId) {
+            try {
+                console.log('🔍 Auto-opening workflow:', workflowId);
+                
+                // First, check if the workflow exists and user has access
+                const response = await fetch(`/api/approval/workflow/${workflowId}`);
+                const result = await response.json();
+                
+                if (result.success) {
+                    const workflow = result.workflow;
+                    
+                    // Check if current user can approve this workflow
+                    const canApprove = (currentUser.role === workflow.current_stage && workflow.workflow_status === 'active');
+                    
+                    if (canApprove) {
+                        console.log('✅ User can approve this workflow, opening document...');
+                        // Open the document viewer
+                        showPdfViewer(workflow);
+                        
+                        // Show a helpful message
+                        setTimeout(() => {
+                            alert('📋 Document opened from email link!\n\nPlease review the document and use the APPROVE or REJECT buttons below to take action.');
+                        }, 1000);
+                    } else {
+                        console.log('⚠️ User cannot approve this workflow at this stage');
+                        alert('⚠️ This document is not currently waiting for your approval.\n\nIt may have already been processed or is waiting for another approver.');
+                    }
+                } else {
+                    console.log('❌ Failed to load workflow:', result.message);
+                    alert('❌ Could not load the requested document.\n\nError: ' + result.message);
+                }
+                
+            } catch (error) {
+                console.error('❌ Error auto-opening workflow:', error);
+                alert('❌ Error opening the requested document.\n\nPlease try refreshing the page or contact support.');
             }
         }
     </script>

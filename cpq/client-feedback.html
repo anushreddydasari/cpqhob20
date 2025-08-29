@@ -1,0 +1,559 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Client Feedback Form - CPQ System</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+
+        .main-card {
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+
+        .card-content {
+            padding: 30px;
+        }
+
+        .form-section {
+            margin-bottom: 30px;
+            padding: 25px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            border-left: 4px solid #667eea;
+        }
+
+        .form-section h3 {
+            color: #333;
+            font-size: 1.4rem;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid #e1e5e9;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.3s ease;
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .form-textarea {
+            min-height: 120px;
+            resize: vertical;
+        }
+
+        .form-select {
+            background: white;
+        }
+
+        .decision-options {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+
+        .decision-option {
+            background: white;
+            border: 2px solid #e1e5e9;
+            border-radius: 8px;
+            padding: 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .decision-option:hover {
+            border-color: #667eea;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.15);
+        }
+
+        .decision-option.selected {
+            border-color: #667eea;
+            background: #f0f4ff;
+        }
+
+        .decision-option input[type="radio"] {
+            display: none;
+        }
+
+        .decision-icon {
+            font-size: 2rem;
+            margin-bottom: 10px;
+        }
+
+        .decision-title {
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #333;
+        }
+
+        .decision-description {
+            font-size: 0.9rem;
+            color: #666;
+            line-height: 1.4;
+        }
+
+        .submit-btn {
+            background: #28a745;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            width: 100%;
+            transition: all 0.3s ease;
+        }
+
+        .submit-btn:hover {
+            background: #218838;
+            transform: translateY(-2px);
+        }
+
+        .submit-btn:disabled {
+            background: #6c757d;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .status-message {
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+            text-align: center;
+            font-weight: 500;
+        }
+
+        .status-success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .status-error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .status-info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+
+        .document-info {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border: 1px solid #e1e5e9;
+        }
+
+        .document-info h4 {
+            color: #333;
+            margin-bottom: 15px;
+            font-size: 1.2rem;
+        }
+
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+        }
+
+        .info-item {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .info-label {
+            font-weight: 600;
+            color: #666;
+            font-size: 0.9rem;
+            margin-bottom: 5px;
+        }
+
+        .info-value {
+            color: #333;
+            font-size: 1rem;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+
+        .loading::after {
+            content: '';
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-left: 10px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .error-message {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+            border: 1px solid #f5c6cb;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 10px;
+            }
+            
+            .header h1 {
+                font-size: 2rem;
+            }
+            
+            .decision-options {
+                grid-template-columns: 1fr;
+            }
+            
+            .info-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>💬 Client Feedback Form</h1>
+            <p>Please provide your feedback on the approved document</p>
+        </div>
+
+        <!-- Main Content -->
+        <div class="main-card">
+            <div class="card-content">
+                <!-- Document Information -->
+                <div id="document-info-section" class="document-info" style="display: none;">
+                    <h4>📋 Document Details</h4>
+                    <div class="info-grid">
+                        <div class="info-item">
+                            <span class="info-label">Document Type:</span>
+                            <span class="info-value" id="doc-type">Loading...</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">Client Name:</span>
+                            <span class="info-value" id="client-name">Loading...</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">Company:</span>
+                            <span class="info-value" id="company-name">Loading...</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">Approval Date:</span>
+                            <span class="info-value" id="approval-date">Loading...</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Loading State -->
+                <div id="loading-section" class="loading">
+                    Loading document information...
+                </div>
+
+                <!-- Error State -->
+                <div id="error-section" class="error-message" style="display: none;">
+                    <h4>❌ Error Loading Document</h4>
+                    <p id="error-message-text">Unable to load document information.</p>
+                </div>
+
+                <!-- Feedback Form -->
+                <div id="feedback-form-section" style="display: none;">
+                    <div class="form-section">
+                        <h3>📝 Your Decision</h3>
+                        <p>Please select your decision for this document:</p>
+                        
+                        <div class="decision-options">
+                            <label class="decision-option" for="decision-accept">
+                                <input type="radio" name="decision" id="decision-accept" value="accepted">
+                                <div class="decision-icon">✅</div>
+                                <div class="decision-title">Accept</div>
+                                <div class="decision-description">Document is approved and ready to proceed</div>
+                            </label>
+                            
+                            <label class="decision-option" for="decision-reject">
+                                <input type="radio" name="decision" id="decision-reject" value="rejected">
+                                <div class="decision-icon">❌</div>
+                                <div class="decision-title">Reject</div>
+                                <div class="decision-description">Document needs significant changes</div>
+                            </label>
+                            
+                            <label class="decision-option" for="decision-changes">
+                                <input type="radio" name="decision" id="decision-changes" value="needs_changes">
+                                <div class="decision-icon">🔄</div>
+                                <div class="decision-title">Request Changes</div>
+                                <div class="decision-description">Minor modifications needed</div>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="form-section">
+                        <h3>💬 Additional Comments</h3>
+                        <p>Please provide any additional comments or feedback (optional):</p>
+                        
+                        <div class="form-group">
+                            <textarea 
+                                id="client-comments" 
+                                class="form-input form-textarea" 
+                                placeholder="Enter your comments here... (e.g., specific changes needed, questions, concerns, etc.)"
+                            ></textarea>
+                        </div>
+                    </div>
+
+                    <div class="form-section">
+                        <h3>📧 Email Verification</h3>
+                        <p>Please confirm your email address for verification:</p>
+                        
+                        <div class="form-group">
+                            <input 
+                                type="email" 
+                                id="client-email" 
+                                class="form-input" 
+                                placeholder="your.email@company.com"
+                                required
+                            >
+                        </div>
+                    </div>
+
+                    <button id="submit-feedback" class="submit-btn" disabled>
+                        📤 Submit Feedback
+                    </button>
+
+                    <div id="status-message" style="display: none;"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Get URL parameters
+        const urlParams = new URLSearchParams(window.location.search);
+        const workflowId = urlParams.get('workflow');
+        const clientEmail = urlParams.get('email');
+
+        // DOM elements
+        const loadingSection = document.getElementById('loading-section');
+        const errorSection = document.getElementById('error-section');
+        const documentInfoSection = document.getElementById('document-info-section');
+        const feedbackFormSection = document.getElementById('feedback-form-section');
+        const submitBtn = document.getElementById('submit-feedback');
+        const statusMessage = document.getElementById('status-message');
+
+        // Decision option selection
+        const decisionOptions = document.querySelectorAll('.decision-option');
+        decisionOptions.forEach(option => {
+            option.addEventListener('click', function() {
+                // Remove selected class from all options
+                decisionOptions.forEach(opt => opt.classList.remove('selected'));
+                // Add selected class to clicked option
+                this.classList.add('selected');
+                // Check the radio button
+                const radio = this.querySelector('input[type="radio"]');
+                radio.checked = true;
+                // Enable submit button if email is filled
+                updateSubmitButton();
+            });
+        });
+
+        // Email input validation
+        document.getElementById('client-email').addEventListener('input', function() {
+            updateSubmitButton();
+        });
+
+        function updateSubmitButton() {
+            const decision = document.querySelector('input[name="decision"]:checked');
+            const email = document.getElementById('client-email').value.trim();
+            const isValid = decision && email && isValidEmail(email);
+            
+            submitBtn.disabled = !isValid;
+        }
+
+        function isValidEmail(email) {
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            return emailRegex.test(email);
+        }
+
+        // Submit feedback
+        submitBtn.addEventListener('click', async function() {
+            const decision = document.querySelector('input[name="decision"]:checked').value;
+            const comments = document.getElementById('client-comments').value.trim();
+            const email = document.getElementById('client-email').value.trim();
+
+            // Disable submit button and show loading
+            submitBtn.disabled = true;
+            submitBtn.textContent = '📤 Submitting...';
+            showStatus('Submitting your feedback...', 'info');
+
+            try {
+                const response = await fetch('/api/client/feedback', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        workflow_id: workflowId,
+                        client_email: email,
+                        decision: decision,
+                        comments: comments
+                    })
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    showStatus('✅ Feedback submitted successfully! Thank you for your response.', 'success');
+                    // Disable form
+                    document.querySelectorAll('input, textarea').forEach(input => input.disabled = true);
+                    submitBtn.style.display = 'none';
+                } else {
+                    showStatus(`❌ Error: ${result.message}`, 'error');
+                    // Re-enable submit button
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = '📤 Submit Feedback';
+                }
+            } catch (error) {
+                console.error('Error submitting feedback:', error);
+                showStatus('❌ Network error. Please try again.', 'error');
+                // Re-enable submit button
+                submitBtn.disabled = false;
+                submitBtn.textContent = '📤 Submit Feedback';
+            }
+        });
+
+        function showStatus(message, type) {
+            statusMessage.textContent = message;
+            statusMessage.className = `status-message status-${type}`;
+            statusMessage.style.display = 'block';
+        }
+
+        // Load document information
+        async function loadDocumentInfo() {
+            try {
+                const response = await fetch(`/api/client/workflow/${workflowId}?email=${clientEmail}`);
+                const result = await response.json();
+
+                if (result.success) {
+                    // Hide loading, show document info and form
+                    loadingSection.style.display = 'none';
+                    documentInfoSection.style.display = 'block';
+                    feedbackFormSection.style.display = 'block';
+
+                    // Populate document information
+                    document.getElementById('doc-type').textContent = result.workflow.document_type;
+                    document.getElementById('client-name').textContent = result.workflow.client_name;
+                    document.getElementById('company-name').textContent = result.workflow.company_name;
+                    
+                    // Format approval date
+                    const approvalDate = new Date(result.workflow.ceo_approval_date);
+                    document.getElementById('approval-date').textContent = approvalDate.toLocaleDateString('en-US', {
+                        year: 'numeric',
+                        month: 'long',
+                        day: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                    });
+
+                    // Pre-fill email if provided in URL
+                    if (clientEmail) {
+                        document.getElementById('client-email').value = clientEmail;
+                        updateSubmitButton();
+                    }
+                } else {
+                    throw new Error(result.message);
+                }
+            } catch (error) {
+                console.error('Error loading document info:', error);
+                loadingSection.style.display = 'none';
+                errorSection.style.display = 'block';
+                document.getElementById('error-message-text').textContent = error.message || 'Unable to load document information.';
+            }
+        }
+
+        // Initialize page
+        if (workflowId && clientEmail) {
+            loadDocumentInfo();
+        } else {
+            loadingSection.style.display = 'none';
+            errorSection.style.display = 'block';
+            document.getElementById('error-message-text').textContent = 'Missing workflow ID or email parameter. Please use the link from your email.';
+        }
+    </script>
+</body>
+</html>

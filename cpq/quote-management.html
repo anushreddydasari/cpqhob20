@@ -564,22 +564,23 @@
                         
                         <div id="documentsTableContainer" style="display: none;">
                             <div class="table-container">
-                                <table class="data-table">
-                                    <thead>
-                                        <tr>
-                                            <th>Select</th>
-                                            <th>Document ID</th>
-                                            <th>Document Name</th>
-                                            <th>Client Name</th>
-                                            <th>Company</th>
-                                            <th>Type</th>
-                                            <th>Created</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody id="documentsTableBody">
-                                        <!-- Documents will be loaded here -->
-                                    </tbody>
-                                </table>
+                                                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Select</th>
+                                    <th>Document ID</th>
+                                    <th>Document Name</th>
+                                    <th>Client Name</th>
+                                    <th>Company</th>
+                                    <th>Client Email</th>
+                                    <th>Type</th>
+                                    <th>Created</th>
+                                </tr>
+                            </thead>
+                            <tbody id="documentsTableBody">
+                                <!-- Documents will be loaded here -->
+                            </tbody>
+                        </table>
                             </div>
                         </div>
                     </div>
@@ -604,6 +605,11 @@
                         <div class="form-group">
                             <label for="ceoEmail">CEO Email:</label>
                             <input type="email" id="ceoEmail" class="form-input" placeholder="ceo@company.com">
+                        </div>
+                        <div class="form-group">
+                            <label for="clientEmail">Client Email:</label>
+                            <input type="email" id="clientEmail" class="form-input" placeholder="client@gmail.com" required>
+                            <small class="form-help">Email where the final approved document will be sent</small>
                         </div>
                     </div>
                     
@@ -1184,8 +1190,9 @@
             const documentId = document.getElementById('approvalDocumentId').value;
             const managerEmail = document.getElementById('managerEmail').value;
             const ceoEmail = document.getElementById('ceoEmail').value;
+            const clientEmail = document.getElementById('clientEmail').value;
 
-            if (!documentId || !managerEmail || !ceoEmail) {
+            if (!documentId || !managerEmail || !ceoEmail || !clientEmail) {
                 showStatus('approvalWorkflowStatus', '❌ Please fill in all required fields.', 'error');
                 return;
             }
@@ -1197,7 +1204,8 @@
                     document_id: documentId,
                     document_type: documentType,
                     manager_email: managerEmail,
-                    ceo_email: ceoEmail
+                    ceo_email: ceoEmail,
+                    client_email: clientEmail
                 };
 
                 const response = await fetch('/api/approval/start-workflow', {
@@ -1218,6 +1226,7 @@
                     document.getElementById('approvalDocumentId').value = '';
                     document.getElementById('managerEmail').value = '';
                     document.getElementById('ceoEmail').value = '';
+                    document.getElementById('clientEmail').value = '';
                 } else {
                     showStatus('approvalWorkflowStatus', `❌ Error: ${result.message}`, 'error');
                 }
@@ -1249,13 +1258,14 @@
                                 <td>${doc.filename}</td>
                                 <td>${doc.client_name}</td>
                                 <td>${doc.company_name}</td>
+                                <td>${doc.client_email || 'Not specified'}</td>
                                 <td>${doc.document_type}</td>
                                 <td>${new Date(doc.generated_at).toLocaleDateString()}</td>
                             </tr>
                         `).join('');
                         showStatus('approvalWorkflowStatus', `✅ Loaded ${result.documents.length} documents for approval.`, 'success');
                     } else {
-                        documentsTableBody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 20px;">No documents found for approval.</td></tr>';
+                        documentsTableBody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 20px;">No documents found for approval.</td></tr>';
                         showStatus('approvalWorkflowStatus', 'ℹ️ No documents found for approval.', 'info');
                     }
                 } catch (error) {
@@ -1272,9 +1282,10 @@
         function onDocumentSelectedForApproval(documentId) {
             document.getElementById('approvalDocumentId').value = documentId;
             
-            // Find the selected document in the table to get its type
+            // Find the selected document in the table to get its details
             const selectedRow = document.querySelector(`input[name="approvalDocument"][value="${documentId}"]`).closest('tr');
-            const documentType = selectedRow.cells[5].textContent; // Type column
+            const documentType = selectedRow.cells[6].textContent; // Type column (now index 6)
+            const clientEmail = selectedRow.cells[5].textContent; // Client Email column (now index 5)
             
             // Auto-populate the document type
             const documentTypeSelect = document.getElementById('approvalDocumentType');
@@ -1282,6 +1293,11 @@
                 documentTypeSelect.value = 'PDF';
             } else if (documentType === 'Agreement') {
                 documentTypeSelect.value = 'Agreement';
+            }
+            
+            // Auto-populate the client email if available
+            if (clientEmail && clientEmail !== 'Not specified') {
+                document.getElementById('clientEmail').value = clientEmail;
             }
             
             // Show success message

@@ -103,10 +103,10 @@ class ApprovalWorkflowCollection:
                 update_data["ceo_approval_date"] = datetime.now()
                 
                 if normalized_action == "approved":
-                    update_data["workflow_status"] = "completed"
-                    update_data["client_status"] = "delivered"
-                    update_data["final_status"] = "approved"
-                    update_data["completed_at"] = datetime.now()
+                    update_data["workflow_status"] = "client_review"
+                    update_data["current_stage"] = "client"
+                    update_data["client_status"] = "pending_feedback"
+                    update_data["final_status"] = "pending_client_feedback"
                 elif normalized_action == "denied":
                     update_data["workflow_status"] = "cancelled"
                     update_data["final_status"] = "denied_by_ceo"
@@ -121,6 +121,59 @@ class ApprovalWorkflowCollection:
         except Exception as e:
             print(f"Error updating workflow status: {e}")
             return False
+
+    def submit_client_feedback(self, workflow_id, client_comments, client_decision):
+        """Submit client feedback on the approved document"""
+        try:
+            update_data = {
+                "updated_at": datetime.now(),
+                "client_comments": client_comments,
+                "client_decision": client_decision,  # "accepted", "rejected", "needs_changes"
+                "client_feedback_date": datetime.now()
+            }
+            
+            if client_decision == "accepted":
+                update_data["client_status"] = "accepted"
+                update_data["workflow_status"] = "completed"
+                update_data["final_status"] = "accepted_by_client"
+                update_data["completed_at"] = datetime.now()
+            elif client_decision == "rejected":
+                update_data["client_status"] = "rejected"
+                update_data["workflow_status"] = "client_rejected"
+                update_data["final_status"] = "rejected_by_client"
+            elif client_decision == "needs_changes":
+                update_data["client_status"] = "needs_changes"
+                update_data["workflow_status"] = "needs_revision"
+                update_data["final_status"] = "client_requested_changes"
+            
+            result = self.collection.update_one(
+                {"_id": ObjectId(workflow_id)},
+                {"$set": update_data}
+            )
+            
+            return result.modified_count > 0
+            
+        except Exception as e:
+            print(f"Error submitting client feedback: {e}")
+            return False
+
+    def get_client_feedback_workflows(self, limit=100):
+        """Get workflows waiting for client feedback"""
+        return list(self.collection.find({
+            "workflow_status": "client_review",
+            "client_status": "pending_feedback"
+        }).sort("updated_at", -1).limit(limit))
+
+    def get_workflow_by_client_email(self, client_email, workflow_id):
+        """Get workflow by client email and workflow ID for verification"""
+        try:
+            return self.collection.find_one({
+                "_id": ObjectId(workflow_id),
+                "client_email": client_email,
+                "workflow_status": "client_review"
+            })
+        except:
+            return None
     
     def get_workflow_stats(self):
         """Get workflow statistics"""
@@ -258,4 +311,33 @@ class ApprovalWorkflowCollection:
             
         except Exception as e:
             print(f"Error getting denied workflows: {e}")
+            return []
+
+    def get_approval_comments(self, limit=100):
+        """Get approval comments for completed workflows"""
+        try:
+            # Find workflows that were completed (approved by both manager and CEO)
+            completed_workflows = list(self.collection.find({
+                "workflow_status": "completed",
+                "manager_status": "approved",
+                "ceo_status": "approved"
+            }).sort("completed_at", -1).limit(limit))
+            
+            # Format the data to include approval comments
+            formatted_workflows = []
+            for workflow in completed_workflows:
+                formatted_workflow = workflow.copy()
+                
+                # Add approval comment information
+                formatted_workflow["manager_comments"] = workflow.get("manager_comments", "No comments provided")
+                formatted_workflow["ceo_comments"] = workflow.get("ceo_comments", "No comments provided")
+                formatted_workflow["manager_approval_date"] = workflow.get("manager_approval_date")
+                formatted_workflow["ceo_approval_date"] = workflow.get("ceo_approval_date")
+                
+                formatted_workflows.append(formatted_workflow)
+            
+            return formatted_workflows
+            
+        except Exception as e:
+            print(f"Error getting approval comments: {e}")
             return []

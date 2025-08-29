@@ -2794,6 +2794,8 @@ def get_approval_history():
                 'final_status': item.get('final_status', 'completed'),
                 'manager_decision': item.get('manager_status', 'N/A'),
                 'ceo_decision': item.get('ceo_status', 'N/A'),
+                'manager_comments': item.get('manager_comments', ''),
+                'ceo_comments': item.get('ceo_comments', ''),
                 'completed_at': item.get('completed_at') or item.get('updated_at')
             }
             formatted_history.append(formatted_item)
@@ -2806,6 +2808,22 @@ def get_approval_history():
         return jsonify({
             'success': False,
             'message': f'Error fetching approval history: {str(e)}'
+        }), 500
+
+@app.route('/api/approval/comments', methods=['GET'])
+def get_approval_comments():
+    """Get approval comments for completed workflows"""
+    try:
+        comments = approval_workflows.get_approval_comments(limit=100)
+        
+        return jsonify({
+            'success': True,
+            'comments': comments
+        }), 200
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': f'Error fetching approval comments: {str(e)}'
         }), 500
 
 @app.route('/api/approval/workflow/<workflow_id>', methods=['GET'])
@@ -2846,15 +2864,25 @@ def get_workflow_details(workflow_id):
             'message': f'Error fetching workflow details: {str(e)}'
         }), 500
 
-@app.route('/api/approval/approve', methods=['POST'])
+@app.route('/api/approval/approve', methods=['GET', 'POST'])
 def approve_workflow():
     """Approve a workflow"""
+    if request.method == 'GET':
+        return jsonify({
+            'success': False,
+            'message': 'This endpoint only accepts POST requests. Please use the approval form.',
+            'method': request.method,
+            'endpoint': '/api/approval/approve'
+        }), 405
+    
     try:
         data = request.get_json()
         workflow_id = data.get('workflow_id')
         role = data.get('role')
         action = data.get('action')
         comments = data.get('comments', '')
+        
+        print(f"🔍 Approval request received: workflow_id={workflow_id}, role={role}, action={action}")
         
         if not all([workflow_id, role, action]):
             return jsonify({
@@ -2911,8 +2939,35 @@ def approve_workflow():
                         if client_email:
                             # Send final approved document to client
                             email_service = EmailService()
-                            # You can customize this email for client delivery
-                            print(f"✅ Workflow approved! Would send final document to client: {client_email}")
+                            
+                            # Get PDF file path for attachment
+                            pdf_path = None
+                            document_type = workflow.get('document_type')
+                            if document_type == 'PDF':
+                                document = generated_pdfs.get_pdf_by_id(workflow.get('document_id'))
+                                pdf_path = document.get('file_path') if document else None
+                            elif document_type == 'Agreement':
+                                document = generated_agreements.get_agreement_by_id(workflow.get('document_id'))
+                                pdf_path = document.get('file_path') if document else None
+                            
+                            # Send final approved document to client
+                            client_name = workflow.get('client_name', 'Valued Client')
+                            company_name = workflow.get('company_name', 'Your Company')
+                            
+                            email_result = email_service.send_client_delivery_email(
+                                client_email=client_email,
+                                client_name=client_name,
+                                company_name=company_name,
+                                workflow_data=workflow,
+                                pdf_path=pdf_path
+                            )
+                            
+                            if email_result['success']:
+                                print(f"✅ Final approved document sent to client: {client_email}")
+                            else:
+                                print(f"⚠️ Failed to send final document to client: {email_result['message']}")
+                        else:
+                            print(f"⚠️ No client email found in workflow for final delivery")
                     
                     # If anyone denies, notify initiator
                     elif action == 'deny':
@@ -2933,6 +2988,7 @@ def approve_workflow():
             }), 500
         
     except Exception as e:
+        print(f"❌ Error in approve_workflow: {str(e)}")
         return jsonify({
             'success': False,
             'message': f'Error approving workflow: {str(e)}'
@@ -3031,11 +3087,12 @@ def start_approval_workflow():
         document_type = data.get('document_type', 'PDF')
         manager_email = data.get('manager_email')
         ceo_email = data.get('ceo_email')
+        client_email = data.get('client_email')
         
-        if not all([document_id, manager_email, ceo_email]):
+        if not all([document_id, manager_email, ceo_email, client_email]):
             return jsonify({
                 'success': False,
-                'message': 'Document ID, manager email, and CEO email are required'
+                'message': 'Document ID, manager email, CEO email, and client email are required'
             }), 400
         
         # Get document details
@@ -3058,7 +3115,7 @@ def start_approval_workflow():
             'document_name': document.get('filename', 'Document'),
             'client_name': document.get('client_name', 'N/A'),
             'company_name': document.get('company_name', 'N/A'),
-            'client_email': document.get('client_email', ''),
+            'client_email': client_email,  # Use client email from form
             'manager_email': manager_email,
             'ceo_email': ceo_email,
             'current_stage': 'manager',
@@ -3138,6 +3195,7 @@ def list_documents_for_approval():
                 'filename': pdf.get('filename', 'Unknown'),
                 'client_name': pdf.get('client_name', 'Unknown'),
                 'company_name': pdf.get('company_name', 'Unknown'),
+                'client_email': pdf.get('client_email', ''),
                 'generated_at': pdf.get('generated_at', datetime.now()),
                 'quote_id': pdf.get('quote_id', 'Unknown')
             })
@@ -3150,6 +3208,7 @@ def list_documents_for_approval():
                 'filename': agreement.get('filename', 'Unknown'),
                 'client_name': agreement.get('client_name', 'Unknown'),
                 'company_name': agreement.get('company_name', 'Unknown'),
+                'client_email': agreement.get('client_email', ''),
                 'generated_at': agreement.get('generated_at', datetime.now()),
                 'quote_id': agreement.get('quote_id', 'Unknown')
             })
@@ -3351,6 +3410,255 @@ def convert_agreement_to_pdf(agreement_id):
     except Exception as e:
         print(f"❌ Error converting agreement to PDF: {str(e)}")
         return jsonify({'success': False, 'message': f'Error converting agreement: {str(e)}'}), 500
+
+@app.route('/api/test', methods=['GET'])
+def test_endpoint():
+    """Simple test endpoint to verify Flask routing is working"""
+    return jsonify({
+        'success': True,
+        'message': 'Flask routing is working correctly',
+        'timestamp': datetime.now().isoformat(),
+        'endpoint': '/api/test'
+    }), 200
+
+@app.route('/api/approval/test', methods=['GET', 'POST'])
+def test_approval_endpoint():
+    """Test endpoint for approval routing"""
+    return jsonify({
+        'success': True,
+        'message': 'Approval endpoint routing is working',
+        'method': request.method,
+        'timestamp': datetime.now().isoformat(),
+        'endpoint': '/api/approval/test'
+    }), 200
+
+@app.route('/api/client/feedback', methods=['POST'])
+def submit_client_feedback():
+    """Submit client feedback on approved document"""
+    try:
+        data = request.get_json()
+        workflow_id = data.get('workflow_id')
+        client_email = data.get('client_email')
+        client_comments = data.get('comments', '')
+        client_decision = data.get('decision')  # "accepted", "rejected", "needs_changes"
+        
+        print(f"🔍 Client feedback received: workflow_id={workflow_id}, client_email={client_email}, decision={client_decision}")
+        
+        if not all([workflow_id, client_email, client_decision]):
+            return jsonify({
+                'success': False,
+                'message': 'Workflow ID, client email, and decision are required'
+            }), 400
+        
+        if client_decision not in ['accepted', 'rejected', 'needs_changes']:
+            return jsonify({
+                'success': False,
+                'message': 'Decision must be one of: accepted, rejected, needs_changes'
+            }), 400
+        
+        # Verify workflow exists and belongs to this client
+        workflow = approval_workflows.get_workflow_by_client_email(client_email, workflow_id)
+        if not workflow:
+            return jsonify({
+                'success': False,
+                'message': 'Workflow not found or access denied'
+            }), 404
+        
+        # Submit client feedback
+        success = approval_workflows.submit_client_feedback(workflow_id, client_comments, client_decision)
+        
+        if success:
+            # Send notification email to manager/CEO about client feedback
+            try:
+                email_service = EmailService()
+                
+                # Get document details for the email
+                document_type = workflow.get('document_type')
+                document_id = workflow.get('document_id')
+                
+                if document_type == 'PDF':
+                    document = generated_pdfs.get_pdf_by_id(document_id)
+                elif document_type == 'Agreement':
+                    document = generated_agreements.get_agreement_by_id(document_id)
+                else:
+                    document = None
+                
+                # Send notification to manager and CEO
+                manager_email = workflow.get('manager_email')
+                ceo_email = workflow.get('ceo_email')
+                
+                if manager_email:
+                    email_service.send_client_feedback_notification(
+                        recipient_email=manager_email,
+                        recipient_role='manager',
+                        workflow_data=workflow,
+                        client_feedback={
+                            'decision': client_decision,
+                            'comments': client_comments,
+                            'client_email': client_email
+                        },
+                        document=document
+                    )
+                
+                if ceo_email:
+                    email_service.send_client_feedback_notification(
+                        recipient_email=ceo_email,
+                        recipient_role='ceo',
+                        workflow_data=workflow,
+                        client_feedback={
+                            'decision': client_decision,
+                            'comments': client_comments,
+                            'client_email': client_email
+                        },
+                        document=document
+                    )
+                
+            except Exception as e:
+                print(f"⚠️ Warning: Could not send client feedback notification emails: {e}")
+            
+            return jsonify({
+                'success': True,
+                'message': 'Client feedback submitted successfully'
+            }), 200
+        else:
+            return jsonify({
+                'success': False,
+                'message': 'Failed to submit client feedback'
+            }), 500
+            
+    except Exception as e:
+        print(f"❌ Error submitting client feedback: {str(e)}")
+        return jsonify({
+            'success': False,
+            'message': f'Error submitting client feedback: {str(e)}'
+        }), 500
+
+@app.route('/api/client/workflow/<workflow_id>', methods=['GET'])
+def get_client_workflow(workflow_id):
+    """Get workflow details for client review (public endpoint)"""
+    try:
+        # Get client email from query parameter for verification
+        client_email = request.args.get('email')
+        
+        if not client_email:
+            return jsonify({
+                'success': False,
+                'message': 'Client email is required'
+            }), 400
+        
+        # Get workflow and verify client access
+        workflow = approval_workflows.get_workflow_by_client_email(client_email, workflow_id)
+        
+        if not workflow:
+            return jsonify({
+                'success': False,
+                'message': 'Workflow not found or access denied'
+            }), 404
+        
+        # Get document details
+        document_type = workflow.get('document_type')
+        document_id = workflow.get('document_id')
+        
+        document = None
+        if document_type == 'PDF':
+            document = generated_pdfs.get_pdf_by_id(document_id)
+        elif document_type == 'Agreement':
+            document = generated_agreements.get_agreement_by_id(document_id)
+        
+        if not document:
+            return jsonify({
+                'success': False,
+                'message': 'Document not found'
+            }), 404
+        
+        # Format workflow data for client
+        formatted_workflow = {
+            'workflow_id': str(workflow['_id']),
+            'document_id': workflow.get('document_id'),
+            'document_type': workflow.get('document_type'),
+            'client_name': workflow.get('client_name'),
+            'company_name': workflow.get('company_name'),
+            'service_type': workflow.get('service_type', 'N/A'),
+            'created_at': workflow.get('created_at'),
+            'manager_approval_date': workflow.get('manager_approval_date'),
+            'ceo_approval_date': workflow.get('ceo_approval_date'),
+            'document': {
+                'filename': document.get('filename'),
+                'file_path': document.get('file_path'),
+                'file_size': document.get('file_size')
+            }
+        }
+        
+        return jsonify({
+            'success': True,
+            'workflow': formatted_workflow
+        }), 200
+        
+    except Exception as e:
+        print(f"❌ Error getting client workflow: {str(e)}")
+        return jsonify({
+            'success': False,
+            'message': f'Error getting workflow details: {str(e)}'
+        }), 500
+
+@app.route('/client-feedback')
+def client_feedback_form():
+    """Serve the client feedback form HTML page"""
+    try:
+        return send_from_directory('cpq', 'client-feedback.html')
+    except Exception as e:
+        print(f"❌ Error serving client feedback form: {str(e)}")
+        return jsonify({
+            'success': False,
+            'message': 'Error serving client feedback form'
+        }), 500
+
+@app.route('/api/client/feedback-workflows', methods=['GET'])
+def get_client_feedback_workflows():
+    """Get workflows awaiting client feedback"""
+    try:
+        # Get client feedback workflows
+        feedback_workflows = approval_workflows.get_client_feedback_workflows()
+        
+        # Format workflows for response
+        formatted_workflows = []
+        for workflow in feedback_workflows:
+            # Get document details
+            document_type = workflow.get('document_type')
+            document_id = workflow.get('document_id')
+            
+            document = None
+            if document_type == 'PDF':
+                document = generated_pdfs.get_pdf_by_id(document_id)
+            elif document_type == 'Agreement':
+                document = generated_agreements.get_agreement_by_id(document_id)
+            
+            formatted_workflow = {
+                'workflow_id': str(workflow['_id']),
+                'document_id': workflow.get('document_id'),
+                'document_type': workflow.get('document_type'),
+                'client_name': workflow.get('client_name'),
+                'client_email': workflow.get('client_email'),
+                'company_name': workflow.get('company_name'),
+                'service_type': workflow.get('service_type', 'N/A'),
+                'created_at': workflow.get('created_at'),
+                'manager_approval_date': workflow.get('manager_approval_date'),
+                'ceo_approval_date': workflow.get('ceo_approval_date'),
+                'document_name': document.get('filename') if document else 'N/A'
+            }
+            formatted_workflows.append(formatted_workflow)
+        
+        return jsonify({
+            'success': True,
+            'workflows': formatted_workflows
+        }), 200
+        
+    except Exception as e:
+        print(f"❌ Error getting client feedback workflows: {str(e)}")
+        return jsonify({
+            'success': False,
+            'message': f'Error getting client feedback workflows: {str(e)}'
+        }), 500
 
 if __name__ == '__main__':
     # Get port from environment variable for deployment (Render, Heroku, etc.)

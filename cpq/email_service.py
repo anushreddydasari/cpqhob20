@@ -410,10 +410,10 @@ class EmailService:
         # Get base URL for approval links
         base_url = os.getenv('APP_BASE_URL', 'http://localhost:5000')
         
-        # Create approval/rejection links
+        # Create approval dashboard links instead of direct API endpoints
         workflow_id = workflow_data.get('_id', '')
-        approve_link = f"{base_url}/api/approval/approve"
-        deny_link = f"{base_url}/api/approval/deny"
+        approve_link = f"{base_url}/approval-dashboard?role={recipient_role}&email={recipient_email}&workflow={workflow_id}"
+        deny_link = f"{base_url}/approval-dashboard?role={recipient_role}&email={recipient_email}&workflow={workflow_id}"
         
         # Style the email
         html = f"""
@@ -466,11 +466,7 @@ class EmailService:
                         <p>Please review the attached PDF and take action:</p>
                         
                         <a href="{approve_link}" class="btn btn-approve">
-                            ✅ APPROVE
-                        </a>
-                        
-                        <a href="{deny_link}" class="btn btn-deny">
-                            ❌ REJECT
+                            📊 OPEN APPROVAL DASHBOARD
                         </a>
                     </div>
                     
@@ -478,9 +474,9 @@ class EmailService:
                         <h4>💡 How to Approve/Reject:</h4>
                         <ol>
                             <li><strong>Review the PDF</strong> attached to this email</li>
-                            <li><strong>Click APPROVE</strong> if the document meets requirements</li>
-                            <li><strong>Click REJECT</strong> if changes are needed</li>
-                            <li><strong>Add comments</strong> explaining your decision</li>
+                            <li><strong>Click "OPEN APPROVAL DASHBOARD"</strong> to access the approval system</li>
+                            <li><strong>View the document</strong> in the dashboard</li>
+                            <li><strong>Click APPROVE or REJECT</strong> with your comments</li>
                         </ol>
                     </div>
                     
@@ -494,6 +490,229 @@ class EmailService:
                 <div class="footer">
                     <p>This is an automated notification from your CPQ Approval System</p>
                     <p>If you have questions, please contact your system administrator</p>
+                </div>
+            </div>
+        </body>
+        </html>
+        """
+        
+        return html
+
+    def send_client_delivery_email(self, client_email, client_name, company_name, workflow_data, pdf_path=None):
+        """
+        Send final approved document to client
+        
+        Args:
+            client_email (str): Client's email address
+            client_name (str): Client's name
+            company_name (str): Client's company name
+            workflow_data (dict): Workflow information
+            pdf_path (str): Path to final approved PDF document
+        
+        Returns:
+            dict: Success status and message
+        """
+        try:
+            print(f"🔍 Debug: Starting client delivery email to {client_email}")
+            print(f"🔍 Debug: PDF path provided: {pdf_path}")
+            
+            # Create message
+            msg = MIMEMultipart()
+            msg['From'] = self.sender_email
+            msg['To'] = client_email
+            msg['Subject'] = f"✅ APPROVED: {workflow_data.get('document_type', 'Document')} - {company_name}"
+            
+            # Create HTML email body for client
+            html_body = self._create_client_delivery_email_body(client_name, company_name, workflow_data)
+            msg.attach(MIMEText(html_body, 'html'))
+            
+            # Attach final approved PDF if provided
+            if pdf_path and os.path.exists(pdf_path):
+                print(f"✅ Debug: PDF file exists at {pdf_path}")
+                print(f"✅ Debug: PDF file size: {os.path.getsize(pdf_path)} bytes")
+                
+                with open(pdf_path, "rb") as f:
+                    pdf_content = f.read()
+                    pdf_attachment = MIMEApplication(pdf_content, _subtype="pdf")
+                    pdf_attachment.add_header('Content-Disposition', 'attachment', 
+                                           filename=f"approved_{workflow_data.get('document_type', 'document')}_{company_name}_{datetime.now().strftime('%Y%m%d')}.pdf")
+                    msg.attach(pdf_attachment)
+                    print(f"✅ Debug: PDF attachment added to client email")
+            else:
+                print(f"⚠️ Debug: No PDF attachment - path: {pdf_path}, exists: {os.path.exists(pdf_path) if pdf_path else False}")
+            
+            # Send email
+            server = smtplib.SMTP(self.smtp_server, self.smtp_port)
+            server.starttls()
+            server.login(self.sender_email, self.sender_password)
+            
+            text = msg.as_string()
+            server.sendmail(self.sender_email, client_email, text)
+            server.quit()
+            
+            print(f"✅ Debug: Client delivery email sent successfully to {client_email}")
+            
+            return {
+                "success": True,
+                "message": f"Final approved document sent successfully to client: {client_email}",
+                "timestamp": datetime.now().isoformat()
+            }
+            
+        except Exception as e:
+            print(f"❌ Debug: Client delivery email failed: {str(e)}")
+            import traceback
+            print(f"❌ Debug: Full traceback: {traceback.format_exc()}")
+            return {
+                "success": False,
+                "message": f"Failed to send client delivery email: {str(e)}",
+                "timestamp": datetime.now().isoformat()
+            }
+
+    def _create_client_delivery_email_body(self, client_name, company_name, workflow_data):
+        """Create HTML email body for client delivery emails"""
+        
+        # Try to import company configuration, fallback to defaults if not available
+        try:
+            import sys
+            import os
+            sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+            from company_config import get_company_config
+            company_config = get_company_config()
+            
+            company_name_full = company_config.get('company_name', 'Your Company Name')
+            company_website = company_config.get('company_website', 'https://yourcompany.com')
+            support_email = company_config.get('support_email', 'support@yourcompany.com')
+            support_phone = company_config.get('support_phone', '+1 (555) 123-4567')
+            support_hours = company_config.get('support_hours', 'Monday - Friday, 9:00 AM - 6:00 PM EST')
+            document_instructions = company_config.get('document_review_instructions', [
+                'Review the attached document carefully',
+                'Verify all information is correct',
+                'Sign the document if required',
+                'Save a copy for your records'
+            ])
+            important_notes = company_config.get('important_notes', [
+                'This document has been reviewed and approved by our management team',
+                'Please review all terms and conditions carefully',
+                'Contact us immediately if you notice any errors or have concerns',
+                'Keep this email and document for your records'
+            ])
+        except ImportError:
+            # Fallback to default values if company_config.py is not available
+            company_name_full = "Your Company Name"
+            company_website = "https://yourcompany.com"
+            support_email = "support@yourcompany.com"
+            support_phone = "+1 (555) 123-4567"
+            support_hours = "Monday - Friday, 9:00 AM - 6:00 PM EST"
+            document_instructions = [
+                'Review the attached document carefully',
+                'Verify all information is correct',
+                'Sign the document if required',
+                'Save a copy for your records'
+            ]
+            important_notes = [
+                'This document has been reviewed and approved by our management team',
+                'Please review all terms and conditions carefully',
+                'Contact us immediately if you notice any errors or have concerns',
+                'Keep this email and document for your records'
+            ]
+        
+        # Get base URL for client feedback form
+        base_url = os.getenv('APP_BASE_URL', 'http://localhost:5000')
+        workflow_id = workflow_data.get('_id', '')
+        client_email = workflow_data.get('client_email', '')
+        
+        # Create client feedback form link
+        feedback_form_link = f"{base_url}/client-feedback?workflow={workflow_id}&email={client_email}"
+        
+        # Style the email
+        html = f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Document Approved and Ready</title>
+            <style>
+                body {{ font-family: Arial, sans-serif; line-height: 1.6; color: #333; }}
+                .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
+                .header {{ background: linear-gradient(135deg, #28a745 0%, #20c997 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }}
+                .content {{ background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; }}
+                .document-info {{ background: white; padding: 20px; margin: 20px 0; border-radius: 8px; border-left: 4px solid #28a745; }}
+                .next-steps {{ background: #e8f5e8; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #28a745; }}
+                .feedback-section {{ background: #fff3cd; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #ffc107; }}
+                .contact-info {{ background: #f0f8ff; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #007bff; }}
+                .footer {{ text-align: center; margin-top: 30px; color: #666; font-size: 14px; }}
+                .company-logo {{ font-size: 24px; font-weight: bold; margin-bottom: 10px; }}
+                .btn {{ display: inline-block; padding: 15px 30px; background: #ffc107; color: #333; text-decoration: none; border-radius: 8px; font-weight: bold; margin: 10px 0; text-align: center; }}
+                .btn:hover {{ opacity: 0.9; transform: translateY(-2px); transition: all 0.3s ease; }}
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <div class="header">
+                    <div class="company-logo">🏢 {company_name_full}</div>
+                    <h1>✅ Document Approved and Ready</h1>
+                    <p>Your {workflow_data.get('document_type', 'Document')} has been approved and is ready for review</p>
+                </div>
+                
+                <div class="content">
+                    <div class="document-info">
+                        <h3>📋 Document Details</h3>
+                        <p><strong>Document Type:</strong> {workflow_data.get('document_type', 'N/A')}</p>
+                        <p><strong>Document ID:</strong> {workflow_data.get('document_id', 'N/A')}</p>
+                        <p><strong>Client:</strong> {client_name}</p>
+                        <p><strong>Company:</strong> {company_name}</p>
+                        <p><strong>Approval Date:</strong> {datetime.now().strftime('%B %d, %Y at %I:%M %p')}</p>
+                    </div>
+                    
+                    <div class="next-steps">
+                        <h3>📝 Next Steps</h3>
+                        <ol>
+                            {''.join([f'<li><strong>{instruction}</strong></li>' for instruction in document_instructions])}
+                        </ol>
+                    </div>
+                    
+                    <div class="feedback-section">
+                        <h3>💬 Provide Your Feedback</h3>
+                        <p>After reviewing the document, please let us know your decision:</p>
+                        <ul>
+                            <li><strong>✅ Accept</strong> - Document is approved and ready to proceed</li>
+                            <li><strong>❌ Reject</strong> - Document needs significant changes</li>
+                            <li><strong>🔄 Request Changes</strong> - Minor modifications needed</li>
+                        </ul>
+                        
+                        <div style="text-align: center; margin: 20px 0;">
+                            <a href="{feedback_form_link}" class="btn">
+                                📝 Submit Your Feedback
+                            </a>
+                        </div>
+                        
+                        <p><small>Click the button above to access our secure feedback form. You'll need to provide your email address for verification.</small></p>
+                    </div>
+                    
+                    <div class="contact-info">
+                        <h3>📞 Need Help or Have Questions?</h3>
+                        <p>We're here to help! If you have any questions about this document or need assistance:</p>
+                        <ul>
+                            <li><strong>📧 Email:</strong> <a href="mailto:{support_email}" style="color: #007bff;">{support_email}</a></li>
+                            <li><strong>📱 Phone:</strong> <a href="tel:{support_phone}" style="color: #007bff;">{support_phone}</a></li>
+                            <li><strong>🌐 Website:</strong> <a href="{company_website}" style="color: #007bff;">{company_website}</a></li>
+                            <li><strong>🕒 Hours:</strong> {support_hours}</li>
+                        </ul>
+                    </div>
+                    
+                    <div style="background: #d1ecf1; padding: 20px; border-radius: 8px; border-left: 4px solid #17a2b8;">
+                        <h4>💡 Important Notes:</h4>
+                        <ul>
+                            {''.join([f'<li>{note}</li>' for note in important_notes])}
+                        </ul>
+                    </div>
+                </div>
+                
+                <div class="footer">
+                    <p>Thank you for choosing {company_name_full}</p>
+                    <p>This is an automated notification from our document approval system</p>
+                    <p>&copy; {datetime.now().year} {company_name_full}. All rights reserved.</p>
                 </div>
             </div>
         </body>
