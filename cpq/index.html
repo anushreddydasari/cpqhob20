@@ -227,7 +227,30 @@
             }
 
             function goToHubSpotDeals() {
-                window.location.href = '/hubspot-deals';
+                // Check if we have deal parameters in the current URL
+                const urlParams = new URLSearchParams(window.location.search);
+                const dealId = urlParams.get('dealId');
+                const dealName = urlParams.get('dealName');
+                const amount = urlParams.get('amount');
+                const closeDate = urlParams.get('closeDate');
+                const stage = urlParams.get('stage');
+                const ownerId = urlParams.get('ownerId');
+                
+                // If we have deal parameters, pass them to the deals page
+                if (dealId && dealName) {
+                    const queryString = new URLSearchParams({
+                        dealId: dealId,
+                        dealName: dealName,
+                        ...(amount && { amount: amount }),
+                        ...(closeDate && { closeDate: closeDate }),
+                        ...(stage && { stage: stage }),
+                        ...(ownerId && { ownerId: ownerId })
+                    }).toString();
+                    
+                    window.location.href = `/hubspot-deals?${queryString}`;
+                } else {
+                    window.location.href = '/hubspot-deals';
+                }
             }
 
             function goToQuoteManagement() {
