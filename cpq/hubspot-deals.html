@@ -464,31 +464,92 @@
 
         // Fetch complete deal details from HubSpot API
         async function fetchCompleteDealDetails(dealId, existingDealData) {
+            console.log('Fetching complete deal details for ID:', dealId);
+            
             try {
                 const response = await fetch(`/api/hubspot/deal/${dealId}`);
+                console.log('API Response status:', response.status);
+                
                 if (response.ok) {
                     const completeDeal = await response.json();
+                    console.log('Complete deal data:', completeDeal);
+                    
                     if (completeDeal.success && completeDeal.deal) {
                         // Update the deal data with complete information
                         const updatedDealData = {
                             ...existingDealData,
-                            company: completeDeal.deal.company || existingDealData.company,
-                            closeDate: completeDeal.deal.closeDate || existingDealData.closeDate,
-                            stage: completeDeal.deal.stage || existingDealData.stage,
-                            ownerId: completeDeal.deal.ownerId || existingDealData.ownerId,
+                            company: completeDeal.deal.company || completeDeal.deal.dealname || existingDealData.company,
+                            closeDate: completeDeal.deal.closeDate || completeDeal.deal.closedate || existingDealData.closeDate,
+                            stage: completeDeal.deal.stage || completeDeal.deal.dealstage || existingDealData.stage,
+                            ownerId: completeDeal.deal.ownerId || completeDeal.deal.owner || existingDealData.ownerId,
                             amount: completeDeal.deal.amount || existingDealData.amount
                         };
+                        
+                        console.log('Updated deal data:', updatedDealData);
                         
                         // Update the display with complete information
                         displaySelectedDeal(updatedDealData);
                         
                         // Update localStorage
                         localStorage.setItem('hubspotDealForCPQ', JSON.stringify(updatedDealData));
+                    } else {
+                        console.log('API response not successful or no deal data');
+                        // Try alternative approach - fetch all deals and find the specific one
+                        await fetchAndFindSpecificDeal(dealId, existingDealData);
                     }
+                } else {
+                    console.log('API call failed with status:', response.status);
+                    // Try alternative approach - fetch all deals and find the specific one
+                    await fetchAndFindSpecificDeal(dealId, existingDealData);
                 }
             } catch (error) {
                 console.log('Could not fetch complete deal details:', error);
-                // Keep existing deal data if API call fails
+                // Try alternative approach
+                await fetchAndFindSpecificDeal(dealId, existingDealData);
+            }
+        }
+
+        // Alternative approach: fetch all deals and find the specific one
+        async function fetchAndFindSpecificDeal(dealId, existingDealData) {
+            try {
+                console.log('Trying alternative approach - fetching all deals...');
+                const response = await fetch('/api/hubspot/fetch-deals');
+                
+                if (response.ok) {
+                    const allDeals = await response.json();
+                    if (allDeals.success && allDeals.deals) {
+                        // Find the specific deal by ID
+                        const specificDeal = allDeals.deals.find(deal => 
+                            deal.id === dealId || deal.dealId === dealId || deal.hubspotId === dealId
+                        );
+                        
+                        if (specificDeal) {
+                            console.log('Found specific deal in all deals:', specificDeal);
+                            
+                            // Update the deal data with complete information
+                            const updatedDealData = {
+                                ...existingDealData,
+                                company: specificDeal.company || specificDeal.dealname || existingDealData.company,
+                                closeDate: specificDeal.closeDate || specificDeal.closedate || existingDealData.closeDate,
+                                stage: specificDeal.stage || specificDeal.dealstage || existingDealData.stage,
+                                ownerId: specificDeal.ownerId || specificDeal.owner || existingDealData.ownerId,
+                                amount: specificDeal.amount || existingDealData.amount
+                            };
+                            
+                            console.log('Updated deal data from all deals:', updatedDealData);
+                            
+                            // Update the display with complete information
+                            displaySelectedDeal(updatedDealData);
+                            
+                            // Update localStorage
+                            localStorage.setItem('hubspotDealForCPQ', JSON.stringify(updatedDealData));
+                        } else {
+                            console.log('Specific deal not found in all deals');
+                        }
+                    }
+                }
+            } catch (error) {
+                console.log('Alternative approach also failed:', error);
             }
         }
 
