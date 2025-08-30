@@ -118,6 +118,8 @@
             <button class="button" onclick="checkSystemStatus()">Check System Status</button>
             <button class="button secondary" onclick="checkFileStorage()">Check File Storage</button>
             <button class="button secondary" onclick="checkEnvironment()">Check Environment</button>
+            <button class="button secondary" onclick="checkAgreements()">Check Agreements</button>
+            <button class="button" onclick="checkEnvironmentDetection()" style="background: #28a745; color: white;">🌐 Check URL Detection</button>
             <div id="systemStatus" class="result-box" style="display: none;"></div>
         </div>
 
@@ -285,6 +287,106 @@ ${env.render_info ? `🚀 Render Deployment:
                 resultDiv.className = 'result-box error';
                 resultDiv.innerHTML = `❌ Error checking environment: ${error.message}`;
                 log(`Error checking environment: ${error.message}`, 'error');
+            }
+        }
+
+        // Check agreements specifically
+        async function checkAgreements() {
+            log('Checking agreements...');
+            const resultDiv = document.getElementById('systemStatus');
+            resultDiv.style.display = 'block';
+            resultDiv.className = 'result-box';
+            resultDiv.innerHTML = '🔍 Checking agreements...';
+
+            try {
+                const response = await fetch('/api/debug/agreements');
+                const result = await response.json();
+
+                if (result.success) {
+                    const debug = result.debug_info;
+                    resultDiv.className = 'result-box info';
+                    resultDiv.innerHTML = `📋 Agreement Debug Information
+
+🏠 Current Working Directory: ${debug.current_working_directory}
+📁 App Directory: ${debug.app_directory}
+📁 Documents Folder: ${debug.documents_folder_exists ? '✅ Exists' : '❌ Missing'}
+📁 Documents Folder Path: ${debug.documents_folder_path}
+
+📄 Database Agreements: ${debug.agreements_in_database ? debug.agreements_in_database.length : 0}
+📁 File System Files: ${debug.file_system_check.total_files || 0}
+📋 Agreement Files: ${debug.file_system_check.agreement_files_count || 0}
+
+${debug.file_system_check.agreement_files ? `📄 Agreement Files Found:
+${debug.file_system_check.agreement_files.slice(0, 10).map(f => `• ${f}`).join('\n')}
+${debug.file_system_check.agreement_files.length > 10 ? `... and ${debug.file_system_check.agreement_files.length - 10} more` : ''}` : '❌ No agreement files found'}
+
+${debug.agreements_in_database ? `📊 Sample Database Agreements:
+${debug.agreements_in_database.slice(0, 3).map(a => `• ${a.get('filename', 'Unknown')} (ID: ${a.get('_id', 'Unknown')}) - ${a.get('client_name', 'Unknown')}`).join('\n')}` : '❌ No agreements in database'}`;
+                    
+                    log('Agreement check completed', 'info');
+                } else {
+                    resultDiv.className = 'result-box error';
+                    resultDiv.innerHTML = `❌ Agreement Check Failed: ${result.message}`;
+                    log(`Agreement check failed: ${result.message}`, 'error');
+                }
+            } catch (error) {
+                resultDiv.className = 'result-box error';
+                resultDiv.innerHTML = `❌ Error checking agreements: ${error.message}`;
+                log(`Error checking agreements: ${error.message}`, 'error');
+            }
+        }
+
+        // Check environment detection and URL resolution
+        async function checkEnvironmentDetection() {
+            log('Checking environment detection and URL resolution...');
+            const resultDiv = document.getElementById('systemStatus');
+            resultDiv.style.display = 'block';
+            resultDiv.className = 'result-box';
+            resultDiv.innerHTML = '🔍 Checking environment detection...';
+
+            try {
+                const response = await fetch('/api/system/info');
+                const result = await response.json();
+
+                if (result.success) {
+                    const env = result.data;
+                    resultDiv.className = 'result-box success';
+                    resultDiv.innerHTML = `✅ Environment Detection Successful
+
+🌍 Environment: ${env.environment}
+🔗 Base URL: ${env.base_url}
+🔧 Detection Method: ${env.detection_method}
+
+🚀 Render Information:
+   Is Render: ${env.render_info.is_render ? '✅ Yes' : '❌ No'}
+   Service Name: ${env.render_info.service_name || 'N/A'}
+   External URL: ${env.render_info.external_url || 'N/A'}
+   Render ID: ${env.render_info.render_id || 'N/A'}
+
+💡 What This Means:
+${env.environment === 'production' ? 
+  '✅ Your app is running in production mode' : 
+  '💻 Your app is running in development mode'}
+
+${env.base_url.includes('localhost') ? 
+  '⚠️ Using localhost - this may cause issues for external users' : 
+  '✅ Using production URL - external users can access your app'}
+
+📧 Email Impact:
+${env.base_url.includes('localhost') ? 
+  '❌ Approval emails will contain localhost links (managers/CEOs cannot access)' : 
+  '✅ Approval emails will contain production links (managers/CEOs can access)'}`;
+                    
+                    log('Environment detection check completed successfully', 'success');
+                } else {
+                    resultDiv.className = 'result-box error';
+                    resultDiv.innerHTML = `❌ Environment Detection Check Failed: ${result.message}`;
+                    log(`Environment detection check failed: ${result.message}`, 'error');
+                }
+            } catch (error) {
+                resultDiv.className = 'result-box error';
+                resultDiv.innerHTML = `❌ Error checking environment detection: ${error.message}`;
+                log(`Error checking environment detection: ${error.message}`, 'error');
             }
         }
 

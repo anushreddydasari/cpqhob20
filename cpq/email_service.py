@@ -407,8 +407,20 @@ class EmailService:
     def _create_approval_email_body(self, recipient_role, workflow_data, recipient_email):
         """Create HTML email body for approval workflow emails"""
         
-        # Get base URL for approval links
-        base_url = os.getenv('APP_BASE_URL', 'http://localhost:5000')
+        # Import URL helper for smart base URL detection
+        try:
+            import sys
+            import os
+            sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+            from utils.url_helper import get_base_url
+            
+            # Get smart base URL for approval links
+            base_url = get_base_url()
+            print(f"📧 Email Service: Using detected base URL: {base_url}")
+        except ImportError:
+            # Fallback to environment variable or localhost
+            base_url = os.getenv('APP_BASE_URL', 'http://localhost:5000')
+            print(f"⚠️ Email Service: Using fallback base URL: {base_url}")
         
         # Create approval dashboard links instead of direct API endpoints
         workflow_id = workflow_data.get('_id', '')

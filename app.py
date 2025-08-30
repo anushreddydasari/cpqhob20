@@ -302,6 +302,49 @@ def serve_hubspot_deals():
 def serve_debug_pdf():
     return send_from_directory('.', 'debug_pdf_viewing.html')
 
+@app.route('/api/system/info')
+def get_system_info():
+    """API endpoint to check current environment and URLs"""
+    try:
+        from utils.url_helper import get_environment_info, log_environment_detection
+        
+        # Log environment detection for debugging
+        log_environment_detection()
+        
+        # Get environment information
+        env_info = get_environment_info()
+        
+        return jsonify({
+            'success': True,
+            'message': 'System information retrieved successfully',
+            'data': env_info,
+            'timestamp': datetime.now().isoformat()
+        })
+        
+    except ImportError as e:
+        return jsonify({
+            'success': False,
+            'message': 'URL helper module not available',
+            'error': str(e),
+            'fallback_info': {
+                'environment': 'unknown',
+                'base_url': 'http://localhost:5000',
+                'render_info': {
+                    'is_render': bool(os.getenv('RENDER')),
+                    'service_name': os.getenv('RENDER_SERVICE_NAME'),
+                    'external_url': os.getenv('RENDER_EXTERNAL_URL')
+                }
+            },
+            'timestamp': datetime.now().isoformat()
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': 'Error retrieving system information',
+            'error': str(e),
+            'timestamp': datetime.now().isoformat()
+        })
+
 
 
 # Serve uploaded files (e.g., images) for use in templates
@@ -2535,68 +2578,165 @@ def preview_document(document_id):
         if agreement:
             print(f"✅ Found Agreement: {agreement.get('filename', 'Unknown')}")
             file_path = agreement.get('file_path')
-            if file_path and os.path.exists(file_path):
-                print(f"✅ Agreement file exists at: {file_path}")
-                
-                # Check file extension to determine how to serve it
-                file_extension = os.path.splitext(file_path)[1].lower()
-                
-                if file_extension == '.pdf':
-                    # If it's actually a PDF, serve as PDF
-                    return send_file(file_path, mimetype='application/pdf')
-                elif file_extension == '.txt':
-                    # If it's a text file, read and format it for browser display
-                    try:
-                        with open(file_path, 'r', encoding='utf-8') as f:
-                            content = f.read()
-                        
-                        # Create a formatted HTML page for text content
-                        html_content = f"""
-                        <!DOCTYPE html>
-                        <html>
-                        <head>
-                            <meta charset="UTF-8">
-                            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                            <title>Agreement Preview - {agreement.get('filename', 'Document')}</title>
-                            <style>
-                                body {{ font-family: Arial, sans-serif; margin: 40px; line-height: 1.6; }}
-                                .header {{ border-bottom: 2px solid #667eea; padding-bottom: 20px; margin-bottom: 30px; }}
-                                .content {{ white-space: pre-wrap; font-size: 14px; }}
-                                .footer {{ margin-top: 40px; padding-top: 20px; border-top: 1px solid #ddd; color: #666; }}
-                                .document-info {{ background: #f8f9fa; padding: 15px; border-radius: 5px; margin-bottom: 20px; }}
-                                .document-info strong {{ color: #667eea; }}
-                            </style>
-                        </head>
-                        <body>
-                            <div class="header">
-                                <h1>📋 Agreement Preview</h1>
-                                <div class="document-info">
-                                    <strong>Filename:</strong> {agreement.get('filename', 'N/A')}<br>
-                                    <strong>Client:</strong> {agreement.get('client_name', 'N/A')}<br>
-                                    <strong>Company:</strong> {agreement.get('company_name', 'N/A')}<br>
-                                    <strong>Service Type:</strong> {agreement.get('service_type', 'N/A')}<br>
-                                    <strong>Generated:</strong> {agreement.get('generated_at', 'N/A')}
+            
+            # PRODUCTION FIX: Handle different file path scenarios for agreements
+            if file_path:
+                # Try the original path first
+                if os.path.exists(file_path):
+                    print(f"✅ Agreement file exists at original path: {file_path}")
+                    
+                    # Check file extension to determine how to serve it
+                    file_extension = os.path.splitext(file_path)[1].lower()
+                    
+                    if file_extension == '.pdf':
+                        # If it's actually a PDF, serve as PDF
+                        return send_file(file_path, mimetype='application/pdf')
+                    elif file_extension == '.txt':
+                        # If it's a text file, read and format it for browser display
+                        try:
+                            with open(file_path, 'r', encoding='utf-8') as f:
+                                content = f.read()
+                            
+                            # Create a formatted HTML page for text content
+                            html_content = f"""
+                            <!DOCTYPE html>
+                            <html>
+                            <head>
+                                <meta charset="UTF-8">
+                                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                                <title>Agreement Preview - {agreement.get('filename', 'Document')}</title>
+                                <style>
+                                    body {{ font-family: Arial, sans-serif; margin: 40px; line-height: 1.6; }}
+                                    .header {{ border-bottom: 2px solid #667eea; padding-bottom: 20px; margin-bottom: 30px; }}
+                                    .content {{ white-space: pre-wrap; font-size: 14px; }}
+                                    .footer {{ margin-top: 40px; padding-top: 20px; border-top: 1px solid #ddd; color: #666; }}
+                                    .document-info {{ background: #f8f9fa; padding: 15px; border-radius: 5px; margin-bottom: 20px; }}
+                                    .document-info strong {{ color: #667eea; }}
+                                </style>
+                            </head>
+                            <body>
+                                <div class="header">
+                                    <h1>📋 Agreement Preview</h1>
+                                    <div class="document-info">
+                                        <strong>Filename:</strong> {agreement.get('filename', 'N/A')}<br>
+                                        <strong>Client:</strong> {agreement.get('client_name', 'N/A')}<br>
+                                        <strong>Company:</strong> {agreement.get('company_name', 'N/A')}<br>
+                                        <strong>Service Type:</strong> {agreement.get('service_type', 'N/A')}<br>
+                                        <strong>Generated:</strong> {agreement.get('generated_at', 'N/A')}
+                                    </div>
                                 </div>
-                            </div>
-                            <div class="content">{content}</div>
-                            <div class="footer">
-                                <p>This is a text-based agreement document. For PDF version, please contact the system administrator.</p>
-                            </div>
-                        </body>
-                        </html>
-                        """
+                                <div class="content">{content}</div>
+                                <div class="footer">
+                                    <p>This is a text-based agreement document. For PDF version, please contact the system administrator.</p>
+                                </div>
+                            </body>
+                            </html>
+                            """
+                            
+                            return html_content, 200, {'Content-Type': 'text/html; charset=utf-8'}
+                            
+                        except Exception as read_error:
+                            print(f"❌ Error reading agreement file: {read_error}")
+                            return jsonify({'success': False, 'message': f'Error reading agreement file: {str(read_error)}'}), 500
+                    else:
+                        # For other file types, try to serve as-is
+                        return send_file(file_path)
+                
+                # PRODUCTION: Try alternative paths for Render deployment
+                alternative_paths = [
+                    # Try relative to current working directory
+                    os.path.join(os.getcwd(), file_path),
+                    # Try relative to app directory
+                    os.path.join(os.path.dirname(__file__), file_path),
+                    # Try documents folder in current directory
+                    os.path.join(os.getcwd(), 'documents', os.path.basename(file_path)),
+                    # Try documents folder in app directory
+                    os.path.join(os.path.dirname(__file__), 'documents', os.path.basename(file_path)),
+                    # Try just the filename in documents folder
+                    os.path.join('documents', os.path.basename(file_path))
+                ]
+                
+                for alt_path in alternative_paths:
+                    print(f"🔍 Trying alternative path for agreement: {alt_path}")
+                    if os.path.exists(alt_path):
+                        print(f"✅ Agreement file found at alternative path: {alt_path}")
                         
-                        return html_content, 200, {'Content-Type': 'text/html; charset=utf-8'}
+                        # Check file extension to determine how to serve it
+                        file_extension = os.path.splitext(alt_path)[1].lower()
                         
-                    except Exception as read_error:
-                        print(f"❌ Error reading agreement file: {read_error}")
-                        return jsonify({'success': False, 'message': f'Error reading agreement file: {str(read_error)}'}), 500
-                else:
-                    # For other file types, try to serve as-is
-                    return send_file(file_path)
+                        if file_extension == '.pdf':
+                            # If it's actually a PDF, serve as PDF
+                            return send_file(alt_path, mimetype='application/pdf')
+                        elif file_extension == '.txt':
+                            # If it's a text file, read and format it for browser display
+                            try:
+                                with open(alt_path, 'r', encoding='utf-8') as f:
+                                    content = f.read()
+                                
+                                # Create a formatted HTML page for text content
+                                html_content = f"""
+                                <!DOCTYPE html>
+                                <html>
+                                <head>
+                                    <meta charset="UTF-8">
+                                    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                                    <title>Agreement Preview - {agreement.get('filename', 'Document')}</title>
+                                    <style>
+                                        body {{ font-family: Arial, sans-serif; margin: 40px; line-height: 1.6; }}
+                                        .header {{ border-bottom: 2px solid #667eea; padding-bottom: 20px; margin-bottom: 30px; }}
+                                        .content {{ white-space: pre-wrap; font-size: 14px; }}
+                                        .footer {{ margin-top: 40px; padding-top: 20px; border-top: 1px solid #ddd; color: #666; }}
+                                        .document-info {{ background: #f8f9fa; padding: 15px; border-radius: 5px; margin-bottom: 20px; }}
+                                        .document-info strong {{ color: #667eea; }}
+                                    </style>
+                                </head>
+                                <body>
+                                    <div class="header">
+                                        <h1>📋 Agreement Preview</h1>
+                                        <div class="document-info">
+                                            <strong>Filename:</strong> {agreement.get('filename', 'N/A')}<br>
+                                            <strong>Client:</strong> {agreement.get('client_name', 'N/A')}<br>
+                                            <strong>Company:</strong> {agreement.get('company_name', 'N/A')}<br>
+                                            <strong>Service Type:</strong> {agreement.get('service_type', 'N/A')}<br>
+                                            <strong>Generated:</strong> {agreement.get('generated_at', 'N/A')}
+                                        </div>
+                                    </div>
+                                    <div class="content">{content}</div>
+                                    <div class="footer">
+                                        <p>This is a text-based agreement document. For PDF version, please contact the system administrator.</p>
+                                    </div>
+                                </body>
+                                </html>
+                                """
+                                
+                                return html_content, 200, {'Content-Type': 'text/html; charset=utf-8'}
+                                
+                            except Exception as read_error:
+                                print(f"❌ Error reading agreement file from alternative path: {read_error}")
+                                return jsonify({'success': False, 'message': f'Error reading agreement file from alternative path: {str(read_error)}'}), 500
+                        else:
+                            # For other file types, try to serve as-is
+                            return send_file(alt_path)
+                
+                # If no file found, provide detailed error information
+                print(f"⚠️ No agreement file found, providing error details...")
+                return jsonify({
+                    'success': False, 
+                    'message': f'Agreement file not found at path: {file_path}. Tried multiple alternative paths.',
+                    'debug_info': {
+                        'original_path': file_path,
+                        'alternative_paths_tried': alternative_paths,
+                        'current_working_dir': os.getcwd(),
+                        'app_dir': os.path.dirname(__file__),
+                        'agreement_id': document_id,
+                        'filename': agreement.get('filename', 'Unknown'),
+                        'client_name': agreement.get('client_name', 'Unknown'),
+                        'company_name': agreement.get('company_name', 'Unknown')
+                    }
+                }), 404
             else:
-                print(f"❌ Agreement file not found at: {file_path}")
-                return jsonify({'success': False, 'message': f'Agreement file not found at path: {file_path}'}), 404
+                print(f"❌ No file path stored for agreement")
+                return jsonify({'success': False, 'message': 'No file path stored for this agreement'}), 404
         
         # If we get here, document wasn't found in either collection
         print(f"❌ Document not found in any collection: {document_id}")
@@ -2671,6 +2811,50 @@ def debug_file_storage():
         return jsonify({
             'success': False,
             'message': f'Error getting debug info: {str(e)}'
+        }), 500
+
+@app.route('/api/debug/agreements', methods=['GET'])
+def debug_agreements():
+    """Debug endpoint to check agreement storage and files"""
+    try:
+        debug_info = {
+            'agreements_in_database': [],
+            'file_system_check': {},
+            'current_working_directory': os.getcwd(),
+            'app_directory': os.path.dirname(__file__),
+            'documents_folder_exists': os.path.exists('documents'),
+            'documents_folder_path': os.path.abspath('documents') if os.path.exists('documents') else 'N/A'
+        }
+        
+        # Get all agreements from database
+        try:
+            all_agreements = generated_agreements.get_all_agreements(limit=50)
+            debug_info['agreements_in_database'] = all_agreements
+        except Exception as db_error:
+            debug_info['database_error'] = str(db_error)
+        
+        # Check file system for agreement files
+        if os.path.exists('documents'):
+            try:
+                doc_files = os.listdir('documents')
+                agreement_files = [f for f in doc_files if f.endswith(('.txt', '.pdf'))]
+                debug_info['file_system_check'] = {
+                    'total_files': len(doc_files),
+                    'agreement_files': agreement_files,
+                    'agreement_files_count': len(agreement_files)
+                }
+            except Exception as fs_error:
+                debug_info['file_system_error'] = str(fs_error)
+        
+        return jsonify({
+            'success': True,
+            'debug_info': debug_info
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': f'Error getting agreement debug info: {str(e)}'
         }), 500
 
 @app.route('/api/email/send-with-attachments', methods=['POST'])
@@ -3872,6 +4056,15 @@ def get_client_feedback_workflows():
         }), 500
 
 if __name__ == '__main__':
+    # Log environment detection on startup
+    try:
+        from utils.url_helper import log_environment_detection
+        print("🚀 Starting CPQ Application...")
+        log_environment_detection()
+    except ImportError:
+        print("⚠️ URL helper not available, using default configuration")
+        print("💻 Default base URL: http://localhost:5000")
+    
     # Get port from environment variable for deployment (Render, Heroku, etc.)
     port = int(os.environ.get('PORT', 5000))
     debug = os.environ.get('FLASK_ENV') == 'development'
