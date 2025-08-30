@@ -456,6 +456,39 @@
                 
                 // Store in localStorage for CPQ setup
                 localStorage.setItem('hubspotDealForCPQ', JSON.stringify(dealData));
+                
+                // Try to fetch complete deal details from HubSpot API
+                fetchCompleteDealDetails(dealId, dealData);
+            }
+        }
+
+        // Fetch complete deal details from HubSpot API
+        async function fetchCompleteDealDetails(dealId, existingDealData) {
+            try {
+                const response = await fetch(`/api/hubspot/deal/${dealId}`);
+                if (response.ok) {
+                    const completeDeal = await response.json();
+                    if (completeDeal.success && completeDeal.deal) {
+                        // Update the deal data with complete information
+                        const updatedDealData = {
+                            ...existingDealData,
+                            company: completeDeal.deal.company || existingDealData.company,
+                            closeDate: completeDeal.deal.closeDate || existingDealData.closeDate,
+                            stage: completeDeal.deal.stage || existingDealData.stage,
+                            ownerId: completeDeal.deal.ownerId || existingDealData.ownerId,
+                            amount: completeDeal.deal.amount || existingDealData.amount
+                        };
+                        
+                        // Update the display with complete information
+                        displaySelectedDeal(updatedDealData);
+                        
+                        // Update localStorage
+                        localStorage.setItem('hubspotDealForCPQ', JSON.stringify(updatedDealData));
+                    }
+                }
+            } catch (error) {
+                console.log('Could not fetch complete deal details:', error);
+                // Keep existing deal data if API call fails
             }
         }
 
@@ -465,7 +498,22 @@
             const selectedDealData = document.getElementById('selectedDealData');
             
             const company = dealData.company || 'N/A';
-            const amount = dealData.amount ? `$${parseFloat(dealData.amount).toLocaleString()}` : 'N/A';
+            
+            // Fix amount parsing - handle URL encoded amounts and remove $ symbol
+            let amount = 'N/A';
+            if (dealData.amount) {
+                try {
+                    // Decode URL encoding and remove $ symbol if present
+                    const cleanAmount = decodeURIComponent(dealData.amount).replace(/^\$/, '');
+                    const parsedAmount = parseFloat(cleanAmount);
+                    if (!isNaN(parsedAmount)) {
+                        amount = `$${parsedAmount.toLocaleString()}`;
+                    }
+                } catch (error) {
+                    console.log('Amount parsing error:', error);
+                }
+            }
+            
             const closeDate = dealData.closeDate ? new Date(dealData.closeDate).toLocaleDateString() : 'N/A';
             const stage = dealData.stage || 'N/A';
             const owner = dealData.ownerId || 'N/A';
