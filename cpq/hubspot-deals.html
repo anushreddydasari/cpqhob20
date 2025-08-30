@@ -287,11 +287,25 @@
         <!-- SELECTED DEAL SECTION (from HubSpot) -->
         <div class="deal-data" id="selectedDealSection" style="display: none;">
             <div class="section-header">
-                <h2>🎯 Selected Deal from HubSpot</h2>
-                <p>This is the deal you selected in HubSpot</p>
+                <h2>🎯 Current Selected Deal from HubSpot</h2>
+                <p>This is the deal you just selected in HubSpot</p>
             </div>
             <div id="selectedDealData">
-                <!-- Selected deal will be displayed here -->
+                <!-- Current selected deal will be displayed here -->
+            </div>
+        </div>
+
+        <!-- DEAL HISTORY SECTION -->
+        <div class="deal-data" id="dealHistorySection" style="display: none;">
+            <div class="section-header">
+                <h2>📚 Deal History</h2>
+                <p>All deals you've selected from HubSpot (click to view details)</p>
+                <button class="btn btn-secondary" onclick="clearAllDealHistory()" style="margin-top: 10px;">
+                    🗑️ Clear All History
+                </button>
+            </div>
+            <div id="dealHistoryData">
+                <!-- Deal history will be displayed here -->
             </div>
         </div>
 
@@ -419,20 +433,55 @@
             const selectedDealSection = document.getElementById('selectedDealSection');
             selectedDealSection.style.display = 'none';
             
-            // Clear stored deal data
+            // Clear current selected deal data
             localStorage.removeItem('hubspotSelectedDeal');
             localStorage.removeItem('hubspotDealForCPQ');
             
-            console.log('Selected deal cleared');
+            console.log('Current selected deal cleared');
+        }
+
+        function clearAllDealHistory() {
+            if (confirm('Are you sure you want to clear all deal history? This cannot be undone.')) {
+                // Clear all deal history
+                localStorage.removeItem('hubspotDealHistory');
+                
+                // Hide the deal history section
+                const dealHistorySection = document.getElementById('dealHistorySection');
+                dealHistorySection.style.display = 'none';
+                
+                console.log('All deal history cleared');
+                alert('All deal history has been cleared');
+            }
+        }
+
+        function removeDealFromHistory(dealId) {
+            if (confirm('Remove this deal from history?')) {
+                const dealHistory = getDealHistory();
+                const updatedHistory = dealHistory.filter(deal => deal.dealId !== dealId);
+                
+                if (updatedHistory.length === 0) {
+                    // No more deals in history, hide the section
+                    const dealHistorySection = document.getElementById('dealHistorySection');
+                    dealHistorySection.style.display = 'none';
+                } else {
+                    // Update localStorage and refresh display
+                    localStorage.setItem('hubspotDealHistory', JSON.stringify(updatedHistory));
+                    displayDealHistory(updatedHistory);
+                }
+                
+                console.log(`Deal ${dealId} removed from history`);
+            }
         }
 
         function checkStoredDeal() {
             console.log('=== CHECKING STORED DEAL DATA ===');
             const storedDeal = localStorage.getItem('hubspotSelectedDeal');
             const storedCPQ = localStorage.getItem('hubspotDealForCPQ');
+            const dealHistory = getDealHistory();
             
             console.log('hubspotSelectedDeal:', storedDeal);
             console.log('hubspotDealForCPQ:', storedCPQ);
+            console.log('Deal History:', dealHistory);
             
             if (storedDeal) {
                 try {
@@ -452,6 +501,116 @@
                 console.log('No stored deal data found');
                 alert('No stored deal data found in localStorage');
             }
+
+            // Display deal history if available
+            if (dealHistory.length > 0) {
+                displayDealHistory(dealHistory);
+            }
+        }
+
+        // Get deal history from localStorage
+        function getDealHistory() {
+            const history = localStorage.getItem('hubspotDealHistory');
+            if (history) {
+                try {
+                    return JSON.parse(history);
+                } catch (error) {
+                    console.log('Error parsing deal history:', error);
+                    localStorage.removeItem('hubspotDealHistory');
+                    return [];
+                }
+            }
+            return [];
+        }
+
+        // Add deal to history
+        function addDealToHistory(dealData) {
+            const history = getDealHistory();
+            
+            // Add timestamp for when deal was added
+            const dealWithTimestamp = {
+                ...dealData,
+                addedAt: new Date().toISOString(),
+                addedAtFormatted: new Date().toLocaleString()
+            };
+            
+            // Check if deal already exists in history (by dealId)
+            const existingIndex = history.findIndex(deal => deal.dealId === dealData.dealId);
+            
+            if (existingIndex !== -1) {
+                // Update existing deal
+                history[existingIndex] = dealWithTimestamp;
+                console.log(`Updated existing deal ${dealData.dealId} in history`);
+            } else {
+                // Add new deal to history
+                history.unshift(dealWithTimestamp); // Add to beginning
+                console.log(`Added new deal ${dealData.dealId} to history`);
+            }
+            
+            // Store updated history
+            localStorage.setItem('hubspotDealHistory', JSON.stringify(history));
+            
+            // Display the updated history
+            displayDealHistory(history);
+        }
+
+        // Display deal history
+        function displayDealHistory(dealHistory) {
+            const dealHistorySection = document.getElementById('dealHistorySection');
+            const dealHistoryData = document.getElementById('dealHistoryData');
+            
+            if (dealHistory.length === 0) {
+                dealHistorySection.style.display = 'none';
+                return;
+            }
+            
+            const historyHTML = dealHistory.map(deal => {
+                const company = deal.company || 'N/A';
+                let amount = 'N/A';
+                if (deal.amount) {
+                    try {
+                        const cleanAmount = decodeURIComponent(deal.amount).replace(/^\$/, '');
+                        const parsedAmount = parseFloat(cleanAmount);
+                        if (!isNaN(parsedAmount)) {
+                            amount = `$${parsedAmount.toLocaleString()}`;
+                        }
+                    } catch (error) {
+                        console.log('Amount parsing error:', error);
+                    }
+                }
+                
+                const closeDate = deal.closeDate ? new Date(deal.closeDate).toLocaleDateString() : 'N/A';
+                const stage = deal.stage || 'N/A';
+                const owner = deal.ownerId || 'N/A';
+                
+                return `
+                    <div class="deal-card" style="max-width: 600px; margin: 0 auto 20px;">
+                        <div class="deal-header">
+                            <h3 class="deal-name">${deal.dealName}</h3>
+                            <span class="deal-amount">${amount}</span>
+                        </div>
+                        <div class="deal-info">
+                            <p><strong>Company:</strong> ${company}</p>
+                            <p><strong>Close Date:</strong> ${closeDate}</p>
+                            <p><strong>Stage:</strong> ${stage}</p>
+                            <p><strong>Owner ID:</strong> ${owner}</p>
+                            <p><strong>Added:</strong> ${deal.addedAtFormatted}</p>
+                            <p><strong>Source:</strong> HubSpot History</p>
+                        </div>
+                        <div class="deal-actions" style="display: flex; gap: 10px; justify-content: center;">
+                            <button class="btn-generate" onclick="generateCPQFromHistoryDeal('${deal.dealId}', '${deal.dealName}', '${company}', '${deal.amount || 0}')">
+                                🚀 Generate CPQ
+                            </button>
+                            <button class="btn btn-danger" onclick="removeDealFromHistory('${deal.dealId}')" style="padding: 8px 16px; font-size: 0.8rem;">
+                                🗑️ Remove
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+            
+            dealHistoryData.innerHTML = historyHTML;
+            dealHistorySection.style.display = 'block';
         }
 
         function generateCPQFromDeal(dealId, dealName, company, amount) {
@@ -507,7 +666,10 @@
                 localStorage.setItem('hubspotDealForCPQ', JSON.stringify(dealData));
                 localStorage.setItem('hubspotSelectedDeal', JSON.stringify(dealData));
                 
-                console.log('Stored deal data in localStorage');
+                // Add to deal history
+                addDealToHistory(dealData);
+                
+                console.log('Stored deal data in localStorage and added to history');
                 
                 // Try to fetch complete deal details from HubSpot API
                 fetchCompleteDealDetails(dealId, dealData);
@@ -570,6 +732,9 @@
                         
                         // Update localStorage
                         localStorage.setItem('hubspotDealForCPQ', JSON.stringify(updatedDealData));
+                        
+                        // Update the deal in history with complete information
+                        addDealToHistory(updatedDealData);
                     } else {
                         console.log('API response not successful or no deal data');
                         // Try alternative approach - fetch all deals and find the specific one
@@ -621,6 +786,9 @@
                             
                             // Update localStorage
                             localStorage.setItem('hubspotDealForCPQ', JSON.stringify(updatedDealData));
+                            
+                            // Update the deal in history with complete information
+                            addDealToHistory(updatedDealData);
                         } else {
                             console.log('Specific deal not found in all deals');
                         }
@@ -690,6 +858,20 @@
                 company: company,
                 amount: amount,
                 source: 'hubspot-selected-deal'
+            };
+            
+            localStorage.setItem('hubspotDealForCPQ', JSON.stringify(dealData));
+            window.location.href = '/hubspot-cpq-setup';
+        }
+
+        // Generate CPQ from history deal
+        function generateCPQFromHistoryDeal(dealId, dealName, company, amount) {
+            const dealData = {
+                dealId: dealId,
+                dealName: dealName,
+                company: company,
+                amount: amount,
+                source: 'hubspot-history-deal'
             };
             
             localStorage.setItem('hubspotDealForCPQ', JSON.stringify(dealData));
