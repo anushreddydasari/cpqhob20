@@ -1,0 +1,516 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HubSpot Deals - CPQ System</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            color: white;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .header p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+
+        .controls {
+            background: white;
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            margin-bottom: 30px;
+            text-align: center;
+        }
+
+        .btn {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            margin: 0 10px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0,0,0,0.3);
+        }
+
+        .btn:active {
+            transform: translateY(0);
+        }
+
+        .btn-secondary {
+            background: linear-gradient(45deg, #6c757d, #495057);
+        }
+
+        .btn-danger {
+            background: linear-gradient(45deg, #dc3545, #c82333);
+        }
+
+        .deal-data {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            min-height: 400px;
+            margin-bottom: 30px;
+        }
+
+        .section-header {
+            text-align: center;
+            margin-bottom: 25px;
+        }
+
+        .section-header h2 {
+            font-size: 1.8rem;
+            color: #2c3e50;
+            margin-bottom: 8px;
+        }
+
+        .section-header p {
+            color: #6c757d;
+            font-size: 1rem;
+        }
+
+        .deal-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .deal-card {
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            border: 1px solid #dee2e6;
+            border-radius: 12px;
+            padding: 20px;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .deal-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(45deg, #667eea, #764ba2);
+        }
+
+        .deal-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 35px rgba(0,0,0,0.1);
+        }
+
+        .deal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .deal-name {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: #2c3e50;
+            margin: 0;
+        }
+
+        .deal-amount {
+            background: linear-gradient(45deg, #28a745, #20c997);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+
+        .deal-info {
+            margin-bottom: 15px;
+        }
+
+        .deal-info p {
+            margin: 8px 0;
+            color: #6c757d;
+            font-size: 0.9rem;
+        }
+
+        .deal-info strong {
+            color: #495057;
+        }
+
+        .deal-actions {
+            text-align: center;
+        }
+
+        .btn-generate {
+            background: linear-gradient(45deg, #007bff, #0056b3);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            width: 100%;
+        }
+
+        .btn-generate:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(0,123,255,0.3);
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #6c757d;
+            font-size: 1.1rem;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .no-deals {
+            text-align: center;
+            padding: 60px 20px;
+            color: #6c757d;
+        }
+
+        .no-deals h3 {
+            margin-bottom: 15px;
+            color: #495057;
+        }
+
+        .back-link {
+            text-align: center;
+            margin-top: 20px;
+        }
+
+        .back-link a {
+            color: white;
+            text-decoration: none;
+            font-weight: 600;
+            padding: 10px 20px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 20px;
+            transition: all 0.3s ease;
+        }
+
+        .back-link a:hover {
+            background: rgba(255,255,255,0.3);
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 15px;
+            }
+            
+            .header h1 {
+                font-size: 2rem;
+            }
+            
+            .deal-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .btn {
+                margin: 5px;
+                padding: 10px 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>HubSpot Deals</h1>
+            <p>Manage and generate CPQ from your HubSpot deal data</p>
+        </div>
+
+        <div class="controls">
+            <button class="btn" onclick="fetchHubSpotDeals()">Fetch Deal Data</button>
+            <button class="btn btn-secondary" onclick="clearDealData()">Clear Deal Data</button>
+            <button class="btn btn-secondary" onclick="window.location.href='/hubspot-data'">View Contacts</button>
+        </div>
+
+        <!-- SELECTED DEAL SECTION (from HubSpot) -->
+        <div class="deal-data" id="selectedDealSection" style="display: none;">
+            <div class="section-header">
+                <h2>🎯 Selected Deal from HubSpot</h2>
+                <p>This is the deal you selected in HubSpot</p>
+            </div>
+            <div id="selectedDealData">
+                <!-- Selected deal will be displayed here -->
+            </div>
+        </div>
+
+        <!-- ALL DEALS SECTION (existing functionality) -->
+        <div class="deal-data">
+            <div class="section-header">
+                <h2>📊 All HubSpot Deals</h2>
+                <p>Fetch and manage all your HubSpot deals</p>
+            </div>
+            <div id="dealData">
+                <div class="loading">
+                    <div class="spinner"></div>
+                    <p>Ready to fetch HubSpot deal data</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="back-link">
+            <a href="/">← Back to Dashboard</a>
+        </div>
+    </div>
+
+    <script>
+        let hubspotDeals = [];
+
+        async function fetchHubSpotDeals() {
+            const dealDataDiv = document.getElementById('dealData');
+            dealDataDiv.innerHTML = `
+                <div class="loading">
+                    <div class="spinner"></div>
+                    <p>Fetching HubSpot deals...</p>
+                </div>
+            `;
+
+            try {
+                const response = await fetch('/api/hubspot/fetch-deals');
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                hubspotDeals = data.deals || [];
+                
+                if (hubspotDeals.length > 0) {
+                    displayDealData();
+                } else {
+                    dealDataDiv.innerHTML = `
+                        <div class="no-deals">
+                            <h3>No deals found</h3>
+                            <p>No recent deals were found in your HubSpot account.</p>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                console.error('Error fetching deals:', error);
+                dealDataDiv.innerHTML = `
+                    <div class="no-deals">
+                        <h3>Error fetching deals</h3>
+                        <p>Failed to fetch deals from HubSpot. Please try again.</p>
+                    </div>
+                `;
+            }
+        }
+
+        function displayDealData() {
+            const dealDataDiv = document.getElementById('dealData');
+            
+            if (hubspotDeals.length === 0) {
+                dealDataDiv.innerHTML = `
+                    <div class="no-deals">
+                        <h3>No deals available</h3>
+                        <p>Click "Fetch Deal Data" to load deals from HubSpot.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            const dealsHTML = hubspotDeals.map(deal => {
+                const company = deal.company || 'N/A';
+                const amount = deal.amount ? `$${parseFloat(deal.amount).toLocaleString()}` : 'N/A';
+                const closeDate = deal.closeDate ? new Date(deal.closeDate).toLocaleDateString() : 'N/A';
+                const stage = deal.stage || 'N/A';
+                const owner = deal.owner || 'N/A';
+
+                return `
+                    <div class="deal-card">
+                        <div class="deal-header">
+                            <h3 class="deal-name">${deal.dealName || 'Unnamed Deal'}</h3>
+                            <span class="deal-amount">${amount}</span>
+                        </div>
+                        <div class="deal-info">
+                            <p><strong>Company:</strong> ${company}</p>
+                            <p><strong>Close Date:</strong> ${closeDate}</p>
+                            <p><strong>Stage:</strong> ${stage}</p>
+                            <p><strong>Owner:</strong> ${owner}</p>
+                        </div>
+                        <div class="deal-actions">
+                            <button class="btn-generate" onclick="generateCPQFromDeal('${deal.dealId}', '${deal.dealName || 'Unnamed Deal'}', '${company}', '${deal.amount || 0}')">
+                                Generate CPQ from Deal
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            dealDataDiv.innerHTML = `
+                <div class="deal-grid">
+                    ${dealsHTML}
+                </div>
+            `;
+        }
+
+        function clearDealData() {
+            hubspotDeals = [];
+            const dealDataDiv = document.getElementById('dealData');
+            dealDataDiv.innerHTML = `
+                <div class="loading">
+                    <p>Deal data cleared</p>
+                </div>
+            `;
+        }
+
+        function generateCPQFromDeal(dealId, dealName, company, amount) {
+            // Store deal data in localStorage for the CPQ setup page
+            const dealData = {
+                dealId: dealId,
+                dealName: dealName,
+                company: company,
+                amount: amount,
+                source: 'hubspot-deal'
+            };
+            
+            localStorage.setItem('hubspotDealForCPQ', JSON.stringify(dealData));
+            
+            // Redirect to CPQ setup page
+            window.location.href = '/hubspot-cpq-setup';
+        }
+
+        // Check if we have deal data from URL parameters (when coming from HubSpot)
+        function checkForDealData() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const dealId = urlParams.get('dealId');
+            const dealName = urlParams.get('dealName');
+            const amount = urlParams.get('amount');
+            const closeDate = urlParams.get('closeDate');
+            const stage = urlParams.get('stage');
+            const ownerId = urlParams.get('ownerId');
+
+            if (dealId && dealName) {
+                // We have deal data from HubSpot, display it in the selected deal section
+                const dealData = {
+                    dealId: dealId,
+                    dealName: dealName,
+                    company: urlParams.get('company') || 'N/A',
+                    amount: amount || 0,
+                    closeDate: closeDate,
+                    stage: stage,
+                    ownerId: ownerId,
+                    source: 'hubspot-url'
+                };
+                
+                // Display the selected deal
+                displaySelectedDeal(dealData);
+                
+                // Store in localStorage for CPQ setup
+                localStorage.setItem('hubspotDealForCPQ', JSON.stringify(dealData));
+            }
+        }
+
+        // Display the selected deal from HubSpot
+        function displaySelectedDeal(dealData) {
+            const selectedDealSection = document.getElementById('selectedDealSection');
+            const selectedDealData = document.getElementById('selectedDealData');
+            
+            const company = dealData.company || 'N/A';
+            const amount = dealData.amount ? `$${parseFloat(dealData.amount).toLocaleString()}` : 'N/A';
+            const closeDate = dealData.closeDate ? new Date(dealData.closeDate).toLocaleDateString() : 'N/A';
+            const stage = dealData.stage || 'N/A';
+            const owner = dealData.ownerId || 'N/A';
+
+            selectedDealData.innerHTML = `
+                <div class="deal-card" style="max-width: 600px; margin: 0 auto;">
+                    <div class="deal-header">
+                        <h3 class="deal-name">${dealData.dealName}</h3>
+                        <span class="deal-amount">${amount}</span>
+                    </div>
+                    <div class="deal-info">
+                        <p><strong>Company:</strong> ${company}</p>
+                        <p><strong>Close Date:</strong> ${closeDate}</p>
+                        <p><strong>Stage:</strong> ${stage}</p>
+                        <p><strong>Owner ID:</strong> ${owner}</p>
+                        <p><strong>Source:</strong> HubSpot Selection</p>
+                    </div>
+                    <div class="deal-actions">
+                        <button class="btn-generate" onclick="generateCPQFromSelectedDeal('${dealData.dealId}', '${dealData.dealName}', '${company}', '${dealData.amount || 0}')">
+                            🚀 Generate CPQ from Selected Deal
+                        </button>
+                    </div>
+                </div>
+            `;
+            
+            // Show the selected deal section
+            selectedDealSection.style.display = 'block';
+        }
+
+        // Generate CPQ from the selected deal
+        function generateCPQFromSelectedDeal(dealId, dealName, company, amount) {
+            const dealData = {
+                dealId: dealId,
+                dealName: dealName,
+                company: company,
+                amount: amount,
+                source: 'hubspot-selected-deal'
+            };
+            
+            localStorage.setItem('hubspotDealForCPQ', JSON.stringify(dealData));
+            window.location.href = '/hubspot-cpq-setup';
+        }
+
+        // Check for deal data when page loads
+        window.addEventListener('load', checkForDealData);
+    </script>
+</body>
+</html>

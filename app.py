@@ -7,6 +7,7 @@ from mongodb_collections import (
     EmailCollection, SMTPCollection, QuoteCollection,
     ClientCollection, PricingCollection, 
     HubSpotContactCollection, HubSpotIntegrationCollection,
+    HubSpotDealCollection,
     FormTrackingCollection, TemplateCollection, HubSpotQuoteCollection,
     GeneratedPDFCollection, GeneratedAgreementCollection,
     ApprovalWorkflowCollection
@@ -79,6 +80,7 @@ quotes = QuoteCollection()
 clients = ClientCollection()
 hubspot_contacts = HubSpotContactCollection()
 hubspot_integration = HubSpotIntegrationCollection()
+hubspot_deals = HubSpotDealCollection()
 email_collection = EmailCollection()
 smtp_collection = SMTPCollection()
 pricing = PricingCollection()
@@ -291,6 +293,10 @@ def serve_hubspot_data():
 @app.route('/hubspot-cpq-setup')
 def serve_hubspot_cpq_setup():
     return send_from_directory('hubspot', 'hubspot-cpq-setup.html')
+
+@app.route('/hubspot-deals')
+def serve_hubspot_deals():
+    return send_from_directory('cpq', 'hubspot-deals.html')
 
 
 
@@ -856,6 +862,95 @@ def sync_client_from_hubspot():
         return jsonify({
             'success': False,
             'message': f'Failed to sync client from HubSpot: {str(e)}'
+        }), 500
+
+# HubSpot Deal APIs
+@app.route('/api/hubspot/fetch-deals', methods=['GET'])
+def fetch_hubspot_deals():
+    """Fetch deals from HubSpot and store in MongoDB"""
+    try:
+        from hubspot.hubspot_basic import HubSpotBasic
+        
+        hubspot = HubSpotBasic()
+        # Fetch most recently updated deals for freshness
+        result = hubspot.get_recent_deals(limit=50)
+        
+        # If deals fetched successfully, store them in MongoDB
+        deals_list = result.get('deals', []) if result.get('success') else []
+        if deals_list:
+            for deal in deals_list:
+                deal_data = {
+                    "hubspot_id": deal.get('id'),
+                    "dealname": deal.get('dealname', ''),
+                    "amount": deal.get('amount', ''),
+                    "closedate": deal.get('closedate', ''),
+                    "dealstage": deal.get('dealstage', ''),
+                    "dealtype": deal.get('dealtype', ''),
+                    "pipeline": deal.get('pipeline', ''),
+                    "hubspot_owner_id": deal.get('hubspot_owner_id', ''),
+                    "company": deal.get('company', ''),
+                    "source": "HubSpot",
+                    "fetched_at": datetime.now(),
+                    "status": "new"
+                }
+                hubspot_deals.store_deal(deal_data)
+
+        # Return a sanitized JSON payload containing only serializable data
+        return jsonify({
+            "success": bool(result.get('success')),
+            "deals": deals_list,
+            "total": len(deals_list)
+        })
+        
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "error": f"Failed to fetch HubSpot deals: {str(e)}"
+        }), 500
+
+@app.route('/api/hubspot/deal/<deal_id>', methods=['GET'])
+def get_hubspot_deal(deal_id):
+    """Get a specific HubSpot deal by ID"""
+    try:
+        from hubspot.hubspot_basic import HubSpotBasic
+        
+        hubspot = HubSpotBasic()
+        result = hubspot.get_deal_by_id(deal_id)
+        
+        if result.get('success'):
+            return jsonify(result)
+        else:
+            return jsonify({
+                "success": False,
+                "error": result.get('error', 'Deal not found')
+            }), 404
+            
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "error": f"Failed to fetch deal: {str(e)}"
+        }), 500
+
+@app.route('/api/hubspot/deals/search', methods=['POST'])
+def search_hubspot_deals():
+    """Search deals by company name"""
+    try:
+        data = request.get_json() or {}
+        company_name = data.get('company_name')
+        
+        if not company_name:
+            return jsonify({"success": False, "message": "company_name is required"}), 400
+
+        from hubspot.hubspot_basic import HubSpotBasic
+        hubspot = HubSpotBasic()
+        result = hubspot.get_deals_by_company(company_name, limit=20)
+        
+        return jsonify(result)
+        
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "error": f"Failed to search deals: {str(e)}"
         }), 500
 
 # Signature APIs

@@ -163,6 +163,16 @@
                 <button class="action-btn">View HubSpot Data</button>
             </div>
 
+            <div class="action-card" onclick="goToHubSpotDeals()">
+                <div class="action-icon">💼</div>
+                <div class="action-title">HubSpot Deals</div>
+                <div class="action-description">
+                    Manage HubSpot deal data and generate CPQ from deals. 
+                    Fetch deals, view details, and create quotes directly from deal information.
+                </div>
+                <button class="action-btn">View HubSpot Deals</button>
+            </div>
+
             <div class="action-card" onclick="goToQuoteManagement()">
                 <div class="action-icon">📊</div>
                 <div class="action-title">Quote Management</div>
@@ -214,6 +224,10 @@
 
             function goToHubSpotData() {
                 window.location.href = '/hubspot-data';
+            }
+
+            function goToHubSpotDeals() {
+                window.location.href = '/hubspot-deals';
             }
 
             function goToQuoteManagement() {

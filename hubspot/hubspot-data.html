@@ -278,6 +278,7 @@
             <button class="btn" onclick="fetchHubSpotData()">Fetch Client Data</button>
             <button class="btn" onclick="clearData()">Clear Data</button>
             <button class="btn" onclick="testEmailConnection()" style="background: #28a745;">🔗 Test Email Connection</button>
+            <button class="btn btn-secondary" onclick="window.location.href='/hubspot-deals'">View HubSpot Deals</button>
         </div>
 
         <div id="selectionControls" class="selection-controls" style="display: none;">
@@ -317,6 +318,8 @@
                 <div class="loading">No data loaded. Click "Fetch Client Data" to get started.</div>
             </div>
         </div>
+
+
     </div>
 
     <script>
@@ -387,6 +390,14 @@
             document.getElementById('clientData').innerHTML = '<div class="loading">Data cleared. Click "Fetch Client Data" to reload.</div>';
             clearStatus();
         }
+
+
+
+
+
+
+
+
 
         let selectedContacts = new Set();
         let filteredContacts = [];

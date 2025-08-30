@@ -416,18 +416,29 @@
         }
 
         function loadContactData() {
-            const contactData = localStorage.getItem('hubspotContactForCPQ');
-            if (!contactData) {
-                showStatus('❌ No contact data found. Please go back and select a contact.', 'error');
+            // Try to load contact data first
+            let contactData = localStorage.getItem('hubspotContactForCPQ');
+            let dealData = localStorage.getItem('hubspotDealForCPQ');
+            
+            if (contactData) {
+                try {
+                    currentContact = JSON.parse(contactData);
+                    displayContactInfo();
+                    document.getElementById('cpqForm').style.display = 'block';
+                } catch (error) {
+                    showStatus('❌ Error loading contact data.', 'error');
+                }
+            } else if (dealData) {
+                try {
+                    currentContact = JSON.parse(dealData);
+                    displayDealInfo();
+                    document.getElementById('cpqForm').style.display = 'block';
+                } catch (error) {
+                    showStatus('❌ Error loading deal data.', 'error');
+                }
+            } else {
+                showStatus('❌ No contact or deal data found. Please go back and select a contact or deal.', 'error');
                 return;
-            }
-
-            try {
-                currentContact = JSON.parse(contactData);
-                displayContactInfo();
-                document.getElementById('cpqForm').style.display = 'block';
-            } catch (error) {
-                showStatus('❌ Error loading contact data.', 'error');
             }
         }
 
@@ -460,6 +471,40 @@
                     <div class="info-item">
                         <div class="info-label">📊 Source</div>
                         <div class="info-value">${currentContact.source || 'HubSpot'}</div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function displayDealInfo() {
+            const contactInfoDiv = document.getElementById('contactInfo');
+            
+            contactInfoDiv.innerHTML = `
+                <div class="contact-header">
+                    <div class="contact-avatar" style="background: #28a745;">
+                        💰
+                    </div>
+                    <div class="contact-details">
+                        <h2>${currentContact.dealName || 'No Deal Name'}</h2>
+                        <div class="contact-meta">${currentContact.company || 'No Company'} • ${currentContact.source}</div>
+                    </div>
+                </div>
+                <div class="contact-grid">
+                    <div class="info-item">
+                        <div class="info-label">💰 Deal Amount</div>
+                        <div class="info-value">${currentContact.amount ? '$' + parseFloat(currentContact.amount).toLocaleString() : 'N/A'}</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">🏢 Company</div>
+                        <div class="info-value">${currentContact.company || 'N/A'}</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">🆔 HubSpot ID</div>
+                        <div class="info-value">${currentContact.hubspotId || 'N/A'}</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">📊 Source</div>
+                        <div class="info-value">${currentContact.source || 'HubSpot Deal'}</div>
                     </div>
                 </div>
             `;

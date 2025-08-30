@@ -186,6 +186,147 @@ class HubSpotBasic:
         except Exception as e:
             return {"success": False, "error": str(e)}
 
+    def get_recent_deals(self, limit=50):
+        """Fetch most recently updated deals using the CRM search API sorted by lastmodifieddate."""
+        try:
+            url = f"{self.base_url}/crm/v3/objects/deals/search"
+            payload = {
+                "sorts": ["-lastmodifieddate"],
+                "properties": [
+                    "dealname",
+                    "amount",
+                    "closedate",
+                    "dealstage",
+                    "dealtype",
+                    "pipeline",
+                    "hubspot_owner_id",
+                    "company",
+                    "lastmodifieddate"
+                ],
+                "limit": limit
+            }
+            response = requests.post(url, headers=self.headers, data=json.dumps(payload))
+            if response.status_code != 200:
+                return {"success": False, "error": f"HTTP {response.status_code}", "details": response.text}
+
+            data = response.json()
+            deals = []
+            for deal in data.get('results', []):
+                props = deal.get('properties', {})
+                deals.append({
+                    "id": deal.get('id'),
+                    "dealname": props.get('dealname', ''),
+                    "amount": props.get('amount', ''),
+                    "closedate": props.get('closedate', ''),
+                    "dealstage": props.get('dealstage', ''),
+                    "dealtype": props.get('dealtype', ''),
+                    "pipeline": props.get('pipeline', ''),
+                    "hubspot_owner_id": props.get('hubspot_owner_id', ''),
+                    "company": props.get('company', ''),
+                    "source": "HubSpot",
+                    "last_modified": props.get('lastmodifieddate')
+                })
+            return {"success": True, "deals": deals, "total": len(deals)}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    def get_deal_by_id(self, deal_id: str):
+        """Fetch a single deal by ID with core properties."""
+        try:
+            if not deal_id:
+                return {"success": False, "error": "deal_id required"}
+
+            url = f"{self.base_url}/crm/v3/objects/deals/{deal_id}"
+            params = {
+                "properties": [
+                    "dealname",
+                    "amount",
+                    "closedate",
+                    "dealstage",
+                    "dealtype",
+                    "pipeline",
+                    "hubspot_owner_id",
+                    "company"
+                ]
+            }
+
+            response = requests.get(url, headers=self.headers, params=params)
+            if response.status_code != 200:
+                return {"success": False, "error": f"HTTP {response.status_code}", "details": response.text}
+
+            deal = response.json()
+            props = deal.get('properties', {})
+            normalized = {
+                "hubspot_id": deal.get('id'),
+                "dealname": props.get('dealname', ''),
+                "amount": props.get('amount', ''),
+                "closedate": props.get('closedate', ''),
+                "dealstage": props.get('dealstage', ''),
+                "dealtype": props.get('dealtype', ''),
+                "pipeline": props.get('pipeline', ''),
+                "hubspot_owner_id": props.get('hubspot_owner_id', ''),
+                "company": props.get('company', '')
+            }
+            return {"success": True, "deal": normalized}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    def get_deals_by_company(self, company_name: str, limit=20):
+        """Fetch deals by company name."""
+        try:
+            if not company_name:
+                return {"success": False, "error": "company_name required"}
+
+            url = f"{self.base_url}/crm/v3/objects/deals/search"
+            payload = {
+                "filterGroups": [
+                    {
+                        "filters": [
+                            {
+                                "propertyName": "company",
+                                "operator": "CONTAINS_TOKEN",
+                                "value": company_name
+                            }
+                        ]
+                    }
+                ],
+                "properties": [
+                    "dealname",
+                    "amount",
+                    "closedate",
+                    "dealstage",
+                    "dealtype",
+                    "pipeline",
+                    "hubspot_owner_id",
+                    "company"
+                ],
+                "limit": limit
+            }
+
+            response = requests.post(url, headers=self.headers, data=json.dumps(payload))
+            if response.status_code != 200:
+                return {"success": False, "error": f"HTTP {response.status_code}", "details": response.text}
+
+            data = response.json()
+            deals = []
+            for deal in data.get('results', []):
+                props = deal.get('properties', {})
+                deals.append({
+                    "id": deal.get('id'),
+                    "dealname": props.get('dealname', ''),
+                    "amount": props.get('amount', ''),
+                    "closedate": props.get('closedate', ''),
+                    "dealstage": props.get('dealstage', ''),
+                    "dealtype": props.get('dealtype', ''),
+                    "pipeline": props.get('pipeline', ''),
+                    "hubspot_owner_id": props.get('hubspot_owner_id', ''),
+                    "company": props.get('company', ''),
+                    "source": "HubSpot"
+                })
+            return {"success": True, "deals": deals, "total": len(deals)}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
 def main():
     """Test the basic HubSpot connection"""
     print("🧪 Testing Basic HubSpot Connection")
