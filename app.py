@@ -298,6 +298,10 @@ def serve_hubspot_cpq_setup():
 def serve_hubspot_deals():
     return send_from_directory('cpq', 'hubspot-deals.html')
 
+@app.route('/debug-pdf')
+def serve_debug_pdf():
+    return send_from_directory('.', 'debug_pdf_viewing.html')
+
 
 
 # Serve uploaded files (e.g., images) for use in templates
@@ -2451,12 +2455,80 @@ def preview_document(document_id):
         if pdf:
             print(f"✅ Found PDF: {pdf.get('filename', 'Unknown')}")
             file_path = pdf.get('file_path')
-            if file_path and os.path.exists(file_path):
-                print(f"✅ PDF file exists at: {file_path}")
-                return send_file(file_path, mimetype='application/pdf')
+            
+            # PRODUCTION FIX: Handle different file path scenarios
+            if file_path:
+                # Try the original path first
+                if os.path.exists(file_path):
+                    print(f"✅ PDF file exists at original path: {file_path}")
+                    return send_file(file_path, mimetype='application/pdf')
+                
+                # PRODUCTION: Try alternative paths for Render deployment
+                alternative_paths = [
+                    # Try relative to current working directory
+                    os.path.join(os.getcwd(), file_path),
+                    # Try relative to app directory
+                    os.path.join(os.path.dirname(__file__), file_path),
+                    # Try documents folder in current directory
+                    os.path.join(os.getcwd(), 'documents', os.path.basename(file_path)),
+                    # Try documents folder in app directory
+                    os.path.join(os.path.dirname(__file__), 'documents', os.path.basename(file_path)),
+                    # Try just the filename in documents folder
+                    os.path.join('documents', os.path.basename(file_path))
+                ]
+                
+                for alt_path in alternative_paths:
+                    print(f"🔍 Trying alternative path: {alt_path}")
+                    if os.path.exists(alt_path):
+                        print(f"✅ PDF file found at alternative path: {alt_path}")
+                        return send_file(alt_path, mimetype='application/pdf')
+                
+                # If no file found, try to regenerate the PDF
+                print(f"⚠️ No PDF file found, attempting to regenerate...")
+                try:
+                    # Get the quote data to regenerate PDF
+                    quote_id = pdf.get('quote_id')
+                    if quote_id:
+                        print(f"🔄 Attempting to regenerate PDF for quote: {quote_id}")
+                        # This would call your PDF generation function
+                        # For now, return an error with helpful information
+                        return jsonify({
+                            'success': False, 
+                            'message': f'PDF file not found and regeneration failed. File path: {file_path}. Please regenerate the PDF.',
+                            'debug_info': {
+                                'original_path': file_path,
+                                'alternative_paths_tried': alternative_paths,
+                                'current_working_dir': os.getcwd(),
+                                'app_dir': os.path.dirname(__file__),
+                                'quote_id': quote_id
+                            }
+                        }), 404
+                    else:
+                        return jsonify({
+                            'success': False, 
+                            'message': f'PDF file not found at path: {file_path}. No quote ID available for regeneration.',
+                            'debug_info': {
+                                'original_path': file_path,
+                                'alternative_paths_tried': alternative_paths,
+                                'current_working_dir': os.getcwd(),
+                                'app_dir': os.path.dirname(__file__)
+                            }
+                        }), 404
+                except Exception as regen_error:
+                    print(f"❌ Error during PDF regeneration attempt: {regen_error}")
+                    return jsonify({
+                        'success': False, 
+                        'message': f'PDF file not found and regeneration failed: {str(regen_error)}',
+                        'debug_info': {
+                            'original_path': file_path,
+                            'alternative_paths_tried': alternative_paths,
+                            'current_working_dir': os.getcwd(),
+                            'app_dir': os.path.dirname(__file__)
+                        }
+                    }), 404
             else:
-                print(f"❌ PDF file not found at: {file_path}")
-                return jsonify({'success': False, 'message': f'PDF file not found at path: {file_path}'}), 404
+                print(f"❌ No file path stored for PDF")
+                return jsonify({'success': False, 'message': 'No file path stored for this PDF'}), 404
         
         # Try to find in agreements
         agreement = generated_agreements.get_agreement_by_id(document_id)
@@ -2556,6 +2628,50 @@ def preview_document(document_id):
     except Exception as e:
         print(f"❌ Error in preview_document: {str(e)}")
         return jsonify({'success': False, 'message': f'Error previewing document: {str(e)}'}), 500
+
+@app.route('/api/debug/file-storage', methods=['GET'])
+def debug_file_storage():
+    """Debug endpoint to check file storage status in production"""
+    try:
+        debug_info = {
+            'current_working_directory': os.getcwd(),
+            'app_directory': os.path.dirname(__file__),
+            'documents_folder_exists': os.path.exists('documents'),
+            'documents_folder_path': os.path.abspath('documents') if os.path.exists('documents') else 'N/A',
+            'documents_folder_contents': [],
+            'environment': os.environ.get('RENDER', 'local'),
+            'file_system_info': {
+                'temp_dir': os.environ.get('TEMP', 'N/A'),
+                'home_dir': os.environ.get('HOME', 'N/A'),
+                'user_dir': os.environ.get('USERPROFILE', 'N/A')
+            }
+        }
+        
+        # Check documents folder contents if it exists
+        if os.path.exists('documents'):
+            try:
+                debug_info['documents_folder_contents'] = os.listdir('documents')
+            except Exception as list_error:
+                debug_info['documents_folder_contents'] = f'Error listing contents: {str(list_error)}'
+        
+        # Check if we're running on Render
+        if os.environ.get('RENDER'):
+            debug_info['render_info'] = {
+                'service_id': os.environ.get('RENDER_SERVICE_ID', 'N/A'),
+                'service_name': os.environ.get('RENDER_SERVICE_NAME', 'N/A'),
+                'environment': os.environ.get('RENDER_ENVIRONMENT', 'N/A')
+            }
+        
+        return jsonify({
+            'success': True,
+            'debug_info': debug_info
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': f'Error getting debug info: {str(e)}'
+        }), 500
 
 @app.route('/api/email/send-with-attachments', methods=['POST'])
 def send_email_with_attachments():
