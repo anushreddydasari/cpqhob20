@@ -279,6 +279,8 @@
         <div class="controls">
             <button class="btn" onclick="fetchHubSpotDeals()">Fetch Deal Data</button>
             <button class="btn btn-secondary" onclick="clearDealData()">Clear Deal Data</button>
+            <button class="btn btn-secondary" onclick="clearSelectedDeal()">Clear Selected Deal</button>
+            <button class="btn btn-secondary" onclick="checkStoredDeal()">Check Stored Deal</button>
             <button class="btn btn-secondary" onclick="window.location.href='/hubspot-data'">View Contacts</button>
         </div>
 
@@ -412,6 +414,46 @@
             `;
         }
 
+        function clearSelectedDeal() {
+            // Hide the selected deal section
+            const selectedDealSection = document.getElementById('selectedDealSection');
+            selectedDealSection.style.display = 'none';
+            
+            // Clear stored deal data
+            localStorage.removeItem('hubspotSelectedDeal');
+            localStorage.removeItem('hubspotDealForCPQ');
+            
+            console.log('Selected deal cleared');
+        }
+
+        function checkStoredDeal() {
+            console.log('=== CHECKING STORED DEAL DATA ===');
+            const storedDeal = localStorage.getItem('hubspotSelectedDeal');
+            const storedCPQ = localStorage.getItem('hubspotDealForCPQ');
+            
+            console.log('hubspotSelectedDeal:', storedDeal);
+            console.log('hubspotDealForCPQ:', storedCPQ);
+            
+            if (storedDeal) {
+                try {
+                    const dealData = JSON.parse(storedDeal);
+                    console.log('Parsed deal data:', dealData);
+                    
+                    // Display the stored deal
+                    displaySelectedDeal(dealData);
+                    
+                    // Try to fetch updated deal details from HubSpot API
+                    fetchCompleteDealDetails(dealData.dealId, dealData);
+                } catch (error) {
+                    console.log('Error parsing stored deal data:', error);
+                    localStorage.removeItem('hubspotSelectedDeal');
+                }
+            } else {
+                console.log('No stored deal data found');
+                alert('No stored deal data found in localStorage');
+            }
+        }
+
         function generateCPQFromDeal(dealId, dealName, company, amount) {
             // Store deal data in localStorage for the CPQ setup page
             const dealData = {
@@ -430,6 +472,8 @@
 
         // Check if we have deal data from URL parameters (when coming from HubSpot)
         function checkForDealData() {
+            console.log('checkForDealData called - checking URL parameters and localStorage');
+            
             const urlParams = new URLSearchParams(window.location.search);
             const dealId = urlParams.get('dealId');
             const dealName = urlParams.get('dealName');
@@ -438,7 +482,10 @@
             const stage = urlParams.get('stage');
             const ownerId = urlParams.get('ownerId');
 
+            console.log('URL Parameters found:', { dealId, dealName, amount, closeDate, stage, ownerId });
+
             if (dealId && dealName) {
+                console.log('Found deal parameters in URL, creating deal data...');
                 // We have deal data from HubSpot, display it in the selected deal section
                 const dealData = {
                     dealId: dealId,
@@ -451,14 +498,45 @@
                     source: 'hubspot-url'
                 };
                 
+                console.log('Created deal data:', dealData);
+                
                 // Display the selected deal
                 displaySelectedDeal(dealData);
                 
-                // Store in localStorage for CPQ setup
+                // Store in localStorage for CPQ setup AND for persistence
                 localStorage.setItem('hubspotDealForCPQ', JSON.stringify(dealData));
+                localStorage.setItem('hubspotSelectedDeal', JSON.stringify(dealData));
+                
+                console.log('Stored deal data in localStorage');
                 
                 // Try to fetch complete deal details from HubSpot API
                 fetchCompleteDealDetails(dealId, dealData);
+            } else {
+                console.log('No URL parameters found, checking localStorage for stored deal data...');
+                // No URL parameters, check if we have stored deal data
+                checkForStoredDealData();
+            }
+        }
+
+        // Check for stored deal data in localStorage
+        function checkForStoredDealData() {
+            const storedDeal = localStorage.getItem('hubspotSelectedDeal');
+            if (storedDeal) {
+                try {
+                    const dealData = JSON.parse(storedDeal);
+                    console.log('Found stored deal data:', dealData);
+                    
+                    // Display the stored deal
+                    displaySelectedDeal(dealData);
+                    
+                    // Try to fetch updated deal details from HubSpot API
+                    fetchCompleteDealDetails(dealData.dealId, dealData);
+                } catch (error) {
+                    console.log('Error parsing stored deal data:', error);
+                    localStorage.removeItem('hubspotSelectedDeal');
+                }
+            } else {
+                console.log('No stored deal data found in localStorage');
             }
         }
 
