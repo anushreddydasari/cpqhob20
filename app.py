@@ -3,6 +3,7 @@ from flask_cors import CORS
 from datetime import datetime, timedelta
 import os
 from dotenv import load_dotenv
+from utils.file_path_handler import file_handler
 from mongodb_collections import (
     EmailCollection, SMTPCollection, QuoteCollection,
     ClientCollection, PricingCollection, 
@@ -2472,15 +2473,27 @@ def download_document(document_id):
         pdf = generated_pdfs.get_pdf_by_id(document_id)
         if pdf:
             file_path = pdf.get('file_path')
-            if file_path and os.path.exists(file_path):
-                return send_file(file_path, as_attachment=True, download_name=pdf.get('filename', 'document.pdf'))
+            if file_path:
+                filename = os.path.basename(file_path)
+                correct_path = file_handler.get_document_path(filename)
+                
+                if file_handler.file_exists(filename):
+                    return send_file(correct_path, as_attachment=True, download_name=pdf.get('filename', 'document.pdf'))
+                else:
+                    return jsonify({'success': False, 'message': f'PDF file not found: {filename}'}), 404
         
         # Try to find in agreements
         agreement = generated_agreements.get_agreement_by_id(document_id)
         if agreement:
             file_path = agreement.get('file_path')
-            if file_path and os.path.exists(file_path):
-                return send_file(file_path, as_attachment=True, download_name=agreement.get('filename', 'document.pdf'))
+            if file_path:
+                filename = os.path.basename(file_path)
+                correct_path = file_handler.get_document_path(filename)
+                
+                if file_handler.file_exists(filename):
+                    return send_file(correct_path, as_attachment=True, download_name=agreement.get('filename', 'document.pdf'))
+                else:
+                    return jsonify({'success': False, 'message': f'Agreement file not found: {filename}'}), 404
         
         return jsonify({'success': False, 'message': 'Document not found'}), 404
         
@@ -2499,74 +2512,33 @@ def preview_document(document_id):
             print(f"✅ Found PDF: {pdf.get('filename', 'Unknown')}")
             file_path = pdf.get('file_path')
             
-            # PRODUCTION FIX: Handle different file path scenarios
+            # Use the new file path handler for consistent path resolution
             if file_path:
-                # Try the original path first
-                if os.path.exists(file_path):
-                    print(f"✅ PDF file exists at original path: {file_path}")
-                    return send_file(file_path, mimetype='application/pdf')
+                # Get the filename from the stored path
+                filename = os.path.basename(file_path)
                 
-                # PRODUCTION: Try alternative paths for Render deployment
-                alternative_paths = [
-                    # Try relative to current working directory
-                    os.path.join(os.getcwd(), file_path),
-                    # Try relative to app directory
-                    os.path.join(os.path.dirname(__file__), file_path),
-                    # Try documents folder in current directory
-                    os.path.join(os.getcwd(), 'documents', os.path.basename(file_path)),
-                    # Try documents folder in app directory
-                    os.path.join(os.path.dirname(__file__), 'documents', os.path.basename(file_path)),
-                    # Try just the filename in documents folder
-                    os.path.join('documents', os.path.basename(file_path))
-                ]
+                # Use the file handler to get the correct path
+                correct_path = file_handler.get_document_path(filename)
                 
-                for alt_path in alternative_paths:
-                    print(f"🔍 Trying alternative path: {alt_path}")
-                    if os.path.exists(alt_path):
-                        print(f"✅ PDF file found at alternative path: {alt_path}")
-                        return send_file(alt_path, mimetype='application/pdf')
-                
-                # If no file found, try to regenerate the PDF
-                print(f"⚠️ No PDF file found, attempting to regenerate...")
-                try:
-                    # Get the quote data to regenerate PDF
-                    quote_id = pdf.get('quote_id')
-                    if quote_id:
-                        print(f"🔄 Attempting to regenerate PDF for quote: {quote_id}")
-                        # This would call your PDF generation function
-                        # For now, return an error with helpful information
-                        return jsonify({
-                            'success': False, 
-                            'message': f'PDF file not found and regeneration failed. File path: {file_path}. Please regenerate the PDF.',
-                            'debug_info': {
-                                'original_path': file_path,
-                                'alternative_paths_tried': alternative_paths,
-                                'current_working_dir': os.getcwd(),
-                                'app_dir': os.path.dirname(__file__),
-                                'quote_id': quote_id
-                            }
-                        }), 404
-                    else:
-                        return jsonify({
-                            'success': False, 
-                            'message': f'PDF file not found at path: {file_path}. No quote ID available for regeneration.',
-                            'debug_info': {
-                                'original_path': file_path,
-                                'alternative_paths_tried': alternative_paths,
-                                'current_working_dir': os.getcwd(),
-                                'app_dir': os.path.dirname(__file__)
-                            }
-                        }), 404
-                except Exception as regen_error:
-                    print(f"❌ Error during PDF regeneration attempt: {regen_error}")
+                if file_handler.file_exists(filename):
+                    print(f"✅ PDF file found using file handler: {correct_path}")
+                    return send_file(correct_path, mimetype='application/pdf')
+                else:
+                    print(f"⚠️ PDF file not found: {filename}")
+                    print(f"🔍 Documents directory: {file_handler.documents_dir}")
+                    print(f"🔍 Available files: {file_handler.list_documents()}")
+                    
+                    # Return helpful error with file handler info
                     return jsonify({
                         'success': False, 
-                        'message': f'PDF file not found and regeneration failed: {str(regen_error)}',
+                        'message': f'PDF file not found: {filename}',
                         'debug_info': {
+                            'filename': filename,
                             'original_path': file_path,
-                            'alternative_paths_tried': alternative_paths,
+                            'documents_directory': file_handler.documents_dir,
+                            'available_files': file_handler.list_documents(),
                             'current_working_dir': os.getcwd(),
-                            'app_dir': os.path.dirname(__file__)
+                            'project_root': file_handler.project_root
                         }
                     }), 404
             else:
@@ -2579,22 +2551,27 @@ def preview_document(document_id):
             print(f"✅ Found Agreement: {agreement.get('filename', 'Unknown')}")
             file_path = agreement.get('file_path')
             
-            # PRODUCTION FIX: Handle different file path scenarios for agreements
+            # Use the new file path handler for consistent path resolution
             if file_path:
-                # Try the original path first
-                if os.path.exists(file_path):
-                    print(f"✅ Agreement file exists at original path: {file_path}")
+                # Get the filename from the stored path
+                filename = os.path.basename(file_path)
+                
+                # Use the file handler to get the correct path
+                correct_path = file_handler.get_document_path(filename)
+                
+                if file_handler.file_exists(filename):
+                    print(f"✅ Agreement file found using file handler: {correct_path}")
                     
                     # Check file extension to determine how to serve it
-                    file_extension = os.path.splitext(file_path)[1].lower()
+                    file_extension = os.path.splitext(filename)[1].lower()
                     
                     if file_extension == '.pdf':
                         # If it's actually a PDF, serve as PDF
-                        return send_file(file_path, mimetype='application/pdf')
+                        return send_file(correct_path, mimetype='application/pdf')
                     elif file_extension == '.txt':
                         # If it's a text file, read and format it for browser display
                         try:
-                            with open(file_path, 'r', encoding='utf-8') as f:
+                            with open(correct_path, 'r', encoding='utf-8') as f:
                                 content = f.read()
                             
                             # Create a formatted HTML page for text content
@@ -2640,100 +2617,25 @@ def preview_document(document_id):
                             return jsonify({'success': False, 'message': f'Error reading agreement file: {str(read_error)}'}), 500
                     else:
                         # For other file types, try to serve as-is
-                        return send_file(file_path)
-                
-                # PRODUCTION: Try alternative paths for Render deployment
-                alternative_paths = [
-                    # Try relative to current working directory
-                    os.path.join(os.getcwd(), file_path),
-                    # Try relative to app directory
-                    os.path.join(os.path.dirname(__file__), file_path),
-                    # Try documents folder in current directory
-                    os.path.join(os.getcwd(), 'documents', os.path.basename(file_path)),
-                    # Try documents folder in app directory
-                    os.path.join(os.path.dirname(__file__), 'documents', os.path.basename(file_path)),
-                    # Try just the filename in documents folder
-                    os.path.join('documents', os.path.basename(file_path))
-                ]
-                
-                for alt_path in alternative_paths:
-                    print(f"🔍 Trying alternative path for agreement: {alt_path}")
-                    if os.path.exists(alt_path):
-                        print(f"✅ Agreement file found at alternative path: {alt_path}")
-                        
-                        # Check file extension to determine how to serve it
-                        file_extension = os.path.splitext(alt_path)[1].lower()
-                        
-                        if file_extension == '.pdf':
-                            # If it's actually a PDF, serve as PDF
-                            return send_file(alt_path, mimetype='application/pdf')
-                        elif file_extension == '.txt':
-                            # If it's a text file, read and format it for browser display
-                            try:
-                                with open(alt_path, 'r', encoding='utf-8') as f:
-                                    content = f.read()
-                                
-                                # Create a formatted HTML page for text content
-                                html_content = f"""
-                                <!DOCTYPE html>
-                                <html>
-                                <head>
-                                    <meta charset="UTF-8">
-                                    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                                    <title>Agreement Preview - {agreement.get('filename', 'Document')}</title>
-                                    <style>
-                                        body {{ font-family: Arial, sans-serif; margin: 40px; line-height: 1.6; }}
-                                        .header {{ border-bottom: 2px solid #667eea; padding-bottom: 20px; margin-bottom: 30px; }}
-                                        .content {{ white-space: pre-wrap; font-size: 14px; }}
-                                        .footer {{ margin-top: 40px; padding-top: 20px; border-top: 1px solid #ddd; color: #666; }}
-                                        .document-info {{ background: #f8f9fa; padding: 15px; border-radius: 5px; margin-bottom: 20px; }}
-                                        .document-info strong {{ color: #667eea; }}
-                                    </style>
-                                </head>
-                                <body>
-                                    <div class="header">
-                                        <h1>📋 Agreement Preview</h1>
-                                        <div class="document-info">
-                                            <strong>Filename:</strong> {agreement.get('filename', 'N/A')}<br>
-                                            <strong>Client:</strong> {agreement.get('client_name', 'N/A')}<br>
-                                            <strong>Company:</strong> {agreement.get('company_name', 'N/A')}<br>
-                                            <strong>Service Type:</strong> {agreement.get('service_type', 'N/A')}<br>
-                                            <strong>Generated:</strong> {agreement.get('generated_at', 'N/A')}
-                                        </div>
-                                    </div>
-                                    <div class="content">{content}</div>
-                                    <div class="footer">
-                                        <p>This is a text-based agreement document. For PDF version, please contact the system administrator.</p>
-                                    </div>
-                                </body>
-                                </html>
-                                """
-                                
-                                return html_content, 200, {'Content-Type': 'text/html; charset=utf-8'}
-                                
-                            except Exception as read_error:
-                                print(f"❌ Error reading agreement file from alternative path: {read_error}")
-                                return jsonify({'success': False, 'message': f'Error reading agreement file from alternative path: {str(read_error)}'}), 500
-                        else:
-                            # For other file types, try to serve as-is
-                            return send_file(alt_path)
-                
-                # If no file found, provide detailed error information
-                print(f"⚠️ No agreement file found, providing error details...")
-                return jsonify({
-                    'success': False, 
-                    'message': f'Agreement file not found at path: {file_path}. Tried multiple alternative paths.',
-                    'debug_info': {
-                        'original_path': file_path,
-                        'alternative_paths_tried': alternative_paths,
-                        'current_working_dir': os.getcwd(),
-                        'app_dir': os.path.dirname(__file__),
-                        'agreement_id': document_id,
-                        'filename': agreement.get('filename', 'Unknown'),
-                        'client_name': agreement.get('client_name', 'Unknown'),
-                        'company_name': agreement.get('company_name', 'Unknown')
-                    }
-                }), 404
+                        return send_file(correct_path)
+                else:
+                    # If no file found, return error with file handler info
+                    print(f"⚠️ Agreement file not found: {filename}")
+                    print(f"🔍 Documents directory: {file_handler.documents_dir}")
+                    print(f"🔍 Available files: {file_handler.list_documents()}")
+                    
+                    return jsonify({
+                        'success': False, 
+                        'message': f'Agreement file not found: {filename}',
+                        'debug_info': {
+                            'filename': filename,
+                            'original_path': file_path,
+                            'documents_directory': file_handler.documents_dir,
+                            'available_files': file_handler.list_documents(),
+                            'current_working_dir': os.getcwd(),
+                            'project_root': file_handler.project_root
+                        }
+                    }), 404
             else:
                 print(f"❌ No file path stored for agreement")
                 return jsonify({'success': False, 'message': 'No file path stored for this agreement'}), 404

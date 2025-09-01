@@ -628,8 +628,21 @@ class EmailService:
                 'Keep this email and document for your records'
             ]
         
-        # Get base URL for client feedback form
-        base_url = os.getenv('APP_BASE_URL', 'http://localhost:5000')
+        # Get base URL for client feedback form using smart URL detection
+        try:
+            import sys
+            import os
+            sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+            from utils.url_helper import get_base_url
+            
+            # Get smart base URL for client feedback form
+            base_url = get_base_url()
+            print(f"📧 Client Delivery Email: Using detected base URL: {base_url}")
+        except ImportError:
+            # Fallback to environment variable or localhost
+            base_url = os.getenv('APP_BASE_URL', 'http://localhost:5000')
+            print(f"⚠️ Client Delivery Email: Using fallback base URL: {base_url}")
+        
         workflow_id = workflow_data.get('_id', '')
         client_email = workflow_data.get('client_email', '')
         
