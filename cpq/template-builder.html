@@ -3,11 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Template Builder - Agreement Generator</title>
-    
-    <!-- Signature Pad Library -->
-    <script src="https://cdn.jsdelivr.net/npm/signature_pad@4.1.7/dist/signature_pad.umd.min.js"></script>
-    
+    <title>Document Management System - CPQ</title>
     <style>
         * {
             margin: 0;
@@ -17,616 +13,1436 @@
 
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: #f8f9fa;
+            color: #333;
             min-height: 100vh;
-            padding: 20px;
         }
 
-        .container {
-            max-width: 1600px;
-            margin: 0 auto;
-        }
-
-        .header {
-            text-align: center;
-            color: white;
-            margin-bottom: 30px;
-        }
-
-        .header h1 {
-            font-size: 2.5rem;
-            margin-bottom: 10px;
-        }
-
-        .header p {
-            font-size: 1.1rem;
-            opacity: 0.9;
-        }
-
-        .nav-bar {
-            background: rgba(255, 255, 255, 0.95);
-            backdrop-filter: blur(10px);
-            border-radius: 15px;
-            padding: 15px;
-            margin-bottom: 30px;
-            display: flex;
-            justify-content: center;
-            gap: 20px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-        }
-
-        .nav-btn {
-            background: #667eea;
-            color: white;
-            border: none;
-            padding: 8px 16px;
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 0.9rem;
-            text-decoration: none;
-            display: inline-block;
-            transition: all 0.3s ease;
-        }
-
-        .nav-btn:hover {
-            background: #5a6fd8;
-            transform: translateY(-2px);
-        }
-
-        .main-layout {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 30px;
-            align-items: start;
-        }
-
-        .control-panel {
-            background: rgba(255, 255, 255, 0.95);
-            backdrop-filter: blur(10px);
-            border-radius: 15px;
-            padding: 30px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-        }
-
-        .preview-panel {
-            background: rgba(255, 255, 255, 0.95);
-            backdrop-filter: blur(10px);
-            border-radius: 15px;
-            padding: 30px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-            max-height: 800px;
+        /* Page System */
+        .page {
+            display: none;
+            width: 100%;
+            height: 100vh;
             overflow-y: auto;
         }
 
-        .section {
-            margin-bottom: 25px;
-            padding-bottom: 20px;
-            border-bottom: 1px solid #eee;
-        }
-
-        .section:last-child {
-            border-bottom: none;
-        }
-
-        .section h3 {
-            color: #333;
-            margin-bottom: 15px;
-            font-size: 1.2rem;
-        }
-
-        .form-group {
-            margin-bottom: 15px;
-        }
-
-        .form-label {
+        .page.active {
             display: block;
-            margin-bottom: 5px;
+        }
+
+        /* Home Page */
+        .home-page {
+            background: #f8fafc;
+        }
+
+        /* Template Page */
+        .template-page {
+            background: #f8fafc;
+        }
+
+        /* Document Editor Page */
+        .editor-page {
+            background: #ffffff;
+        }
+
+        /* Layout */
+        .app-container {
+            display: flex;
+            min-height: 100vh;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: 280px;
+            background: white;
+            border-right: 1px solid #e1e5e9;
+            padding: 20px 0;
+            position: fixed;
+            height: 100vh;
+            overflow-y: auto;
+            z-index: 1000;
+        }
+
+        .sidebar-section {
+            margin-bottom: 24px;
+        }
+
+        .sidebar-section h3 {
+            font-size: 14px;
             font-weight: 600;
-            color: #555;
+            color: #374151;
+            margin-bottom: 12px;
+            padding: 0 20px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
         }
 
-        .form-input, .form-select {
-            width: 100%;
-            padding: 10px;
-            border: 2px solid #e1e5e9;
-            border-radius: 6px;
-            font-size: 14px;
-            transition: border-color 0.3s;
-        }
-
-        .form-input:focus, .form-select:focus {
-            outline: none;
-            border-color: #667eea;
-        }
-
-        .btn {
-            background: #667eea;
-            color: white;
-            border: none;
-            padding: 10px 20px;
-            border-radius: 6px;
+        .sidebar-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 20px;
             cursor: pointer;
-            font-size: 14px;
-            transition: all 0.3s ease;
-            margin-right: 10px;
-            margin-bottom: 10px;
+            transition: background-color 0.2s;
+            color: #374151;
+            font-weight: 500;
         }
 
-        .btn:hover {
-            background: #5a6fd8;
+        .sidebar-item:hover {
+            background: #f9fafb;
+        }
+
+        .sidebar-item.active {
+            background: #f0fdf4;
+            color: #10b981;
+        }
+
+        .sidebar-icon {
+            width: 20px;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #6b7280;
+        }
+
+        .sidebar-item.active .sidebar-icon {
+            color: #10b981;
+        }
+
+        .sidebar-header {
+            padding: 0 20px 20px;
+            border-bottom: 1px solid #e1e5e9;
+            margin-bottom: 20px;
+        }
+
+        .create-new-btn {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 16px;
+            background: #10b981;
+            color: white;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-weight: 600;
+        }
+
+        .create-new-btn:hover {
+            background: #059669;
             transform: translateY(-1px);
         }
 
-        .btn-success {
-            background: #28a745;
+        .create-new-icon {
+            width: 20px;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            font-weight: bold;
         }
 
-        .btn-success:hover {
-            background: #218838;
+        /* Main Content */
+        .main-content {
+            flex: 1;
+            margin-left: 280px;
+            display: flex;
+            flex-direction: column;
         }
 
-        .btn-danger {
-            background: #dc3545;
-        }
-
-        .btn-danger:hover {
-            background: #c82333;
-        }
-
-        .btn-secondary {
-            background: #6c757d;
-        }
-
-        .btn-secondary:hover {
-            background: #5a6268;
-        }
-
-        /* Agreement Preview Styles */
-        .agreement-preview {
+        /* Top Bar */
+        .top-bar {
             background: white;
-            padding: 40px;
-            margin: 20px 0;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-            border-radius: 8px;
-        }
-
-        .agreement-header {
+            border-bottom: 1px solid #e1e5e9;
+            padding: 16px 24px;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 30px;
-            padding-bottom: 20px;
-            border-bottom: 2px solid #e1e5e9;
         }
 
-        .company-logo {
+        .tabs {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .tab {
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: 8px;
+            padding: 12px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            color: #6b7280;
+            font-weight: 500;
         }
 
-        .company-logo img {
-            height: 60px;
+        .tab:hover {
+            background: #f3f4f6;
         }
 
-        .company-name {
-            font-size: 24px;
-            font-weight: bold;
-            color: #1a73e8;
+        .tab.active {
+            background: #f0fdf4;
+            color: #10b981;
         }
 
-        .microsoft-partner {
-            text-align: right;
+        .tab-icon {
+            font-size: 16px;
         }
 
-        .microsoft-partner img {
-            height: 50px;
+        .tab-count {
+            font-size: 12px;
+            color: #9ca3af;
         }
 
-        .agreement-title {
+        .top-actions {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .tab-arrow, .filter-icon {
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+            color: #6b7280;
+        }
+
+        .tab-arrow:hover, .filter-icon:hover {
+            background: #f3f4f6;
+            color: #6b7280;
+        }
+
+        /* Content Area */
+        .content-area {
+            padding: 60px 24px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: calc(100vh - 200px);
+        }
+
+        .empty-state {
             text-align: center;
-            font-size: 20px;
-            font-weight: bold;
-            margin: 30px 0;
-            color: #333;
+            max-width: 500px;
         }
 
-        .service-description {
-            margin-bottom: 25px;
-            line-height: 1.6;
-            color: #555;
+        .empty-state-icon {
+            width: 120px;
+            height: 120px;
+            background: #f0fdf4;
+            border: 2px dashed #10b981;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 24px;
         }
 
-        .service-table {
+        .empty-state-plus {
+            font-size: 48px;
+            color: #10b981;
+            font-weight: 300;
+        }
+
+        .empty-state h1 {
+            font-size: 28px;
+            font-weight: 600;
+            color: #111827;
+            margin-bottom: 12px;
+        }
+
+        .empty-state p {
+            font-size: 16px;
+            color: #6b7280;
+            margin-bottom: 32px;
+            line-height: 1.5;
+        }
+
+        .create-document-btn {
+            background: #10b981;
+            color: white;
+            border: none;
+            padding: 16px 32px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .create-document-btn:hover {
+            background: #059669;
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(16, 185, 129, 0.3);
+        }
+
+        /* Template Page Styles */
+        .search-section {
+            margin-bottom: 32px;
+        }
+
+        .search-bar {
+            position: relative;
+            max-width: 400px;
+        }
+
+        .search-input {
             width: 100%;
-            border-collapse: collapse;
-            margin: 25px 0;
+            padding: 12px 16px 12px 44px;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            font-size: 16px;
+            background: white;
         }
 
-        .service-table th {
-            background: #b8dff0;
-            padding: 12px;
+        .search-input:focus {
+            outline: none;
+            border-color: #10b981;
+            box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
+        }
+
+        .search-icon {
+            position: absolute;
+            left: 16px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #9ca3af;
+            width: 20px;
+            height: 20px;
+        }
+
+        /* File Upload Section */
+        .upload-section {
+            margin-bottom: 40px;
+        }
+
+        .upload-area {
+            border: 2px dashed #d1d5db;
+            border-radius: 12px;
+            padding: 60px 20px;
             text-align: center;
-            font-weight: bold;
-            border: 1px solid #999;
+            background: #f9fafb;
+            transition: all 0.3s ease;
+            cursor: pointer;
         }
 
-        .service-table td {
-            padding: 12px;
-            border: 1px solid #999;
-            vertical-align: top;
+        .upload-area:hover {
+            border-color: #10b981;
+            background: #f0fdf4;
         }
 
-        .service-table .job-requirement {
-            text-align: center;
-            font-weight: bold;
+        .upload-area.dragover {
+            border-color: #10b981;
+            background: #f0fdf4;
         }
 
-        .service-table .price {
-            text-align: right;
-            font-weight: bold;
+        .upload-icon {
+            font-size: 48px;
+            color: #9ca3af;
+            margin-bottom: 16px;
         }
 
-        .total-price {
-            text-align: right;
+        .upload-text {
             font-size: 18px;
-            font-weight: bold;
-            margin-top: 10px;
-        }
-
-        .payment-notes {
-            background: #b8dff0;
-            padding: 15px;
-            margin: 25px 0;
-            border-radius: 5px;
-        }
-
-        .payment-notes h4 {
-            text-align: center;
-            margin-bottom: 10px;
-            font-weight: bold;
-        }
-
-        .payment-notes ul {
-            list-style-type: disc;
-            margin-left: 20px;
-        }
-
-        .payment-notes li {
+            font-weight: 600;
+            color: #374151;
             margin-bottom: 8px;
         }
 
-        .saas-agreement {
-            background: #b8dff0;
-            padding: 15px;
-            margin: 25px 0;
-            border-radius: 5px;
+        .upload-subtext {
+            font-size: 14px;
+            color: #6b7280;
+            margin-bottom: 24px;
         }
 
-        .saas-agreement h4 {
-            text-align: center;
-            margin-bottom: 10px;
-            font-weight: bold;
+        .select-files-btn {
+            background: #10b981;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.2s;
         }
 
-        .signature-section {
+        .select-files-btn:hover {
+            background: #059669;
+        }
+
+        /* Template Section */
+        .template-section {
+            margin-bottom: 40px;
+        }
+
+        .template-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+        }
+
+        .template-title {
+            font-size: 20px;
+            font-weight: 600;
+            color: #111827;
+        }
+
+        .view-toggle {
+            display: flex;
+            gap: 8px;
+        }
+
+        .view-btn {
+            width: 36px;
+            height: 36px;
+            border: 1px solid #d1d5db;
+            background: white;
+            border-radius: 6px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+
+        .view-btn.active {
+            background: #10b981;
+            border-color: #10b981;
+            color: white;
+        }
+
+        .view-btn:hover {
+            border-color: #10b981;
+        }
+
+        /* Template Grid */
+        .template-grid {
             display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 40px;
-            margin-top: 40px;
-            padding-top: 30px;
-            border-top: 2px solid #e1e5e9;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 20px;
         }
 
-        .signature-block {
+        .template-card {
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 12px;
+            padding: 16px;
+            cursor: pointer;
+            transition: all 0.2s;
             text-align: center;
         }
 
-        .signature-block h4 {
-            font-weight: bold;
-            margin-bottom: 20px;
-            text-decoration: underline;
+        .template-card:hover {
+            border-color: #10b981;
+            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.15);
+            transform: translateY(-2px);
         }
 
-        .signature-line {
-            border-bottom: 2px solid #333;
-            height: 50px;
-            margin: 10px 0;
+        .template-preview {
+            width: 100%;
+            height: 120px;
+            background: #f9fafb;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            color: #9ca3af;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .template-preview.blank {
+            background: white;
+            border: 2px dashed #d1d5db;
+        }
+
+        .template-preview.blank .blank-icon {
+            width: 40px;
+            height: 40px;
+            background: #374151;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 20px;
+            font-weight: bold;
+        }
+
+        .template-name {
+            font-size: 14px;
+            font-weight: 600;
+            color: #374151;
+        }
+
+        /* Hidden file input */
+        .file-input {
+            display: none;
+        }
+
+        /* Document Editor Styles */
+        .editor-container {
+            display: flex;
+            height: 100vh;
+        }
+
+        .editor-main {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .editor-toolbar {
+            background: white;
+            border-bottom: 1px solid #e5e7eb;
+            padding: 12px 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .editor-toolbar-left {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .editor-toolbar-right {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .document-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #111827;
+        }
+
+        .document-status {
+            font-size: 14px;
+            color: #6b7280;
+            margin-left: 8px;
+        }
+
+        .toolbar-btn {
+            padding: 8px 16px;
+            border: 1px solid #d1d5db;
+            background: white;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+
+        .toolbar-btn:hover {
+            border-color: #10b981;
+            background: #f0fdf4;
+        }
+
+        .toolbar-btn.primary {
+            background: #10b981;
+            color: white;
+            border-color: #10b981;
+        }
+
+        .toolbar-btn.primary:hover {
+            background: #059669;
+        }
+
+        .user-avatar {
+            width: 32px;
+            height: 32px;
+            background: #10b981;
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .editor-canvas {
+            flex: 1;
+            background: white;
+            margin: 24px;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 60px;
+            position: relative;
+            min-height: 800px;
+            max-width: 900px;
+            margin: 24px auto;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .canvas-content {
+            min-height: 200px;
+        }
+
+        .content-block {
+            border: 2px dashed #e5e7eb;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 16px 0;
+            min-height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #9ca3af;
+            transition: all 0.2s;
+        }
+
+        .editable-block {
+            width: 100%;
+            max-width: 100%;
+            margin: 20px 0;
+            min-height: 120px;
+        }
+
+        .editable-block h3 {
+            font-size: 24px !important;
+            margin-bottom: 20px !important;
+        }
+
+        .editable-block p {
+            font-size: 16px !important;
+            line-height: 1.8 !important;
+        }
+
+        .content-block:hover {
+            border-color: #10b981;
+            background: #f0fdf4;
+        }
+
+        .content-block.dragover {
+            border-color: #10b981;
+            background: #f0fdf4;
+        }
+
+        [contenteditable="true"]:focus {
+            outline: 2px solid #3b82f6 !important;
+            outline-offset: 2px;
+            background-color: #f8fafc !important;
+        }
+
+        [contenteditable="true"]:hover {
+            background-color: #f1f5f9 !important;
+        }
+
+        .editable-block {
+            position: relative;
+            transition: all 0.3s ease;
+        }
+
+        .editable-block:hover {
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.12);
+            transform: translateY(-3px);
+        }
+
+        .editable-block.locked {
+            opacity: 0.7;
+            background-color: #f3f4f6 !important;
+        }
+
+        .image-upload-area:hover {
+            border-color: #059669;
+            background-color: #f0fdf4;
+            transform: scale(1.02);
+        }
+
+        .block-toolbar button {
+            background: none;
+            border: none;
+            padding: 4px;
+            margin: 0 2px;
+            cursor: pointer;
+            border-radius: 3px;
+            font-size: 14px;
+        }
+
+        .block-toolbar button:hover {
+            background-color: #f3f4f6;
+        }
+
+        .pricing-table input {
+            transition: all 0.2s ease;
+        }
+
+        .pricing-table input:focus {
+            background-color: #f8fafc !important;
+            border: 1px solid #3b82f6 !important;
+        }
+
+        .signature-pad canvas {
+            border-radius: 4px;
+        }
+
+        .signature-controls button {
+            transition: all 0.2s ease;
+        }
+
+        .signature-controls button:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .saved-template {
             position: relative;
         }
 
-        .signature-canvas {
-            border: 2px solid #333;
-            width: 100%;
-            height: 80px;
-            cursor: crosshair;
+        .saved-template .template-actions {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            opacity: 0;
+            transition: opacity 0.2s ease;
         }
 
-        .signature-text {
-            width: 100%;
-            padding: 10px;
-            border: 2px solid #333;
-            text-align: center;
-            font-family: cursive;
-            font-size: 18px;
+        .saved-template:hover .template-actions {
+            opacity: 1;
         }
 
-        .signature-info {
-            margin-top: 10px;
-            text-align: left;
-        }
-
-        .signature-info input {
-            width: 100%;
-            padding: 5px;
-            margin: 5px 0;
+        .saved-template .template-actions button {
+            background: rgba(255, 255, 255, 0.9);
             border: none;
-            border-bottom: 1px solid #333;
-        }
-
-        .terms-section {
-            background: #b8dff0;
-            padding: 15px;
-            margin: 25px 0;
-            border-radius: 5px;
-        }
-
-        .terms-section h4 {
-            text-align: center;
-            margin-bottom: 10px;
-            font-weight: bold;
-        }
-
-        .placeholder {
-            background: #fff3cd;
-            padding: 2px 6px;
-            border-radius: 3px;
-            font-weight: bold;
-            color: #856404;
-        }
-
-        .quote-selector {
-            display: flex;
-            gap: 10px;
-            margin-bottom: 15px;
-        }
-
-        .quote-selector select {
-            flex: 1;
-        }
-
-        .signature-options {
-            display: flex;
-            gap: 10px;
-            margin-bottom: 10px;
-        }
-
-        .signature-options button {
-            padding: 5px 10px;
+            border-radius: 4px;
+            padding: 4px 6px;
+            cursor: pointer;
             font-size: 12px;
+            margin-left: 4px;
         }
 
-        .loading {
-            text-align: center;
+        .saved-template .template-actions button:hover {
+            background: #ef4444;
+            color: white;
+        }
+
+        .template-meta {
+            font-size: 12px;
+            color: #6b7280;
+            margin-top: 4px;
+        }
+
+        .my-templates-section {
+            margin-top: 20px;
+        }
+
+        .my-templates-section .section-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: #374151;
+            margin-bottom: 12px;
+            padding: 0 16px;
+        }
+
+        /* Right Sidebar */
+        .editor-sidebar {
+            width: 320px;
+            background: white;
+            border-left: 1px solid #e5e7eb;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .sidebar-header {
+            padding: 16px 20px;
+            border-bottom: 1px solid #e5e7eb;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .sidebar-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #111827;
+        }
+
+        .sidebar-close {
+            width: 24px;
+            height: 24px;
+            border: none;
+            background: none;
+            cursor: pointer;
+            font-size: 18px;
+            color: #6b7280;
+        }
+
+        .sidebar-content {
+            flex: 1;
             padding: 20px;
-            color: #666;
+            overflow-y: auto;
         }
 
-        .success-message {
-            background: #d4edda;
-            color: #155724;
-            padding: 10px;
-            border-radius: 5px;
-            margin: 10px 0;
+        .sidebar-section {
+            margin-bottom: 32px;
         }
 
-        .error-message {
-            background: #f8d7da;
-            color: #721c24;
-            padding: 10px;
-            border-radius: 5px;
-            margin: 10px 0;
+        .section-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: #374151;
+            margin-bottom: 16px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
         }
 
-        @media (max-width: 1200px) {
-            .main-layout {
+        .blocks-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+        }
+
+        .block-btn {
+            padding: 12px;
+            border: 1px solid #e5e7eb;
+            background: white;
+            border-radius: 8px;
+            cursor: pointer;
+            text-align: center;
+            transition: all 0.2s;
+            font-size: 12px;
+            font-weight: 500;
+        }
+
+        .block-btn:hover {
+            border-color: #10b981;
+            background: #f0fdf4;
+            transform: translateY(-1px);
+        }
+
+        .block-icon {
+            font-size: 20px;
+            margin-bottom: 8px;
+            display: block;
+        }
+
+        .fields-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+        }
+
+        .field-btn {
+            padding: 12px;
+            border: 1px solid #e5e7eb;
+            background: white;
+            border-radius: 8px;
+            cursor: pointer;
+            text-align: center;
+            transition: all 0.2s;
+            font-size: 12px;
+            font-weight: 500;
+        }
+
+        .field-btn:hover {
+            border-color: #10b981;
+            background: #f0fdf4;
+            transform: translateY(-1px);
+        }
+
+        .field-icon {
+            font-size: 16px;
+            margin-bottom: 6px;
+            display: block;
+        }
+
+        .search-field {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            font-size: 14px;
+            margin-bottom: 16px;
+        }
+
+        .search-field:focus {
+            outline: none;
+            border-color: #10b981;
+            box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
+        }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .sidebar {
+                width: 100%;
+                position: relative;
+                height: auto;
+                border-right: none;
+                border-bottom: 1px solid #e1e5e9;
+            }
+
+            .main-content {
+                margin-left: 0;
+            }
+
+            .editor-container {
+                flex-direction: column;
+            }
+
+            .editor-sidebar {
+                width: 100%;
+                border-left: none;
+                border-top: 1px solid #e5e7eb;
+                max-height: 300px;
+            }
+
+            .editor-canvas {
+                margin: 12px;
+            padding: 20px;
+            }
+
+            .template-grid {
+                grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+                gap: 12px;
+            }
+
+            .blocks-grid, .fields-grid {
+                grid-template-columns: repeat(3, 1fr);
+                gap: 8px;
+            }
+
+            .block-btn, .field-btn {
+                padding: 8px;
+                font-size: 10px;
+            }
+
+            .block-icon, .field-icon {
+                font-size: 16px;
+                margin-bottom: 4px;
+            }
+
+            .top-bar {
+                padding: 12px 16px;
+                flex-direction: column;
+                gap: 12px;
+            }
+
+            .tabs {
+                flex-wrap: wrap;
+                gap: 4px;
+            }
+
+            .tab {
+                padding: 8px 12px;
+                font-size: 14px;
+            }
+
+            .tab-count {
+                display: none;
+            }
+
+            .editor-toolbar {
+                padding: 8px 16px;
+                flex-direction: column;
+                gap: 12px;
+            }
+
+            .editor-toolbar-left, .editor-toolbar-right {
+                width: 100%;
+                justify-content: center;
+            }
+
+            .document-status {
+                margin-left: 0;
+                margin-top: 4px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .template-grid {
                 grid-template-columns: 1fr;
+            }
+
+            .blocks-grid, .fields-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .upload-area {
+                padding: 40px 16px;
+            }
+
+            .upload-text {
+                font-size: 16px;
+            }
+
+            .template-title {
+                font-size: 18px;
+            }
+
+            .empty-state h1 {
+                font-size: 24px;
+            }
+
+            .empty-state p {
+                font-size: 14px;
             }
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <!-- Header -->
-        <div class="header">
-            <h1>🚀 Template Builder</h1>
-            <p>Create professional agreement templates with signature tracking</p>
+    <!-- Home Page -->
+    <div class="page home-page active" id="homePage">
+        <div class="app-container">
+            <!-- Sidebar -->
+            <div class="sidebar">
+                <div class="sidebar-header">
+                    <div class="create-new-btn" onclick="showCreateModal()">
+                        <div class="create-new-icon">+</div>
+                        <span>Create new...</span>
+        </div>
         </div>
 
-        <!-- Navigation -->
-        <div class="nav-bar">
-            <a href="/" class="nav-btn">🏠 Home</a>
-            <a href="/quote-calculator" class="nav-btn">🧮 Quote Calculator</a>
-            <a href="/client-management" class="nav-btn">👥 Client Management</a>
-            <a href="/quote-management" class="nav-btn">📋 Quote Management</a>
-            <a href="/approval-dashboard" class="nav-btn">✅ Approval Dashboard</a>
+                <nav class="nav-menu">
+                    <div class="sidebar-section">
+                        <h3>Quick Access</h3>
+                        <div class="sidebar-item active" onclick="selectSidebarItem(this, 'quick-access')">
+                            <div class="sidebar-icon">⏱️</div>
+                            <span>Quick access</span>
+                        </div>
+                        <div class="sidebar-item" onclick="selectSidebarItem(this, 'my-templates')">
+                            <div class="sidebar-icon">📋</div>
+                            <span>My templates</span>
+                        </div>
         </div>
 
-        <!-- Main Layout -->
-        <div class="main-layout">
-            <!-- Control Panel -->
-            <div class="control-panel">
-                <!-- Template Management Section -->
-                <div class="section">
-                    <h3>📋 Template Management</h3>
-                    <div class="form-group">
-                        <label class="form-label">Load Existing Template</label>
-                        <div class="quote-selector">
-                            <select id="templateSelect" class="form-select" onchange="loadTemplate()">
-                                <option value="">Select template to load...</option>
-                            </select>
-                            <button class="btn btn-secondary" onclick="loadTemplates()">🔄 Refresh</button>
+                    <div class="sidebar-section">
+                        <h3>Import From</h3>
+                        <div class="sidebar-item" onclick="importFrom('local')">
+                            <div class="sidebar-icon">📁</div>
+                            <span>Local file</span>
                         </div>
+                        <div class="sidebar-item" onclick="importFrom('google-drive')">
+                            <div class="sidebar-icon">🔵</div>
+                            <span>Google Drive</span>
                     </div>
-                    <div class="form-group">
-                        <button class="btn btn-secondary" onclick="saveAsNewTemplate()">💾 Save As New Template</button>
-                        <button class="btn btn-secondary" onclick="updateCurrentTemplate()">✏️ Update Current Template</button>
+                        <div class="sidebar-item" onclick="importFrom('dropbox')">
+                            <div class="sidebar-icon">📦</div>
+                            <span>Dropbox</span>
                     </div>
+                        <div class="sidebar-item" onclick="importFrom('onedrive')">
+                            <div class="sidebar-icon">☁️</div>
+                            <span>OneDrive</span>
+                </div>
+                        <div class="sidebar-item" onclick="importFrom('box')">
+                            <div class="sidebar-icon">📦</div>
+                            <span>Box</span>
+                    </div>
+                    </div>
+                </nav>
                 </div>
 
-                <!-- Data Source Section -->
-                <div class="section">
-                    <h3>📊 Data Source</h3>
-                    <div class="form-group">
-                        <label class="form-label">Select Quote/Deal</label>
-                        <div class="quote-selector">
-                            <select id="dataSourceType" class="form-select" onchange="onDataSourceChange()">
-                                <option value="quote">From Quote</option>
-                                <option value="deal">From HubSpot Deal</option>
-                                <option value="manual">Manual Entry</option>
-                            </select>
-                            <button class="btn btn-secondary" onclick="loadDataSources()">🔄 Refresh</button>
+            <!-- Main Content -->
+            <div class="main-content">
+                <!-- Top Bar -->
+                <div class="top-bar">
+                    <div class="tabs">
+                        <div class="tab active" onclick="switchTab('drafts')">
+                            <span class="tab-icon">✏️</span>
+                            <span class="tab-text">Drafts</span>
+                            <span class="tab-count" id="drafts-count">0 documents</span>
                         </div>
+                        <div class="tab" onclick="switchTab('actions')">
+                            <span class="tab-icon">⚠️</span>
+                            <span class="tab-text">Actions Required</span>
+                            <span class="tab-count" id="actions-count">0 documents</span>
                     </div>
-                    <div class="form-group">
-                        <select id="dataSourceSelect" class="form-select" onchange="loadDataSource()">
-                            <option value="">Select data source...</option>
-                        </select>
+                        <div class="tab" onclick="switchTab('waiting')">
+                            <span class="tab-icon">👥</span>
+                            <span class="tab-text">Waiting for Others</span>
+                            <span class="tab-count" id="waiting-count">0 documents</span>
+                </div>
+                        <div class="tab" onclick="switchTab('finished')">
+                            <span class="tab-icon">✅</span>
+                            <span class="tab-text">Finished</span>
+                            <span class="tab-count" id="finished-count">0 documents</span>
                     </div>
                 </div>
 
-                <!-- Company Information -->
-                <div class="section">
-                    <h3>🏢 Company Information</h3>
-                    <div class="form-group">
-                        <label class="form-label">Your Company Name</label>
-                        <input type="text" id="companyName" class="form-input" value="CloudFuze" placeholder="Your company name">
+                    <div class="top-actions">
+                        <div class="tab-arrow">‹</div>
+                        <div class="tab-arrow">›</div>
+                        <div class="filter-icon">☰</div>
                     </div>
-                    <div class="form-group">
-                        <label class="form-label">Company Address</label>
-                        <input type="text" id="companyAddress" class="form-input" value="2500 Regency Parkway, Cary, NC 27518" placeholder="Company address">
+                    </div>
+
+                <!-- Content Area -->
+                <div class="content-area">
+                    <div class="empty-state">
+                        <div class="empty-state-icon">
+                            <div class="empty-state-plus">+</div>
+                    </div>
+                        <h1>Start here — or pick up where you left off</h1>
+                        <p>Create your first document, or return here to continue with any unsent documents.</p>
+                        <button class="create-document-btn" onclick="navigateToPage('template')">
+                            Create document
+                        </button>
+                    </div>
+                </div>
+                    </div>
                     </div>
                 </div>
 
-                <!-- Client Information -->
-                <div class="section">
-                    <h3>👥 Client Information</h3>
-                    <div class="form-group">
-                        <label class="form-label">Client Company</label>
-                        <input type="text" id="clientCompany" class="form-input" placeholder="Client company name">
+    <!-- Template Page -->
+    <div class="page template-page" id="templatePage">
+        <div class="app-container">
+            <!-- Sidebar -->
+            <div class="sidebar">
+                <div class="sidebar-header">
+                    <div class="create-new-btn" onclick="showCreateModal()">
+                        <div class="create-new-icon">+</div>
+                        <span>Create new...</span>
                     </div>
-                    <div class="form-group">
-                        <label class="form-label">Client Name</label>
-                        <input type="text" id="clientName" class="form-input" placeholder="Client contact name">
+                    </div>
+
+                <nav class="nav-menu">
+                    <div class="sidebar-section">
+                        <h3>Quick Access</h3>
+                        <div class="sidebar-item active" onclick="selectSidebarItem(this, 'quick-access')">
+                            <div class="sidebar-icon">⏱️</div>
+                            <span>Quick access</span>
+                    </div>
+                        <div class="sidebar-item" onclick="selectSidebarItem(this, 'my-templates')">
+                            <div class="sidebar-icon">📋</div>
+                            <span>My templates</span>
                     </div>
                 </div>
 
-                <!-- Service Information -->
-                <div class="section">
-                    <h3>🛠️ Service Information</h3>
-                    <div class="form-group">
-                        <label class="form-label">Service Type</label>
-                        <input type="text" id="serviceType" class="form-input" placeholder="e.g., Slack to Teams Migration">
+                <div class="sidebar-section my-templates-section">
+                    <!-- My Templates will be loaded here -->
                     </div>
-                    <div class="form-group">
-                        <label class="form-label">Service Description</label>
-                        <textarea id="serviceDescription" class="form-input" rows="3" placeholder="Detailed service description"></textarea>
+
+                    <div class="sidebar-section">
+                        <h3>Import From</h3>
+                        <div class="sidebar-item" onclick="importFrom('local')">
+                            <div class="sidebar-icon">📁</div>
+                            <span>Local file</span>
+                    </div>
+                        <div class="sidebar-item" onclick="importFrom('google-drive')">
+                            <div class="sidebar-icon">🔵</div>
+                            <span>Google Drive</span>
+                    </div>
+                        <div class="sidebar-item" onclick="importFrom('dropbox')">
+                            <div class="sidebar-icon">📦</div>
+                            <span>Dropbox</span>
+                    </div>
+                        <div class="sidebar-item" onclick="importFrom('onedrive')">
+                            <div class="sidebar-icon">☁️</div>
+                            <span>OneDrive</span>
+                    </div>
+                        <div class="sidebar-item" onclick="importFrom('box')">
+                            <div class="sidebar-icon">📦</div>
+                            <span>Box</span>
+                </div>
+                    </div>
+                </nav>
+                </div>
+
+            <!-- Main Content -->
+            <div class="main-content">
+                <!-- Top Bar -->
+                <div class="top-bar">
+                    <div class="tabs">
+                        <div class="tab active" onclick="switchTab('drafts')">
+                            <span class="tab-icon">✏️</span>
+                            <span class="tab-text">Drafts</span>
+                            <span class="tab-count" id="drafts-count-2">0 documents</span>
+                    </div>
+                        <div class="tab" onclick="switchTab('actions')">
+                            <span class="tab-icon">⚠️</span>
+                            <span class="tab-text">Actions Required</span>
+                            <span class="tab-count" id="actions-count-2">0 documents</span>
+                </div>
+                        <div class="tab" onclick="switchTab('waiting')">
+                            <span class="tab-icon">👥</span>
+                            <span class="tab-text">Waiting for Others</span>
+                            <span class="tab-count" id="waiting-count-2">0 documents</span>
+            </div>
+                        <div class="tab" onclick="switchTab('finished')">
+                            <span class="tab-icon">✅</span>
+                            <span class="tab-text">Finished</span>
+                            <span class="tab-count" id="finished-count-2">0 documents</span>
                     </div>
                 </div>
 
-                <!-- Pricing Information -->
-                <div class="section">
-                    <h3>💰 Pricing</h3>
-                    <div class="form-group">
-                        <label class="form-label">Total Price</label>
-                        <input type="number" id="totalPrice" class="form-input" placeholder="2000.00" step="0.01">
+                    <div class="top-actions">
+                        <div class="tab-arrow">‹</div>
+                        <div class="tab-arrow">›</div>
+                        <div class="filter-icon">☰</div>
                     </div>
-                    <div class="form-group">
-                        <label class="form-label">Currency</label>
-                        <select id="currency" class="form-select">
-                            <option value="USD">USD</option>
-                            <option value="EUR">EUR</option>
-                            <option value="GBP">GBP</option>
-                        </select>
-                    </div>
-                </div>
-
-                <!-- Term Information -->
-                <div class="section">
-                    <h3>📅 Agreement Terms</h3>
-                    <div class="form-group">
-                        <label class="form-label">Start Date</label>
-                        <input type="date" id="startDate" class="form-input">
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">End Date</label>
-                        <input type="date" id="endDate" class="form-input">
+                            </div>
+                            
+                <!-- Template Content -->
+                <div class="content-area" style="padding: 24px; max-width: 1200px; width: 100%; align-items: flex-start;">
+                    <!-- Search Section -->
+                    <div class="search-section">
+                        <div class="search-bar">
+                            <div class="search-icon">🔍</div>
+                            <input type="text" class="search-input" placeholder="Search templates" id="templateSearch">
                     </div>
                 </div>
 
-                <!-- Signature Configuration -->
-                <div class="section">
-                    <h3>✍️ Signature Setup</h3>
-                    <div class="form-group">
-                        <label class="form-label">CEO/Manager Name</label>
-                        <input type="text" id="ceoName" class="form-input" value="Adi Nandyala" placeholder="CEO/Manager name">
+                    <!-- File Upload Section -->
+                    <div class="upload-section">
+                        <div class="upload-area" id="uploadArea" onclick="triggerFileInput()">
+                            <div class="upload-icon">📁</div>
+                            <div class="upload-text">Drag and drop your files here</div>
+                            <div class="upload-subtext">Supported files: PDF, Word, PowerPoint, JPG, PNG</div>
+                            <button class="select-files-btn" onclick="event.stopPropagation(); triggerFileInput()">
+                                <span>↑</span>
+                                Select files
+                            </button>
                     </div>
-                    <div class="form-group">
-                        <label class="form-label">CEO/Manager Title</label>
-                        <input type="text" id="ceoTitle" class="form-input" value="Director of operations" placeholder="CEO/Manager title">
+                        <input type="file" class="file-input" id="fileInput" multiple accept=".pdf,.doc,.docx,.ppt,.pptx,.jpg,.jpeg,.png">
+                    </div>
+
+                    <!-- Template Section -->
+                    <div class="template-section">
+                        <div class="template-header">
+                            <h2 class="template-title">Create a document from a template, or start with a blank document</h2>
+                            <div class="view-toggle">
+                                <button class="view-btn" onclick="toggleView('list')">☰</button>
+                                <button class="view-btn active" onclick="toggleView('grid')">⊞</button>
                     </div>
                 </div>
 
-                <!-- Actions -->
-                <div class="section">
-                    <h3>🚀 Actions</h3>
-                    <div style="background: #e8f4fd; padding: 10px; border-radius: 5px; margin-bottom: 15px; font-size: 14px;">
-                        <strong>📋 Complete 3-Page Agreement includes:</strong><br/>
-                        • <strong>Page 1:</strong> Main agreement with pricing and terms<br/>
-                        • <strong>Page 2:</strong> Signature page for CEO and client<br/>
-                        • <strong>Page 3:</strong> Professional signature certificate
+                        <div class="template-grid" id="templateGrid">
+                            <!-- Blank Document Card -->
+                            <div class="template-card" onclick="selectTemplate('blank')">
+                                <div class="template-preview blank">
+                                    <div class="blank-icon">+</div>
                     </div>
-                    <button class="btn btn-success" onclick="updatePreview()">🔄 Update Preview</button>
-                    <button class="btn" onclick="generatePDF()">📄 Generate Complete 3-Page Agreement</button>
-                    <button class="btn" onclick="sendForSignature()">📧 Send for Signature</button>
-                    <button class="btn btn-secondary" onclick="saveTemplate()">💾 Save Template</button>
-                    <div id="actionMessages"></div>
+                                <div class="template-name">Blank document</div>
                 </div>
 
-                <!-- Signature Certificate Section -->
-                <div class="section">
-                    <h3>🏆 Signature Certificate</h3>
-                    <div style="background: #e8f4fd; padding: 10px; border-radius: 5px; margin-bottom: 15px; font-size: 14px;">
-                        <strong>📋 Complete 3-Page Agreement includes:</strong><br/>
-                        • <strong>Page 1:</strong> Main agreement with pricing and terms<br/>
-                        • <strong>Page 2:</strong> Signature page for CEO and client<br/>
-                        • <strong>Page 3:</strong> Professional signature certificate
+                            <!-- Complete Agreement Template -->
+                            <div class="template-card" onclick="createAgreementTemplate()">
+                                <div class="template-preview">
+                                    <div class="template-icon">📋</div>
                     </div>
-                    <div class="form-group">
-                        <label class="form-label">Select Completed Agreement</label>
-                        <select id="completedAgreementsSelect" class="form-select" onchange="selectAgreementForCertificate()">
-                            <option value="">Select a completed agreement...</option>
-                        </select>
-                        <button class="btn btn-secondary" onclick="loadCompletedAgreements()">🔄 Refresh</button>
+                                <div class="template-name">Complete Agreement</div>
                     </div>
-                    <div class="form-group">
-                        <label class="form-label">Or Enter Agreement ID Manually</label>
-                        <input type="text" id="certificateAgreementId" class="form-input" placeholder="Enter agreement ID manually">
+                            
+                            <!-- Template Cards -->
+                            <div class="template-card" onclick="selectTemplate('cloudfuze-agreement')">
+                                <div class="template-preview">
+                                    <div style="font-size: 12px; color: #374151; text-align: left; padding: 8px;">
+                                        <div style="font-weight: bold; margin-bottom: 4px;">CloudFuze</div>
+                                        <div style="font-size: 10px; color: #6b7280;">Microsoft Partner</div>
+                                        <div style="margin-top: 8px; font-size: 8px;">
+                                            <div>Job Assignment | Description | Price</div>
+                                            <div>Migration | Service | $2,000</div>
                     </div>
-                    <div class="form-group">
-                        <button class="btn" onclick="generateSignatureCertificate()">🏆 Generate Signature Certificate</button>
-                        <button class="btn btn-secondary" onclick="viewAllCertificates()">📋 View All Certificates</button>
-                        <button class="btn" onclick="signAsCEO()">👔 Sign as CEO</button>
+                    </div>
+                </div>
+                                <div class="template-name">CloudFuze - Agreement</div>
+            </div>
+
+                            <div class="template-card" onclick="selectTemplate('cloudfuze-quote')">
+                                <div class="template-preview">
+                                    <div style="font-size: 12px; color: #374151; text-align: left; padding: 8px;">
+                                        <div style="font-weight: bold; margin-bottom: 4px;">CloudFuze</div>
+                                        <div style="font-size: 10px; color: #6b7280;">Quote Template</div>
+                                        <div style="margin-top: 8px; font-size: 8px;">
+                                            <div>Service | Users | Duration</div>
+                                            <div>Migration | 50 | 1 Month</div>
                     </div>
                 </div>
             </div>
+                                <div class="template-name">CloudFuze - Quote</div>
+        </div>
 
-            <!-- Preview Panel -->
-            <div class="preview-panel">
-                <h3>📄 Agreement Preview</h3>
-                <div id="agreementPreview">
-                    <div class="loading">
-                        <p>Configure your agreement settings to see the preview...</p>
+                            <div class="template-card" onclick="selectTemplate('cloudfuze-contract')">
+                                <div class="template-preview">
+                                    <div style="font-size: 12px; color: #374151; text-align: left; padding: 8px;">
+                                        <div style="font-weight: bold; margin-bottom: 4px;">CloudFuze</div>
+                                        <div style="font-size: 10px; color: #6b7280;">Contract Template</div>
+                                        <div style="margin-top: 8px; font-size: 8px;">
+                                            <div>Terms | Conditions | Signatures</div>
+                                            <div>Service | Legal | Required</div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="template-name">CloudFuze - Contract</div>
+    </div>
+
+                            <div class="template-card" onclick="selectTemplate('cloudfuze-invoice')">
+                                <div class="template-preview">
+                                    <div style="font-size: 12px; color: #374151; text-align: left; padding: 8px;">
+                                        <div style="font-weight: bold; margin-bottom: 4px;">CloudFuze</div>
+                                        <div style="font-size: 10px; color: #6b7280;">Invoice Template</div>
+                                        <div style="margin-top: 8px; font-size: 8px;">
+                                            <div>Item | Qty | Amount</div>
+                                            <div>Service | 1 | $2,000</div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="template-name">CloudFuze - Invoice</div>
+                            </div>
+                            
+                            <div class="template-card" onclick="selectTemplate('cloudfuze-proposal')">
+                                <div class="template-preview">
+                                    <div style="font-size: 12px; color: #374151; text-align: left; padding: 8px;">
+                                        <div style="font-weight: bold; margin-bottom: 4px;">CloudFuze</div>
+                                        <div style="font-size: 10px; color: #6b7280;">Proposal Template</div>
+                                        <div style="margin-top: 8px; font-size: 8px;">
+                                            <div>Project | Timeline | Budget</div>
+                                            <div>Migration | 30 days | $5,000</div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="template-name">CloudFuze - Proposal</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+                            </div>
+                            
+    <!-- Document Editor Page -->
+    <div class="page editor-page" id="editorPage">
+        <div class="editor-container">
+            <!-- Main Editor Area -->
+            <div class="editor-main">
+                                <!-- Toolbar -->
+                <div class="editor-toolbar">
+                    <div class="editor-toolbar-left">
+                        <div class="document-title">New document</div>
+                        <div class="document-status">Draft • $0.00 • All documents • ✓ Updated less than a minute ago</div>
+                    </div>
+                    <div class="editor-toolbar-right">
+                        <button class="toolbar-btn" onclick="saveTemplate()">💾 Save</button>
+                        <button class="toolbar-btn" onclick="exportTemplate()">📄 Export</button>
+                        <button class="toolbar-btn" onclick="viewAllSavedDocuments()" title="View all saved documents">📁</button>
+                        <button class="toolbar-btn" onclick="exportAllDocuments()" title="Export all documents">📦</button>
+                        <button class="toolbar-btn">👤 Invite</button>
+                        <button class="toolbar-btn primary">Send ▼</button>
+                        <button class="toolbar-btn">👁️</button>
+                        <button class="toolbar-btn">💬</button>
+                        <button class="toolbar-btn">ℹ️</button>
+                        <button class="toolbar-btn">⋯</button>
+                        <button class="toolbar-btn">❓ Need help</button>
+                        <div class="user-avatar">RD</div>
+                            </div>
+                        </div>
+
+                <!-- Document Canvas -->
+                <div class="editor-canvas" id="editorCanvas">
+                    <div class="canvas-content">
+                        <div class="content-block" id="dropZone">
+                            <div style="text-align: center; color: #9ca3af; font-size: 16px;">
+                                Drag and drop content blocks from the sidebar, or choose from the options below.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                            </div>
+                            
+            <!-- Right Sidebar -->
+            <div class="editor-sidebar">
+                <div class="sidebar-header">
+                    <div class="sidebar-title">Content</div>
+                    <button class="sidebar-close" onclick="navigateToPage('template')">×</button>
+                            </div>
+                            
+                <div class="sidebar-content">
+                    <!-- Content Blocks Section -->
+                    <div class="sidebar-section">
+                        <div class="section-title">Blocks</div>
+                        <div class="blocks-grid">
+                            <div class="block-btn" draggable="true" data-block="text" onclick="addBlock('text')">
+                                <span class="block-icon">📝</span>
+                                Text
+                            </div>
+                            <div class="block-btn" draggable="true" data-block="image" onclick="addBlock('image')">
+                                <span class="block-icon">🖼️</span>
+                                Image
+                            </div>
+                            <div class="block-btn" draggable="true" data-block="video" onclick="addBlock('video')">
+                                <span class="block-icon">🎥</span>
+                                Video
+                            </div>
+                            <div class="block-btn" draggable="true" data-block="table" onclick="addBlock('table')">
+                                <span class="block-icon">📊</span>
+                                Table
+                            </div>
+                            <div class="block-btn" draggable="true" data-block="pricing" onclick="addBlock('pricing')">
+                                <span class="block-icon">💰</span>
+                                Pricing table
+                            </div>
+                            <div class="block-btn" draggable="true" data-block="quote" onclick="addBlock('quote')">
+                                <span class="block-icon">🛒</span>
+                                Quote builder
+                            </div>
+                            <div class="block-btn" draggable="true" data-block="toc" onclick="addBlock('toc')">
+                                <span class="block-icon">📋</span>
+                                Table of contents
+                            </div>
+                            <div class="block-btn" draggable="true" data-block="break" onclick="addBlock('break')">
+                                <span class="block-icon">✂️</span>
+                                Page break
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Fillable Fields Section -->
+                    <div class="sidebar-section">
+                        <div class="section-title">Fillable Fields For</div>
+                        <input type="text" class="search-field" placeholder="Start typing name or email">
+                        <div class="fields-grid">
+                            <div class="field-btn" draggable="true" data-field="text" onclick="addField('text')">
+                                <span class="field-icon">AI</span>
+                                Text field
+                    </div>
+                            <div class="field-btn" draggable="true" data-field="signature" onclick="addField('signature')">
+                                <span class="field-icon">✍️</span>
+                                Signature
+                </div>
+                            <div class="field-btn" draggable="true" data-field="initials" onclick="addField('initials')">
+                                <span class="field-icon">IN</span>
+                                Initials
+                            </div>
+                            <div class="field-btn" draggable="true" data-field="date" onclick="addField('date')">
+                                <span class="field-icon">📅</span>
+                                Date
+                            </div>
+                            <div class="field-btn" draggable="true" data-field="checkbox" onclick="addField('checkbox')">
+                                <span class="field-icon">☑️</span>
+                                Checkbox
+                            </div>
+                            <div class="field-btn" draggable="true" data-field="radio" onclick="addField('radio')">
+                                <span class="field-icon">🔘</span>
+                                Radio buttons
+                            </div>
+                            <div class="field-btn" draggable="true" data-field="dropdown" onclick="addField('dropdown')">
+                                <span class="field-icon">▼</span>
+                                Dropdown
+                            </div>
+                            <div class="field-btn" draggable="true" data-field="billing" onclick="addField('billing')">
+                                <span class="field-icon">📄</span>
+                                Billing details
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -634,1016 +1450,1251 @@
     </div>
 
     <script>
-        // Global variables
-        let quotes = [];
-        let deals = [];
-        let templates = [];
-        let currentTemplateId = null;
-        let currentSignaturePads = {};
+        // Navigation between pages
+        function navigateToPage(pageId) {
+            // Hide all pages
+            document.querySelectorAll('.page').forEach(page => {
+                page.classList.remove('active');
+            });
+            
+            // Show selected page
+            document.getElementById(pageId + 'Page').classList.add('active');
+        }
 
-        // Initialize
+        // Tab switching
+        function switchTab(tabType) {
+            // Remove active class from all tabs
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            
+            // Add active class to clicked tab
+            event.target.closest('.tab').classList.add('active');
+            
+            console.log(`Switched to ${tabType} tab`);
+        }
+
+        // Sidebar item selection
+        function selectSidebarItem(element, itemId) {
+            // Remove active class from all sidebar items
+            document.querySelectorAll('.sidebar-item').forEach(item => {
+                item.classList.remove('active');
+            });
+            
+            // Add active class to clicked item
+            element.classList.add('active');
+            
+            if (itemId === 'my-templates') {
+                displaySavedTemplates();
+            }
+            
+            console.log(`Selected sidebar item: ${itemId}`);
+        }
+
+        // Import from external source
+        function importFrom(source) {
+            console.log(`Importing from: ${source}`);
+            
+            switch(source) {
+                case 'local':
+                    alert('Local file import - file picker would open here');
+                    break;
+                case 'google-drive':
+                    alert('Google Drive integration coming soon!');
+                    break;
+                case 'dropbox':
+                    alert('Dropbox integration coming soon!');
+                    break;
+                case 'onedrive':
+                    alert('OneDrive integration coming soon!');
+                    break;
+                case 'box':
+                    alert('Box integration coming soon!');
+                    break;
+            }
+        }
+
+        // Show create modal (placeholder)
+        function showCreateModal() {
+            alert('Create new document modal would open here');
+        }
+
+        // Template Page Functions
+        function selectTemplate(templateId) {
+            console.log(`Selected template: ${templateId}`);
+            
+            // Navigate to editor page
+            navigateToPage('editor');
+            
+            // In a real app, you'd pass the template data to the editor
+            alert(`Creating document from template: ${templateId}`);
+        }
+
+        function triggerFileInput() {
+            document.getElementById('fileInput').click();
+        }
+
+        function handleFileSelect(event) {
+            const files = event.target.files;
+            console.log(`Selected ${files.length} files:`, files);
+            
+            // Process files here
+            for (let file of files) {
+                console.log(`Processing file: ${file.name} (${file.type})`);
+            }
+            
+            alert(`Uploaded ${files.length} file(s) successfully!`);
+        }
+
+                function toggleView(viewType) {
+            const grid = document.getElementById('templateGrid');
+            const buttons = document.querySelectorAll('.view-btn');
+            
+            // Update button states
+            buttons.forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+            
+            // Update grid layout
+            if (viewType === 'list') {
+                grid.style.gridTemplateColumns = '1fr';
+                } else {
+                grid.style.gridTemplateColumns = 'repeat(auto-fill, minmax(200px, 1fr))';
+            }
+        }
+
+        // Document Editor Functions
+        function addBlock(blockType) {
+            console.log(`Adding block: ${blockType}`);
+            
+            const canvas = document.getElementById('editorCanvas');
+            const canvasContent = canvas.querySelector('.canvas-content');
+            
+            // Create new block element
+            const newBlock = document.createElement('div');
+            newBlock.className = 'content-block';
+            newBlock.innerHTML = getBlockContent(blockType);
+            
+            // Add to canvas
+            canvasContent.appendChild(newBlock);
+            
+            alert(`Added ${blockType} block to document`);
+        }
+
+        function addField(fieldType) {
+            console.log(`Adding field: ${fieldType}`);
+            
+            const canvas = document.getElementById('editorCanvas');
+            const canvasContent = canvas.querySelector('.canvas-content');
+            
+            // Create new field element
+            const newField = document.createElement('div');
+            newField.className = 'content-block';
+            newField.innerHTML = getFieldContent(fieldType);
+            
+            // Add to canvas
+            canvasContent.appendChild(newField);
+            
+            alert(`Added ${fieldType} field to document`);
+        }
+
+        function getBlockContent(blockType) {
+            const blockContents = {
+                text: '<div class="editable-block" style="padding: 40px; border: 1px solid #e5e7eb; border-radius: 8px; background: #f9fafb; position: relative; min-height: 200px;" data-block-type="text"><div class="block-toolbar" style="position: absolute; top: 10px; right: 10px; display: none; background: white; border: 1px solid #e5e7eb; border-radius: 4px; padding: 6px;"><button onclick="deleteBlock(this)" title="Delete">🗑️</button><button onclick="duplicateBlock(this)" title="Duplicate">📋</button><button onclick="lockBlock(this)" title="Lock">🔒</button></div><h3 contenteditable="true" style="outline: none; border: none; background: transparent; font-size: 28px; font-weight: 600; margin: 0 0 20px 0; color: #1f2937;">Text Block</h3><p contenteditable="true" style="outline: none; border: none; background: transparent; margin: 0; line-height: 1.8; font-size: 16px; color: #374151;">Click to edit this text block. You can type anything here and it will expand as you add more content...</p></div>',
+                image: '<div class="editable-block image-block" style="padding: 40px; border: 1px solid #e5e7eb; border-radius: 8px; background: #f9fafb; text-align: center; position: relative; min-height: 300px;" data-block-type="image"><div class="block-toolbar" style="position: absolute; top: 10px; right: 10px; display: none; background: white; border: 1px solid #e5e7eb; border-radius: 4px; padding: 6px;"><button onclick="deleteBlock(this)" title="Delete">🗑️</button><button onclick="duplicateBlock(this)" title="Duplicate">📋</button><button onclick="lockBlock(this)" title="Lock">🔒</button></div><h3 contenteditable="true" style="outline: none; border: none; background: transparent; font-size: 28px; font-weight: 600; margin: 0 0 25px 0; color: #1f2937;">Image Block</h3><div class="image-upload-area" style="border: 2px dashed #10b981; border-radius: 8px; padding: 40px 20px; background: white; cursor: pointer; transition: all 0.3s ease; min-height: 180px; display: flex; flex-direction: column; align-items: center; justify-content: center;" onclick="uploadImage(this)" ondrop="handleImageDrop(event)" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)"><div style="display: flex; align-items: center; gap: 12px; color: #10b981; font-size: 16px; font-weight: 500;"><span style="font-size: 24px;">🏔️</span><span>Click to upload or drag & drop image</span></div><input type="file" accept="image/*" style="display: none;" onchange="handleImageUpload(this)"></div></div>',
+                video: '<div style="padding: 20px; border: 1px solid #e5e7eb; border-radius: 8px; background: #f9fafb; text-align: center; cursor: pointer;" onclick="uploadVideo(this)"><h3 contenteditable="true" style="outline: none; border: none; background: transparent;">Video Block</h3><p contenteditable="true" style="outline: none; border: none; background: transparent; margin-top: 10px;">🎥 Click to add a video</p><input type="file" accept="video/*" style="display: none;" onchange="handleVideoUpload(this)"></div>',
+                table: '<div class="editable-block" style="padding: 40px; border: 1px solid #e5e7eb; border-radius: 8px; background: #f9fafb; position: relative; min-height: 250px;" data-block-type="table"><div class="block-toolbar" style="position: absolute; top: 10px; right: 10px; display: none; background: white; border: 1px solid #e5e7eb; border-radius: 4px; padding: 6px;"><button onclick="deleteBlock(this)" title="Delete">🗑️</button><button onclick="duplicateBlock(this)" title="Duplicate">📋</button><button onclick="lockBlock(this)" title="Lock">🔒</button></div><h3 contenteditable="true" style="outline: none; border: none; background: transparent; font-size: 28px; font-weight: 600; margin: 0 0 25px 0; color: #1f2937;">Table Block</h3><table style="width: 100%; border-collapse: collapse; font-size: 16px;"><tr><th contenteditable="true" style="border: 1px solid #e5e7eb; padding: 15px; outline: none; background: #f3f4f6; font-weight: 600;">Header 1</th><th contenteditable="true" style="border: 1px solid #e5e7eb; padding: 15px; outline: none; background: #f3f4f6; font-weight: 600;">Header 2</th><th contenteditable="true" style="border: 1px solid #e5e7eb; padding: 15px; outline: none; background: #f3f4f6; font-weight: 600;">Header 3</th></tr><tr><td contenteditable="true" style="border: 1px solid #e5e7eb; padding: 15px; outline: none; min-height: 40px;">Cell 1</td><td contenteditable="true" style="border: 1px solid #e5e7eb; padding: 15px; outline: none; min-height: 40px;">Cell 2</td><td contenteditable="true" style="border: 1px solid #e5e7eb; padding: 15px; outline: none; min-height: 40px;">Cell 3</td></tr><tr><td contenteditable="true" style="border: 1px solid #e5e7eb; padding: 15px; outline: none; min-height: 40px;">Cell 4</td><td contenteditable="true" style="border: 1px solid #e5e7eb; padding: 15px; outline: none; min-height: 40px;">Cell 5</td><td contenteditable="true" style="border: 1px solid #e5e7eb; padding: 15px; outline: none; min-height: 40px;">Cell 6</td></tr></table></div>',
+                pricing: '<div class="editable-block pricing-table" style="padding: 40px; border: 1px solid #e5e7eb; border-radius: 8px; background: #f9fafb; position: relative; min-height: 400px;" data-block-type="pricing"><div class="block-toolbar" style="position: absolute; top: 10px; right: 10px; display: none; background: white; border: 1px solid #e5e7eb; border-radius: 4px; padding: 6px;"><button onclick="deleteBlock(this)" title="Delete">🗑️</button><button onclick="duplicateBlock(this)" title="Duplicate">📋</button><button onclick="lockBlock(this)" title="Lock">🔒</button></div><h3 contenteditable="true" style="outline: none; border: none; background: transparent; font-size: 28px; font-weight: 600; margin: 0 0 25px 0; color: #1f2937;">Pricing Table</h3><table style="width: 100%; border-collapse: collapse; margin-bottom: 25px; font-size: 16px;"><thead><tr style="background: #f3f4f6;"><th style="border: 1px solid #e5e7eb; padding: 15px; text-align: left; font-weight: 600;">Job Requirement</th><th style="border: 1px solid #e5e7eb; padding: 15px; text-align: left; font-weight: 600;">Description</th><th style="border: 1px solid #e5e7eb; padding: 15px; text-align: left; font-weight: 600;">Migration Type</th><th style="border: 1px solid #e5e7eb; padding: 15px; text-align: left; font-weight: 600;">Price (USD)</th></tr></thead><tbody><tr><td style="border: 1px solid #e5e7eb; padding: 15px;"><input type="text" value="CloudFuze X-Change Data Migration" style="width: 100%; border: none; outline: none; background: transparent; font-size: 16px; padding: 8px;" onchange="calculateRow(this)"></td><td style="border: 1px solid #e5e7eb; padding: 15px;"><input type="text" value="Slack to Teams" style="width: 100%; border: none; outline: none; background: transparent; font-size: 16px; padding: 8px;" onchange="calculateRow(this)"></td><td style="border: 1px solid #e5e7eb; padding: 15px;"><input type="text" value="Managed Migration One-Time" style="width: 100%; border: none; outline: none; background: transparent; font-size: 16px; padding: 8px;" onchange="calculateRow(this)"></td><td style="border: 1px solid #e5e7eb; padding: 15px;"><input type="number" value="1500" style="width: 100%; border: none; outline: none; background: transparent; text-align: right; font-size: 16px; padding: 8px;" onchange="calculateRow(this)"></td></tr><tr><td style="border: 1px solid #e5e7eb; padding: 15px;"><input type="text" value="Managed Migration Service" style="width: 100%; border: none; outline: none; background: transparent; font-size: 16px; padding: 8px;" onchange="calculateRow(this)"></td><td style="border: 1px solid #e5e7eb; padding: 15px;"><textarea style="width: 100%; border: none; outline: none; background: transparent; font-size: 16px; padding: 8px; resize: vertical; min-height: 60px;" onchange="calculateRow(this)">Up to 45 Users | All Channels and DMs\nFully Managed Migration | Dedicated Project Manager\nPre-Migration Analysis | During Migration Consulting\nPost-Migration Support and Data Reconciliation Support\nEnd-to End Migration Assistance with 24*7 Premium Support\nValid for One Month</textarea></td><td style="border: 1px solid #e5e7eb; padding: 15px;"><input type="text" value="Managed Migration One-Time" style="width: 100%; border: none; outline: none; background: transparent; font-size: 16px; padding: 8px;" onchange="calculateRow(this)"></td><td style="border: 1px solid #e5e7eb; padding: 15px;"><input type="number" value="500" style="width: 100%; border: none; outline: none; background: transparent; text-align: right; font-size: 16px; padding: 8px;" onchange="calculateRow(this)"></td></tr></tbody></table><div style="margin-top: 20px; text-align: right;"><div style="font-size: 20px; font-weight: bold; border-top: 2px solid #e5e7eb; padding-top: 10px; color: #1f2937;">Total Price: <span class="total">$2,000.00</span></div></div><div style="margin-top: 20px;"><button onclick="addPricingRow(this)" style="background: #10b981; color: white; border: none; padding: 12px 24px; border-radius: 6px; cursor: pointer; font-size: 16px; font-weight: 600;">+ Add Service</button></div></div>',
+                quote: '<div style="padding: 20px; border: 1px solid #e5e7eb; border-radius: 8px; background: #f9fafb;"><h3 contenteditable="true" style="outline: none; border: none; background: transparent;">Quote Builder</h3><p contenteditable="true" style="outline: none; border: none; background: transparent; margin-top: 10px;">🛒 Build your quote</p></div>',
+                toc: '<div style="padding: 20px; border: 1px solid #e5e7eb; border-radius: 8px; background: #f9fafb;"><h3 contenteditable="true" style="outline: none; border: none; background: transparent;">Table of Contents</h3><p contenteditable="true" style="outline: none; border: none; background: transparent; margin-top: 10px;">📋 Auto-generated TOC</p></div>',
+                break: '<div style="padding: 20px; border: 1px solid #e5e7eb; border-radius: 8px; background: #f9fafb; text-align: center;"><h3 contenteditable="true" style="outline: none; border: none; background: transparent;">Page Break</h3><p contenteditable="true" style="outline: none; border: none; background: transparent; margin-top: 10px;">✂️ Page break inserted</p></div>'
+            };
+            
+            return blockContents[blockType] || '<div>Unknown block type</div>';
+        }
+
+        function getFieldContent(fieldType) {
+            const fieldContents = {
+                text: '<div style="padding: 20px; border: 1px solid #e5e7eb; border-radius: 8px; background: #f0fdf4;"><h3>Text Field</h3><input type="text" placeholder="Enter text..." style="width: 100%; padding: 8px; border: 1px solid #d1d5db; border-radius: 4px;"></div>',
+                signature: '<div class="editable-block signature-field" style="padding: 40px; border: 1px solid #e5e7eb; border-radius: 8px; background: #f9fafb; position: relative; min-height: 300px;" data-block-type="signature"><div class="block-toolbar" style="position: absolute; top: 10px; right: 10px; display: none; background: white; border: 1px solid #e5e7eb; border-radius: 4px; padding: 6px;"><button onclick="deleteBlock(this)" title="Delete">🗑️</button><button onclick="duplicateBlock(this)" title="Duplicate">📋</button><button onclick="lockBlock(this)" title="Lock">🔒</button></div><h3 contenteditable="true" style="outline: none; border: none; background: transparent; font-size: 28px; font-weight: 600; margin: 0 0 25px 0; color: #1f2937;">Digital Signature</h3><p contenteditable="true" style="outline: none; border: none; background: transparent; margin-top: 10px; font-size: 16px; color: #6b7280;">Sign below to accept the agreement terms and pricing.</p><div style="display: flex; justify-content: flex-end; margin-top: 30px;"><div class="signature-pad" style="border: 2px solid #10b981; height: 120px; width: 300px; background: white; position: relative; cursor: crosshair; border-radius: 8px; display: flex; align-items: center; justify-content: center;" onclick="openSignaturePad(this)"><canvas width="300" height="120" style="width: 100%; height: 100%; border-radius: 6px;"></canvas><div class="signature-placeholder" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: #10b981; font-size: 18px; pointer-events: none; display: flex; align-items: center; gap: 8px; font-weight: 600;"><span style="font-size: 24px;">✓</span><span>Signature</span></div></div></div><div class="signature-controls" style="margin-top: 15px; text-align: center;"><button onclick="clearSignature(this)" style="background: #ef4444; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; margin-right: 12px; font-size: 16px; font-weight: 600;">Clear</button><button onclick="saveSignature(this)" style="background: #10b981; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-size: 16px; font-weight: 600;">Save</button></div></div>',
+                initials: '<div style="padding: 20px; border: 1px solid #e5e7eb; border-radius: 8px; background: #f0fdf4;"><h3>Initials Field</h3><div style="border: 2px dashed #10b981; height: 60px; display: flex; align-items: center; justify-content: center; color: #10b981;">IN Initials</div></div>',
+                date: '<div style="padding: 20px; border: 1px solid #e5e7eb; border-radius: 8px; background: #f0fdf4;"><h3>Date Field</h3><input type="date" style="width: 100%; padding: 8px; border: 1px solid #d1d5db; border-radius: 4px;"></div>',
+                checkbox: '<div style="padding: 20px; border: 1px solid #e5e7eb; border-radius: 8px; background: #f0fdf4;"><h3>Checkbox Field</h3><label><input type="checkbox" style="margin-right: 8px;"> Option 1</label><br><label><input type="checkbox" style="margin-right: 8px;"> Option 2</label></div>',
+                radio: '<div style="padding: 20px; border: 1px solid #e5e7eb; border-radius: 8px; background: #f0fdf4;"><h3>Radio Buttons</h3><label><input type="radio" name="radio1" style="margin-right: 8px;"> Option A</label><br><label><input type="radio" name="radio1" style="margin-right: 8px;"> Option B</label></div>',
+                dropdown: '<div style="padding: 20px; border: 1px solid #e5e7eb; border-radius: 8px; background: #f0fdf4;"><h3>Dropdown Field</h3><select style="width: 100%; padding: 8px; border: 1px solid #d1d5db; border-radius: 4px;"><option>Select an option</option><option>Option 1</option><option>Option 2</option></select></div>',
+                billing: '<div style="padding: 20px; border: 1px solid #e5e7eb; border-radius: 8px; background: #f0fdf4;"><h3>Billing Details</h3><p>📄 Billing information fields</p></div>'
+            };
+            
+            return fieldContents[fieldType] || '<div>Unknown field type</div>';
+        }
+
+        // Helper functions for editing
+        function makeEditable(element) {
+            // Focus on the first editable element
+            const editableElement = element.querySelector('[contenteditable="true"]');
+            if (editableElement) {
+                editableElement.focus();
+            }
+        }
+
+        function uploadImage(element) {
+            const fileInput = element.querySelector('input[type="file"]');
+            fileInput.click();
+        }
+
+        function uploadVideo(element) {
+            const fileInput = element.querySelector('input[type="file"]');
+            fileInput.click();
+        }
+
+        function handleImageUpload(input) {
+            const file = input.files[0];
+            if (file) {
+                const uploadArea = input.closest('.image-upload-area');
+                handleImageFile(file, uploadArea);
+            }
+        }
+
+        function handleVideoUpload(input) {
+            const file = input.files[0];
+            if (file) {
+                const videoBlock = input.parentElement;
+                const videoElement = document.createElement('video');
+                videoElement.src = URL.createObjectURL(file);
+                videoElement.controls = true;
+                videoElement.style.maxWidth = '100%';
+                videoElement.style.height = 'auto';
+                videoElement.style.marginTop = '10px';
+                videoElement.style.borderRadius = '4px';
+                
+                // Replace the text with the video
+                const textElement = videoBlock.querySelector('p');
+                textElement.innerHTML = '';
+                textElement.appendChild(videoElement);
+            }
+        }
+
+        // Block management functions
+        function deleteBlock(button) {
+            const block = button.closest('.editable-block');
+            if (confirm('Are you sure you want to delete this block?')) {
+                block.remove();
+            }
+        }
+
+        function duplicateBlock(button) {
+            const block = button.closest('.editable-block');
+            const clonedBlock = block.cloneNode(true);
+            block.parentNode.insertBefore(clonedBlock, block.nextSibling);
+        }
+
+        function lockBlock(button) {
+            const block = button.closest('.editable-block');
+            const isLocked = block.classList.contains('locked');
+            
+            if (isLocked) {
+                block.classList.remove('locked');
+                button.textContent = '🔒';
+                button.title = 'Lock';
+                // Re-enable editing
+                const editableElements = block.querySelectorAll('[contenteditable="true"]');
+                editableElements.forEach(el => el.contentEditable = 'true');
+            } else {
+                block.classList.add('locked');
+                button.textContent = '🔓';
+                button.title = 'Unlock';
+                // Disable editing
+                const editableElements = block.querySelectorAll('[contenteditable="true"]');
+                editableElements.forEach(el => el.contentEditable = 'false');
+            }
+        }
+
+        // Pricing table functions
+        function calculateRow(input) {
+            const row = input.closest('tr');
+            const priceInput = row.querySelector('input[type="number"]:nth-of-type(1)');
+            const qtyInput = row.querySelector('input[type="number"]:nth-of-type(2)');
+            const subtotalCell = row.querySelector('td:last-child');
+            
+            const price = parseFloat(priceInput.value) || 0;
+            const qty = parseInt(qtyInput.value) || 1;
+            const subtotal = price * qty;
+            
+            subtotalCell.textContent = `₹ ${subtotal.toFixed(2)}`;
+            calculateTotal();
+        }
+
+        function addPricingRow(button) {
+            const table = button.closest('.pricing-table').querySelector('tbody');
+            const newRow = document.createElement('tr');
+            newRow.innerHTML = `
+                <td style="border: 1px solid #e5e7eb; padding: 12px;">
+                    <input type="text" placeholder="Item name" style="width: 100%; border: none; outline: none; background: transparent;" onchange="calculateRow(this)">
+                                </td>
+                <td style="border: 1px solid #e5e7eb; padding: 12px;">
+                    <input type="number" placeholder="0.00" step="0.01" style="width: 100%; border: none; outline: none; background: transparent; text-align: right;" onchange="calculateRow(this)">
+                                </td>
+                <td style="border: 1px solid #e5e7eb; padding: 12px;">
+                    <input type="number" placeholder="1" min="1" style="width: 100%; border: none; outline: none; background: transparent; text-align: center;" onchange="calculateRow(this)">
+                </td>
+                <td style="border: 1px solid #e5e7eb; padding: 12px; text-align: right; font-weight: 600;">₹ 0.00</td>
+            `;
+            table.appendChild(newRow);
+        }
+
+        function calculateTotal() {
+            const pricingTable = document.querySelector('.pricing-table');
+            if (!pricingTable) return;
+            
+            const rows = pricingTable.querySelectorAll('tbody tr');
+            let subtotal = 0;
+            
+            rows.forEach(row => {
+                const subtotalText = row.querySelector('td:last-child').textContent;
+                const amount = parseFloat(subtotalText.replace('₹ ', '')) || 0;
+                subtotal += amount;
+            });
+            
+            const discountInput = pricingTable.querySelector('input[placeholder="0.00"]:nth-of-type(1)');
+            const taxInput = pricingTable.querySelector('input[placeholder="0.00"]:nth-of-type(2)');
+            
+            const discount = parseFloat(discountInput.value) || 0;
+            const tax = parseFloat(taxInput.value) || 0;
+            
+            const total = subtotal - discount + tax;
+            
+            pricingTable.querySelector('.subtotal').textContent = `₹ ${subtotal.toFixed(2)}`;
+            pricingTable.querySelector('.total').textContent = `₹ ${total.toFixed(2)}`;
+        }
+
+        // Signature functions
+        let isDrawing = false;
+        let currentCanvas = null;
+
+        function openSignaturePad(element) {
+            const canvas = element.querySelector('canvas');
+            const placeholder = element.querySelector('.signature-placeholder');
+            const controls = element.querySelector('.signature-controls');
+            
+            currentCanvas = canvas;
+            placeholder.style.display = 'none';
+            controls.style.display = 'block';
+            
+            const ctx = canvas.getContext('2d');
+            ctx.strokeStyle = '#000';
+            ctx.lineWidth = 2;
+            ctx.lineCap = 'round';
+            
+            canvas.addEventListener('mousedown', startDrawing);
+            canvas.addEventListener('mousemove', draw);
+            canvas.addEventListener('mouseup', stopDrawing);
+            canvas.addEventListener('mouseout', stopDrawing);
+        }
+
+        function startDrawing(e) {
+            isDrawing = true;
+            const canvas = currentCanvas;
+            const ctx = canvas.getContext('2d');
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            
+            ctx.beginPath();
+            ctx.moveTo(x, y);
+        }
+
+        function draw(e) {
+            if (!isDrawing) return;
+            
+            const canvas = currentCanvas;
+            const ctx = canvas.getContext('2d');
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            
+            ctx.lineTo(x, y);
+            ctx.stroke();
+        }
+
+        function stopDrawing() {
+            isDrawing = false;
+        }
+
+        function clearSignature(button) {
+            const canvas = button.closest('.signature-field').querySelector('canvas');
+            const ctx = canvas.getContext('2d');
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+        }
+
+        function saveSignature(button) {
+            const canvas = button.closest('.signature-field').querySelector('canvas');
+            const dataURL = canvas.toDataURL();
+            console.log('Signature saved:', dataURL);
+            alert('Signature saved successfully!');
+        }
+
+        // Enhanced image upload functions
+        function handleDragOver(e) {
+            e.preventDefault();
+            e.currentTarget.style.borderColor = '#3b82f6';
+            e.currentTarget.style.backgroundColor = '#f0f9ff';
+        }
+
+        function handleDragLeave(e) {
+            e.currentTarget.style.borderColor = '#10b981';
+            e.currentTarget.style.backgroundColor = 'white';
+        }
+
+        function handleImageDrop(e) {
+            e.preventDefault();
+            e.currentTarget.style.borderColor = '#10b981';
+            e.currentTarget.style.backgroundColor = 'white';
+            
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                const file = files[0];
+                if (file.type.startsWith('image/')) {
+                    handleImageFile(file, e.currentTarget);
+                } else {
+                    alert('Please drop an image file.');
+                }
+            }
+        }
+
+        function handleImageFile(file, uploadArea) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const imageBlock = uploadArea.closest('.image-block');
+                const imageElement = document.createElement('img');
+                imageElement.src = e.target.result;
+                imageElement.style.maxWidth = '100%';
+                imageElement.style.height = 'auto';
+                imageElement.style.borderRadius = '8px';
+                imageElement.style.marginTop = '10px';
+                
+                // Replace the upload area with the image
+                uploadArea.innerHTML = '';
+                uploadArea.appendChild(imageElement);
+                
+                // Add image controls (only for image blocks, not pricing tables)
+                if (uploadArea.closest('.image-block')) {
+                    const controls = document.createElement('div');
+                    controls.style.marginTop = '10px';
+                    controls.innerHTML = `
+                        <button onclick="replaceImage(this)" style="background: #3b82f6; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; margin-right: 8px;">Replace</button>
+                        <button onclick="removeImage(this)" style="background: #ef4444; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer;">Remove</button>
+                    `;
+                    uploadArea.appendChild(controls);
+                }
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function replaceImage(button) {
+            const uploadArea = button.closest('.image-upload-area');
+            const fileInput = uploadArea.closest('.image-block').querySelector('input[type="file"]');
+            fileInput.click();
+        }
+
+        function removeImage(button) {
+            const uploadArea = button.closest('.image-upload-area');
+            uploadArea.innerHTML = '<p contenteditable="true" style="outline: none; border: none; background: transparent; margin: 0; color: #10b981; font-size: 16px;">🖼️ Click to upload or drag & drop image</p><input type="file" accept="image/*" style="display: none;" onchange="handleImageUpload(this)">';
+        }
+
+        // Show/hide block toolbars on hover
         document.addEventListener('DOMContentLoaded', function() {
-            loadDataSources();
-            loadTemplates();
-            loadCompletedAgreements();
-            updatePreview();
+            document.addEventListener('mouseover', function(e) {
+                const block = e.target.closest('.editable-block');
+                if (block) {
+                    const toolbar = block.querySelector('.block-toolbar');
+                    if (toolbar) {
+                        toolbar.style.display = 'block';
+                    }
+                }
+            });
             
-            // Set default dates
-            const today = new Date();
-            const nextMonth = new Date(today);
-            nextMonth.setMonth(nextMonth.getMonth() + 1);
-            
-            document.getElementById('startDate').value = today.toISOString().split('T')[0];
-            document.getElementById('endDate').value = nextMonth.toISOString().split('T')[0];
+            document.addEventListener('mouseout', function(e) {
+                const block = e.target.closest('.editable-block');
+                if (block) {
+                    const toolbar = block.querySelector('.block-toolbar');
+                    if (toolbar) {
+                        toolbar.style.display = 'none';
+                    }
+                }
+            });
         });
 
-        // Load templates
-        async function loadTemplates() {
-            try {
-                showMessage('Loading templates...', 'info');
-                
-                const response = await fetch('/api/templates');
-                if (response.ok) {
-                    const data = await response.json();
-                    templates = data.templates || [];
-                    updateTemplateOptions();
-                    showMessage('Templates loaded successfully!', 'success');
-                } else {
-                    showMessage('Error loading templates', 'error');
-                }
-                
-            } catch (error) {
-                console.error('Error loading templates:', error);
-                showMessage('Error loading templates', 'error');
-            }
-        }
-
-        // Update template options
-        function updateTemplateOptions() {
-            const select = document.getElementById('templateSelect');
-            select.innerHTML = '<option value="">Select template to load...</option>';
+        // Save and Export Functions
+        function saveTemplate() {
+            const canvas = document.getElementById('editorCanvas');
+            const canvasContent = canvas.querySelector('.canvas-content');
+            const documentTitle = document.querySelector('.document-title').textContent || 'Untitled Document';
             
-            templates.forEach(template => {
-                const option = document.createElement('option');
-                option.value = template._id;
-                option.textContent = `${template.name} (${template.category}) - ${new Date(template.created_at).toLocaleDateString()}`;
-                select.appendChild(option);
-            });
-        }
-
-        // Load selected template
-        async function loadTemplate() {
-            const templateId = document.getElementById('templateSelect').value;
-            if (!templateId) return;
-
-            try {
-                const template = templates.find(t => t._id === templateId);
-                if (template) {
-                    populateFromTemplate(template);
-                    currentTemplateId = templateId;
-                    updatePreview();
-                    showMessage(`Template "${template.name}" loaded successfully!`, 'success');
-                }
-            } catch (error) {
-                console.error('Error loading template:', error);
-                showMessage('Error loading template', 'error');
-            }
-        }
-
-        // Populate form from template data
-        function populateFromTemplate(template) {
-            // Extract data from template content or metadata
-            // This is a simplified version - you might need to parse the template content
-            if (template.metadata) {
-                const meta = template.metadata;
-                if (meta.companyName) document.getElementById('companyName').value = meta.companyName;
-                if (meta.companyAddress) document.getElementById('companyAddress').value = meta.companyAddress;
-                if (meta.ceoName) document.getElementById('ceoName').value = meta.ceoName;
-                if (meta.ceoTitle) document.getElementById('ceoTitle').value = meta.ceoTitle;
-            }
-        }
-
-        // Save as new template
-        async function saveAsNewTemplate() {
-            try {
-                const templateName = prompt('Enter template name:');
-                if (!templateName) return;
-
-                showMessage('Saving template...', 'info');
-                
-                const templateData = {
-                    name: templateName,
-                    description: 'Custom agreement template with signature tracking',
-                    category: 'agreements',
-                    content: document.getElementById('agreementPreview').innerHTML,
-                    placeholders: [
-                        'companyName', 'companyAddress', 'clientCompany', 'clientName',
-                        'serviceType', 'serviceDescription', 'totalPrice', 'currency',
-                        'startDate', 'endDate', 'ceoName', 'ceoTitle'
-                    ],
-                    type: 'html',
-                    metadata: {
-                        companyName: document.getElementById('companyName').value,
-                        companyAddress: document.getElementById('companyAddress').value,
-                        ceoName: document.getElementById('ceoName').value,
-                        ceoTitle: document.getElementById('ceoTitle').value
-                    }
+            // Collect all blocks data
+            const blocks = [];
+            const blockElements = canvasContent.querySelectorAll('.editable-block');
+            
+            blockElements.forEach((block, index) => {
+                const blockData = {
+                    id: `block_${index}`,
+                    type: block.dataset.blockType || 'unknown',
+                    content: block.innerHTML,
+                    position: index
                 };
+                blocks.push(blockData);
+            });
+            
+            // Create template data
+            const templateData = {
+                id: Date.now().toString(),
+                title: documentTitle,
+                created: new Date().toISOString(),
+                updated: new Date().toISOString(),
+                blocks: blocks,
+                metadata: {
+                    totalBlocks: blocks.length,
+                    hasImages: blocks.some(b => b.type === 'image'),
+                    hasSignatures: blocks.some(b => b.type === 'signature'),
+                    hasPricing: blocks.some(b => b.type === 'pricing')
+                }
+            };
+            
+            // CHOOSE YOUR STORAGE METHOD:
+            
+            // METHOD 1: Browser localStorage (FALLBACK)
+            // saveToLocalStorage(templateData);
+            
+            // METHOD 2: MongoDB via API (CURRENT - ACTIVE)
+            saveToMongoDB(templateData);
+            
+            // METHOD 3: Your existing Flask API (ALTERNATIVE)
+            // saveToFlaskAPI(templateData);
+        }
 
-                const response = await fetch('/api/templates', {
+        // METHOD 1: Save to Browser localStorage (CURRENT)
+        function saveToLocalStorage(templateData) {
+            const savedTemplates = JSON.parse(localStorage.getItem('savedTemplates') || '[]');
+            const existingIndex = savedTemplates.findIndex(t => t.id === templateData.id);
+            
+            if (existingIndex >= 0) {
+                savedTemplates[existingIndex] = templateData;
+            } else {
+                savedTemplates.push(templateData);
+            }
+            
+            localStorage.setItem('savedTemplates', JSON.stringify(savedTemplates));
+            
+            updateStatus('Saved to browser storage!', 'success');
+            console.log('Template saved to localStorage:', templateData);
+            alert(`Template "${templateData.title}" saved to browser storage!`);
+        }
+
+        // METHOD 2: Save to MongoDB via API
+        async function saveToMongoDB(templateData) {
+            try {
+                updateStatus('Saving to MongoDB...', 'info');
+                
+                const response = await fetch('/api/template-builder/save', {
                     method: 'POST',
                     headers: {
-                        'Content-Type': 'application/json'
+                        'Content-Type': 'application/json',
                     },
                     body: JSON.stringify(templateData)
                 });
 
                 if (response.ok) {
                     const result = await response.json();
-                    showMessage('Template saved successfully!', 'success');
-                    loadTemplates(); // Refresh template list
+                    updateStatus('Saved to MongoDB!', 'success');
+                    console.log('Template saved to MongoDB:', result);
+                    alert(`Template "${templateData.title}" saved to MongoDB!`);
                 } else {
-                    const error = await response.json();
-                    showMessage(`Error saving template: ${error.message}`, 'error');
+                    const errorData = await response.json();
+                    throw new Error(errorData.message || 'Failed to save to MongoDB');
                 }
-                
             } catch (error) {
-                console.error('Error saving template:', error);
-                showMessage('Error saving template', 'error');
+                console.error('Error saving to MongoDB:', error);
+                updateStatus('Failed to save to MongoDB', 'error');
+                alert(`Error saving to MongoDB: ${error.message}`);
+                
+                // Fallback to localStorage if MongoDB fails
+                console.log('Falling back to localStorage...');
+                saveToLocalStorage(templateData);
             }
         }
 
-        // Update current template
-        async function updateCurrentTemplate() {
-            if (!currentTemplateId) {
-                showMessage('No template selected to update', 'error');
-                return;
-            }
-
+        // METHOD 3: Save to your existing Flask API
+        async function saveToFlaskAPI(templateData) {
             try {
-                showMessage('Updating template...', 'info');
+                updateStatus('Saving to Flask API...', 'info');
                 
-                const templateData = {
-                    content: document.getElementById('agreementPreview').innerHTML,
-                    metadata: {
-                        companyName: document.getElementById('companyName').value,
-                        companyAddress: document.getElementById('companyAddress').value,
-                        ceoName: document.getElementById('ceoName').value,
-                        ceoTitle: document.getElementById('ceoTitle').value
-                    }
-                };
-
-                const response = await fetch(`/api/templates/${currentTemplateId}`, {
-                    method: 'PUT',
+                const response = await fetch('/save_template', {
+                    method: 'POST',
                     headers: {
-                        'Content-Type': 'application/json'
+                        'Content-Type': 'application/json',
                     },
                     body: JSON.stringify(templateData)
                 });
-
+                
                 if (response.ok) {
-                    showMessage('Template updated successfully!', 'success');
-                    loadTemplates(); // Refresh template list
+                    const result = await response.json();
+                    updateStatus('Saved to Flask API!', 'success');
+                    console.log('Template saved to Flask API:', result);
+                    alert(`Template "${templateData.title}" saved to Flask API!`);
                 } else {
-                    const error = await response.json();
-                    showMessage(`Error updating template: ${error.message}`, 'error');
+                    throw new Error('Failed to save to Flask API');
                 }
-                
             } catch (error) {
-                console.error('Error updating template:', error);
-                showMessage('Error updating template', 'error');
+                console.error('Error saving to Flask API:', error);
+                updateStatus('Failed to save to Flask API', 'error');
+                alert('Error saving to Flask API. Check console for details.');
             }
         }
 
-        // Load data sources (quotes and deals)
-        async function loadDataSources() {
+        function exportTemplate() {
+            const canvas = document.getElementById('editorCanvas');
+            const canvasContent = canvas.querySelector('.canvas-content');
+            const documentTitle = document.querySelector('.document-title').textContent || 'Untitled Document';
+            
+            // Create a clean version for export
+            const exportContent = canvasContent.cloneNode(true);
+            
+            // Remove toolbars and interactive elements
+            const toolbars = exportContent.querySelectorAll('.block-toolbar');
+            toolbars.forEach(toolbar => toolbar.remove());
+            
+            // Remove onclick handlers and make content static
+            const interactiveElements = exportContent.querySelectorAll('[onclick]');
+            interactiveElements.forEach(el => {
+                el.removeAttribute('onclick');
+                el.removeAttribute('ondrop');
+                el.removeAttribute('ondragover');
+                el.removeAttribute('ondragleave');
+            });
+            
+            // Create HTML document
+            const htmlContent = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>${documentTitle}</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 40px 20px;
+            line-height: 1.6;
+            color: #333;
+        }
+        .editable-block {
+            margin: 30px 0;
+            padding: 30px;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            background: #f9fafb;
+        }
+        .editable-block h3 {
+            font-size: 24px;
+            font-weight: 600;
+            margin: 0 0 15px 0;
+            color: #1f2937;
+        }
+        .editable-block p {
+            font-size: 16px;
+            line-height: 1.8;
+            color: #374151;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+        }
+        th, td {
+            border: 1px solid #e5e7eb;
+            padding: 12px;
+            text-align: left;
+        }
+        th {
+            background: #f3f4f6;
+            font-weight: 600;
+        }
+        .signature-pad canvas {
+            border: 1px solid #d1d5db;
+            border-radius: 4px;
+        }
+        @media print {
+            body { padding: 0; }
+            .editable-block { break-inside: avoid; }
+        }
+    </style>
+</head>
+<body>
+    <h1>${documentTitle}</h1>
+    ${exportContent.innerHTML}
+</body>
+</html>`;
+            
+            // Create and download file
+            const blob = new Blob([htmlContent], { type: 'text/html' });
+            const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+            a.download = `${documentTitle.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.html`;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            
+            updateStatus('Template exported!', 'success');
+            alert(`Template "${documentTitle}" exported as HTML file!`);
+        }
+
+        function updateStatus(message, type = 'info') {
+            const statusElement = document.querySelector('.document-status');
+            if (statusElement) {
+                const timestamp = new Date().toLocaleTimeString();
+                statusElement.textContent = `Draft • $0.00 • All documents • ✓ ${message} at ${timestamp}`;
+                
+                // Add visual feedback
+                if (type === 'success') {
+                    statusElement.style.color = '#10b981';
+                } else if (type === 'error') {
+                    statusElement.style.color = '#ef4444';
+                }
+                
+                // Reset color after 3 seconds
+                setTimeout(() => {
+                    statusElement.style.color = '';
+                }, 3000);
+            }
+        }
+
+        // Auto-save functionality
+        let autoSaveTimeout;
+        function scheduleAutoSave() {
+            clearTimeout(autoSaveTimeout);
+            autoSaveTimeout = setTimeout(() => {
+                saveTemplate();
+            }, 30000); // Auto-save every 30 seconds
+        }
+
+        // Listen for changes to schedule auto-save
+        document.addEventListener('input', scheduleAutoSave);
+        document.addEventListener('change', scheduleAutoSave);
+
+        // Load saved templates
+        async function loadSavedTemplates() {
             try {
-                showMessage('Loading data sources...', 'info');
-                
-                // Load quotes
-                const quotesResponse = await fetch('/api/quotes/list');
-                if (quotesResponse.ok) {
-                    const quotesData = await quotesResponse.json();
-                    quotes = quotesData.quotes || [];
+                // Try to load from MongoDB first
+                const response = await fetch('/api/template-builder/documents');
+                if (response.ok) {
+                    const result = await response.json();
+                    if (result.success) {
+                        console.log('Loaded templates from MongoDB:', result.documents.length);
+                        return result.documents;
+                    }
                 }
-
-                // Load HubSpot deals
-                const dealsResponse = await fetch('/api/hubspot/fetch-deals');
-                if (dealsResponse.ok) {
-                    const dealsData = await dealsResponse.json();
-                    deals = dealsData.deals || [];
-                }
-
-                updateDataSourceOptions();
-                showMessage('Data sources loaded successfully!', 'success');
-                
+                throw new Error('MongoDB load failed');
             } catch (error) {
-                console.error('Error loading data sources:', error);
-                showMessage('Error loading data sources', 'error');
+                console.error('Error loading from MongoDB:', error);
+                console.log('Falling back to localStorage...');
+                
+                // Fallback to localStorage
+                const savedTemplates = JSON.parse(localStorage.getItem('savedTemplates') || '[]');
+                return savedTemplates;
             }
         }
 
-        // Update data source options based on type
-        function onDataSourceChange() {
-            updateDataSourceOptions();
-        }
-
-        function updateDataSourceOptions() {
-            const type = document.getElementById('dataSourceType').value;
-            const select = document.getElementById('dataSourceSelect');
-            
-            select.innerHTML = '<option value="">Select data source...</option>';
-            
-            if (type === 'quote') {
-                quotes.forEach(quote => {
-                    const option = document.createElement('option');
-                    option.value = quote._id;
-                    option.textContent = `${quote.client?.name || 'Unknown'} - ${quote.client?.company || 'Unknown'} ($${quote.quote?.total_cost || 0})`;
-                    select.appendChild(option);
-                });
-            } else if (type === 'deal') {
-                deals.forEach(deal => {
-                    const option = document.createElement('option');
-                    option.value = deal.id;
-                    option.textContent = `${deal.dealname || 'Unknown Deal'} - ${deal.company || 'Unknown'} ($${deal.amount || 0})`;
-                    select.appendChild(option);
-                });
-            }
-        }
-
-        // Load selected data source
-        async function loadDataSource() {
-            const type = document.getElementById('dataSourceType').value;
-            const id = document.getElementById('dataSourceSelect').value;
-            
-            if (!id) return;
-
+        // Load templates from MongoDB (direct method)
+        async function loadTemplatesFromMongoDB() {
             try {
-                if (type === 'quote') {
-                    const quote = quotes.find(q => q._id === id);
-                    if (quote) {
-                        populateFromQuote(quote);
-                    }
-                } else if (type === 'deal') {
-                    const deal = deals.find(d => d.id === id);
-                    if (deal) {
-                        populateFromDeal(deal);
+                const response = await fetch('/api/template-builder/documents');
+                if (response.ok) {
+                    const result = await response.json();
+                    if (result.success) {
+                        return result.documents;
                     }
                 }
-                
-                updatePreview();
-                
+                throw new Error('Failed to load from MongoDB');
             } catch (error) {
-                console.error('Error loading data source:', error);
-                showMessage('Error loading data source', 'error');
+                console.error('Error loading from MongoDB:', error);
+                return [];
             }
         }
 
-        // Populate form from quote data
-        function populateFromQuote(quote) {
-            document.getElementById('clientCompany').value = quote.client?.company || '';
-            document.getElementById('clientName').value = quote.client?.name || '';
-            document.getElementById('serviceType').value = quote.client?.serviceType || '';
-            document.getElementById('totalPrice').value = quote.quote?.total_cost || '';
-            
-            // Build service description from quote configuration
-            if (quote.configuration) {
-                const config = quote.configuration;
-                let description = `Service: ${quote.client?.serviceType || 'Custom Service'}\n`;
+        // View all saved documents (for debugging/admin)
+        async function viewAllSavedDocuments() {
+            try {
+                const savedTemplates = await loadSavedTemplates();
                 
-                if (config.users) description += `Users: ${config.users}\n`;
-                if (config.channels) description += `Channels: ${config.channels}\n`;
-                if (config.features) description += `Features: ${config.features.join(', ')}\n`;
+                if (savedTemplates.length === 0) {
+                    alert('No saved documents found!');
+                    return;
+                }
                 
-                document.getElementById('serviceDescription').value = description;
+                let message = `📁 SAVED DOCUMENTS (${savedTemplates.length} total):\n\n`;
+                
+                savedTemplates.forEach((template, index) => {
+                    message += `${index + 1}. "${template.title}"\n`;
+                    message += `   📅 Created: ${new Date(template.created).toLocaleString()}\n`;
+                    message += `   📅 Updated: ${new Date(template.updated).toLocaleString()}\n`;
+                    message += `   📊 Blocks: ${template.metadata.totalBlocks}\n`;
+                    message += `   🆔 ID: ${template.id}\n\n`;
+                });
+                
+                message += `💾 Storage Location: MongoDB (with localStorage fallback)\n`;
+                message += `🔧 API Endpoint: /api/template-builder/documents\n`;
+                message += `🔧 To view raw data: Open browser console and type:\n`;
+                message += `fetch('/api/template-builder/documents').then(r => r.json())`;
+                
+                alert(message);
+            } catch (error) {
+                console.error('Error viewing saved documents:', error);
+                alert('Error loading saved documents. Check console for details.');
             }
         }
 
-        // Populate form from deal data
-        function populateFromDeal(deal) {
-            document.getElementById('clientCompany').value = deal.company || '';
-            document.getElementById('clientName').value = deal.dealname || '';
-            document.getElementById('serviceType').value = deal.dealtype || '';
-            document.getElementById('totalPrice').value = deal.amount || '';
-            document.getElementById('serviceDescription').value = `Deal: ${deal.dealname}\nStage: ${deal.dealstage}\nPipeline: ${deal.pipeline}`;
+        // Export all saved documents as JSON
+        async function exportAllDocuments() {
+            try {
+                const savedTemplates = await loadSavedTemplates();
+                
+                if (savedTemplates.length === 0) {
+                    alert('No saved documents to export!');
+                    return;
+                }
+                
+                const dataStr = JSON.stringify(savedTemplates, null, 2);
+                const blob = new Blob([dataStr], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `saved_templates_${new Date().toISOString().split('T')[0]}.json`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                
+                alert(`Exported ${savedTemplates.length} documents as JSON file!`);
+            } catch (error) {
+                console.error('Error exporting documents:', error);
+                alert('Error exporting documents. Check console for details.');
+            }
         }
 
-        // Update preview
-        function updatePreview() {
-            const previewDiv = document.getElementById('agreementPreview');
-            
-            const data = {
-                companyName: document.getElementById('companyName').value || 'CloudFuze',
-                companyAddress: document.getElementById('companyAddress').value || '2500 Regency Parkway, Cary, NC 27518',
-                clientCompany: document.getElementById('clientCompany').value || 'Client Company',
-                clientName: document.getElementById('clientName').value || 'Client Name',
-                serviceType: document.getElementById('serviceType').value || 'Service Type',
-                serviceDescription: document.getElementById('serviceDescription').value || 'Service description will appear here',
-                totalPrice: document.getElementById('totalPrice').value || '0.00',
-                currency: document.getElementById('currency').value || 'USD',
-                startDate: document.getElementById('startDate').value || new Date().toISOString().split('T')[0],
-                endDate: document.getElementById('endDate').value || new Date().toISOString().split('T')[0],
-                ceoName: document.getElementById('ceoName').value || 'CEO Name',
-                ceoTitle: document.getElementById('ceoTitle').value || 'CEO Title'
-            };
-
-            previewDiv.innerHTML = generateAgreementHTML(data);
-            
-            // Initialize signature pads after DOM update
-            setTimeout(initializeSignaturePads, 100);
+                async function loadTemplate(templateId) {
+            try {
+                // Try to load from MongoDB first
+                const response = await fetch(`/api/template-builder/load/${templateId}`);
+                if (response.ok) {
+                    const result = await response.json();
+                    if (result.success) {
+                        const template = result.document;
+                        
+                        // Navigate to editor
+                        navigateToPage('editor');
+                        
+                        // Load template content
+                        const canvas = document.getElementById('editorCanvas');
+                        const canvasContent = canvas.querySelector('.canvas-content');
+                        
+                        // Clear existing content
+                        canvasContent.innerHTML = '';
+                        
+                        // Load blocks
+                        template.blocks.forEach(blockData => {
+                            const blockElement = document.createElement('div');
+                            blockElement.innerHTML = blockData.content;
+                            blockElement.className = 'editable-block';
+                            blockElement.dataset.blockType = blockData.type;
+                            canvasContent.appendChild(blockElement);
+                        });
+                        
+                        // Update document title
+                        const titleElement = document.querySelector('.document-title');
+                        if (titleElement) {
+                            titleElement.textContent = template.title;
+                        }
+                        
+                        updateStatus('Template loaded from MongoDB!', 'success');
+                        alert(`Template "${template.title}" loaded from MongoDB!`);
+                        return;
+                    }
+                }
+                throw new Error('MongoDB load failed');
+            } catch (error) {
+                console.error('Error loading from MongoDB:', error);
+                console.log('Falling back to localStorage...');
+                
+                // Fallback to localStorage
+                const savedTemplates = JSON.parse(localStorage.getItem('savedTemplates') || '[]');
+                const template = savedTemplates.find(t => t.id === templateId);
+                
+                if (template) {
+                    // Navigate to editor
+                    navigateToPage('editor');
+                    
+                    // Load template content
+                    const canvas = document.getElementById('editorCanvas');
+                    const canvasContent = canvas.querySelector('.canvas-content');
+                    
+                    // Clear existing content
+                    canvasContent.innerHTML = '';
+                    
+                    // Load blocks
+                    template.blocks.forEach(blockData => {
+                        const blockElement = document.createElement('div');
+                        blockElement.innerHTML = blockData.content;
+                        blockElement.className = 'editable-block';
+                        blockElement.dataset.blockType = blockData.type;
+                        canvasContent.appendChild(blockElement);
+                    });
+                    
+                    // Update document title
+                    const titleElement = document.querySelector('.document-title');
+                    if (titleElement) {
+                        titleElement.textContent = template.title;
+                    }
+                    
+                    updateStatus('Template loaded from localStorage!', 'success');
+                    alert(`Template "${template.title}" loaded from localStorage!`);
+                } else {
+                    alert('Template not found in MongoDB or localStorage!');
+                }
+            }
         }
 
-        // Generate agreement HTML
-        function generateAgreementHTML(data) {
-            return `
-                <div class="agreement-preview">
-                    <!-- Header with logos -->
-                    <div class="agreement-header">
-                        <div class="company-logo">
-                            <div class="company-name">${data.companyName}</div>
+        function deleteSavedTemplate(templateId) {
+            if (confirm('Are you sure you want to delete this template?')) {
+                const savedTemplates = loadSavedTemplates();
+                const filteredTemplates = savedTemplates.filter(t => t.id !== templateId);
+                localStorage.setItem('savedTemplates', JSON.stringify(filteredTemplates));
+                
+                // Refresh template list if on template page
+                if (document.getElementById('template-page').style.display !== 'none') {
+                    displaySavedTemplates();
+                }
+                
+                alert('Template deleted successfully!');
+            }
+        }
+
+        async function displaySavedTemplates() {
+            try {
+                const savedTemplates = await loadSavedTemplates();
+                const myTemplatesSection = document.querySelector('.my-templates-section');
+                
+                if (myTemplatesSection && savedTemplates.length > 0) {
+                    const templatesHTML = savedTemplates.map(template => `
+                        <div class="template-card saved-template" onclick="loadTemplate('${template.id}')">
+                            <div class="template-preview">
+                                <div class="template-icon">📄</div>
+                                <div class="template-actions">
+                                    <button onclick="event.stopPropagation(); deleteSavedTemplate('${template.id}')" title="Delete">🗑️</button>
+                                </div>
+                            </div>
+                            <div class="template-name">${template.title}</div>
+                            <div class="template-meta">
+                                ${template.metadata.totalBlocks} blocks • 
+                                ${new Date(template.updated).toLocaleDateString()}
+                            </div>
                         </div>
-                        <div class="microsoft-partner">
-                            <div style="font-weight: bold; color: #666;">Microsoft Partner</div>
-                            <div style="font-size: 12px; color: #888;">Gold Cloud Productivity</div>
+                    `).join('');
+                    
+                    myTemplatesSection.innerHTML = `
+                        <div class="section-title">My Templates (${savedTemplates.length})</div>
+                        <div class="templates-grid">
+                            ${templatesHTML}
                         </div>
-                    </div>
+                    `;
+                } else if (myTemplatesSection) {
+                    myTemplatesSection.innerHTML = `
+                        <div class="section-title">My Templates</div>
+                        <div style="padding: 20px; text-align: center; color: #6b7280;">
+                            No saved templates found. Create your first template!
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                console.error('Error displaying saved templates:', error);
+                const myTemplatesSection = document.querySelector('.my-templates-section');
+                if (myTemplatesSection) {
+                    myTemplatesSection.innerHTML = `
+                        <div class="section-title">My Templates</div>
+                        <div style="padding: 20px; text-align: center; color: #ef4444;">
+                            Error loading templates. Check console for details.
+                        </div>
+                    `;
+                }
+            }
+        }
 
-                    <!-- Agreement Title -->
-                    <div class="agreement-title">
-                        ${data.companyName} Purchase Agreement for ${data.clientCompany}
-                    </div>
 
-                    <!-- Service Description -->
-                    <div class="service-description">
-                        This agreement provides <strong>${data.clientCompany}</strong> with pricing for use of the ${data.companyName}'s X-Change Enterprise Data Migration Solution:
-                    </div>
 
-                    <!-- Service Table Header -->
-                    <div style="background: #b8dff0; padding: 10px; text-align: center; font-weight: bold; border: 1px solid #999;">
-                        Cloud-Hosted SaaS Solution | Managed Migration | Dedicated Migration Manager
-                    </div>
+                // Load document counts
+        function loadDocumentCounts() {
+            // Simulate API call
+            setTimeout(() => {
+                const counts = {
+                    drafts: 0,
+                    actions: 0,
+                    waiting: 0,
+                    finished: 0
+                };
+                
+                document.getElementById('drafts-count').textContent = `${counts.drafts} documents`;
+                document.getElementById('actions-count').textContent = `${counts.actions} documents`;
+                document.getElementById('waiting-count').textContent = `${counts.waiting} documents`;
+                document.getElementById('finished-count').textContent = `${counts.finished} documents`;
+            }, 1000);
+        }
 
-                    <!-- Service Details Table -->
-                    <table class="service-table">
+        // Initialize the application
+        // Create a complete agreement template
+        function createAgreementTemplate() {
+            const canvas = document.getElementById('editorCanvas');
+            const canvasContent = canvas.querySelector('.canvas-content');
+            
+            // Clear existing content
+            canvasContent.innerHTML = '';
+            
+            // Add header
+            const headerBlock = document.createElement('div');
+            headerBlock.className = 'editable-block';
+            headerBlock.dataset.blockType = 'text';
+            headerBlock.innerHTML = `
+                <div style="padding: 40px; border: 1px solid #e5e7eb; border-radius: 8px; background: #f9fafb; position: relative; min-height: 200px;" data-block-type="text">
+                    <h1 contenteditable="true" style="outline: none; border: none; background: transparent; font-size: 32px; font-weight: 700; margin: 0 0 20px 0; color: #1f2937; text-align: center;">Service & Pricing Agreement</h1>
+                    <p contenteditable="true" style="outline: none; border: none; background: transparent; margin: 0; line-height: 1.8; font-size: 18px; color: #374151; text-align: center;">This agreement provides the client with pricing for the services listed below.</p>
+                </div>
+            `;
+            canvasContent.appendChild(headerBlock);
+            
+            // Add pricing table (RECEIVING)
+            const pricingBlock = document.createElement('div');
+            pricingBlock.className = 'editable-block pricing-block';
+            pricingBlock.dataset.blockType = 'pricing';
+            pricingBlock.innerHTML = `
+                <div style="padding: 40px; border: 1px solid #e5e7eb; border-radius: 8px; background: #f9fafb; position: relative; min-height: 400px;" data-block-type="pricing">
+                    <h2 contenteditable="true" style="outline: none; border: none; background: transparent; font-size: 24px; font-weight: 600; margin: 0 0 20px 0; color: #1f2937;">Services & Pricing</h2>
+                    <table style="width: 100%; border-collapse: collapse; margin-bottom: 25px; font-size: 16px;">
                         <thead>
-                            <tr>
-                                <th>Job Requirement</th>
-                                <th>Description</th>
-                                <th>Migration Type</th>
-                                <th>Price(${data.currency})</th>
+                            <tr style="background: #f3f4f6;">
+                                <th style="border: 1px solid #e5e7eb; padding: 15px; text-align: left; font-weight: 600;">Job Requirement</th>
+                                <th style="border: 1px solid #e5e7eb; padding: 15px; text-align: left; font-weight: 600;">Description</th>
+                                <th style="border: 1px solid #e5e7eb; padding: 15px; text-align: left; font-weight: 600;">Migration Type</th>
+                                <th style="border: 1px solid #e5e7eb; padding: 15px; text-align: left; font-weight: 600;">Price (USD)</th>
                             </tr>
                         </thead>
                         <tbody>
                             <tr>
-                                <td class="job-requirement">${data.companyName} X-Change Data Migration</td>
-                                <td>
-                                    ${data.serviceDescription.replace(/\n/g, '<br>')}
-                                    <hr style="margin: 10px 0;">
-                                    <strong>Valid for One Month</strong>
-                                </td>
-                                <td style="text-align: center;">
-                                    Managed Migration<br>
-                                    One-Time
-                                </td>
-                                <td class="price">$${parseFloat(data.totalPrice || 0).toFixed(2)}</td>
+                                <td style="border: 1px solid #e5e7eb; padding: 15px;"><input type="text" value="CloudFuze X-Change Data Migration" style="width: 100%; border: none; outline: none; background: transparent; font-size: 16px; padding: 8px;" onchange="calculateRow(this)"></td>
+                                <td style="border: 1px solid #e5e7eb; padding: 15px;"><input type="text" value="Slack to Teams" style="width: 100%; border: none; outline: none; background: transparent; font-size: 16px; padding: 8px;" onchange="calculateRow(this)"></td>
+                                <td style="border: 1px solid #e5e7eb; padding: 15px;"><input type="text" value="Managed Migration One-Time" style="width: 100%; border: none; outline: none; background: transparent; font-size: 16px; padding: 8px;" onchange="calculateRow(this)"></td>
+                                <td style="border: 1px solid #e5e7eb; padding: 15px;"><input type="number" value="1500" style="width: 100%; border: none; outline: none; background: transparent; text-align: right; font-size: 16px; padding: 8px;" onchange="calculateRow(this)"></td>
+                            </tr>
+                            <tr>
+                                <td style="border: 1px solid #e5e7eb; padding: 15px;"><input type="text" value="Managed Migration Service" style="width: 100%; border: none; outline: none; background: transparent; font-size: 16px; padding: 8px;" onchange="calculateRow(this)"></td>
+                                <td style="border: 1px solid #e5e7eb; padding: 15px;"><textarea style="width: 100%; border: none; outline: none; background: transparent; font-size: 16px; padding: 8px; resize: vertical; min-height: 60px;" onchange="calculateRow(this)">Up to 45 Users | All Channels and DMs
+Fully Managed Migration | Dedicated Project Manager
+Pre-Migration Analysis | During Migration Consulting
+Post-Migration Support and Data Reconciliation Support
+End-to End Migration Assistance with 24*7 Premium Support
+Valid for One Month</textarea></td>
+                                <td style="border: 1px solid #e5e7eb; padding: 15px;"><input type="text" value="Managed Migration One-Time" style="width: 100%; border: none; outline: none; background: transparent; font-size: 16px; padding: 8px;" onchange="calculateRow(this)"></td>
+                                <td style="border: 1px solid #e5e7eb; padding: 15px;"><input type="number" value="500" style="width: 100%; border: none; outline: none; background: transparent; text-align: right; font-size: 16px; padding: 8px;" onchange="calculateRow(this)"></td>
                             </tr>
                         </tbody>
                     </table>
-
-                    <!-- Total Price -->
-                    <div class="total-price">
-                        <strong>Total Price: $${parseFloat(data.totalPrice || 0).toFixed(2)}</strong>
+                    <div style="margin-top: 20px; text-align: right;">
+                        <div style="font-size: 20px; font-weight: bold; border-top: 2px solid #e5e7eb; padding-top: 10px; color: #1f2937;">
+                            Total Price: <span class="total">$2,000.00</span>
+                        </div>
                     </div>
-
-                    <!-- Payment Notes -->
-                    <div class="payment-notes">
-                        <h4>Important Payment Notes:</h4>
-                        <ul>
-                            <li>100% pre-payment before initiating the migration.</li>
-                            <li>All prices are in US dollars (${data.currency}).</li>
-                            <li>Any required sales taxes are not included in the above agreement.</li>
-                            <li>Overage Charges: $35 per User | $500 per Additional Month</li>
-                            <li>Initial Service Term: ${data.startDate} till ${data.endDate}</li>
-                        </ul>
+                </div>
+            `;
+            canvasContent.appendChild(pricingBlock);
+            
+            // Add signature section (ACCEPTING)
+            const signatureBlock = document.createElement('div');
+            signatureBlock.className = 'editable-block signature-field';
+            signatureBlock.dataset.blockType = 'signature';
+            signatureBlock.innerHTML = `
+                <div style="padding: 40px; border: 1px solid #e5e7eb; border-radius: 8px; background: #f9fafb; position: relative; min-height: 300px;" data-block-type="signature">
+                    <h2 contenteditable="true" style="outline: none; border: none; background: transparent; font-size: 24px; font-weight: 600; margin: 0 0 20px 0; color: #1f2937;">Acceptance & Signature</h2>
+                    <p contenteditable="true" style="outline: none; border: none; background: transparent; margin-top: 10px; font-size: 16px; color: #6b7280;">By signing below, you accept the terms and pricing outlined in this agreement.</p>
+                    <div style="display: flex; justify-content: flex-end; margin-top: 30px;">
+                        <div class="signature-pad" style="border: 2px solid #10b981; height: 120px; width: 300px; background: white; position: relative; cursor: crosshair; border-radius: 8px; display: flex; align-items: center; justify-content: center;" onclick="openSignaturePad(this)">
+                            <canvas width="300" height="120" style="width: 100%; height: 100%; border-radius: 6px;"></canvas>
+                            <div class="signature-placeholder" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: #10b981; font-size: 18px; pointer-events: none; display: flex; align-items: center; gap: 8px; font-weight: 600;">
+                                <span style="font-size: 24px;">✓</span>
+                                <span>Signature</span>
+                            </div>
+                        </div>
                     </div>
-
-                    <!-- SaaS Agreement -->
-                    <div class="saas-agreement">
-                        <h4>SAAS SERVICE AGREEMENT:</h4>
-                        <p>
-                            This SaaS Services Agreement ("Agreement") is entered on this <strong>${new Date().toLocaleDateString()}</strong> (the "Effective Date") between 
-                            <strong>${data.companyName}, Inc.</strong> with a place of business at <strong>${data.companyAddress}</strong> ("Company"), and the 
-                            Customer listed above ("Customer"). This Agreement includes and incorporates the above Order Form, In Scope 
-                            Features list Exhibit ("Exhibit 1"), Out of Scope Features list Exhibit ("Exhibit 2"), all attachments hereto, as well as 
-                            the attached Terms and Conditions and contains, among other things, warranty disclaimers, liability limitations and 
-                            use limitations. There shall be no force or effect to any different terms of any related purchase order or similar form 
-                            even if signed by the parties after the date hereof.
+                    <div class="signature-controls" style="margin-top: 15px; text-align: center;">
+                        <button onclick="clearSignature(this)" style="background: #ef4444; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; margin-right: 12px; font-size: 16px; font-weight: 600;">Clear</button>
+                        <button onclick="saveSignature(this)" style="background: #10b981; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-size: 16px; font-weight: 600;">Save</button>
+                    </div>
+                </div>
+            `;
+            canvasContent.appendChild(signatureBlock);
+            
+            // Add output summary
+            const outputBlock = document.createElement('div');
+            outputBlock.className = 'editable-block';
+            outputBlock.dataset.blockType = 'text';
+            outputBlock.innerHTML = `
+                <div style="padding: 40px; border: 1px solid #e5e7eb; border-radius: 8px; background: #f0fdf4; position: relative; min-height: 200px;" data-block-type="text">
+                    <h2 contenteditable="true" style="outline: none; border: none; background: transparent; font-size: 24px; font-weight: 600; margin: 0 0 20px 0; color: #1f2937;">Agreement Summary</h2>
+                    <div style="background: white; padding: 20px; border-radius: 8px; border: 1px solid #d1d5db;">
+                        <p contenteditable="true" style="outline: none; border: none; background: transparent; margin: 0 0 15px 0; line-height: 1.8; font-size: 16px; color: #374151;">
+                            <strong>Services:</strong> CloudFuze X-Change Data Migration + Managed Migration Service
                         </p>
-                    </div>
-
-                    <!-- Signature Section -->
-                    <div class="signature-section">
-                        <!-- Company Signature -->
-                        <div class="signature-block">
-                            <h4>For ${data.companyName}, Inc.</h4>
-                            
-                            <div class="signature-options">
-                                <button class="btn btn-secondary" onclick="switchSignatureMode('ceo', 'text')">Text</button>
-                                <button class="btn btn-secondary" onclick="switchSignatureMode('ceo', 'draw')">Draw</button>
-                                <button class="btn btn-danger" onclick="clearSignature('ceo')">Clear</button>
-                            </div>
-                            
-                            <div id="ceoSignatureContainer">
-                                <canvas id="ceoSignatureCanvas" class="signature-canvas" style="display: none;"></canvas>
-                                <input type="text" id="ceoSignatureText" class="signature-text" placeholder="Type signature here" style="display: block;">
-                            </div>
-                            
-                            <div class="signature-info">
-                                <div>Name: <input type="text" value="${data.ceoName}" id="ceoSignatureName"></div>
-                                <div>Title: <input type="text" value="${data.ceoTitle}" id="ceoSignatureTitle"></div>
-                                <div>Date: <input type="date" value="${new Date().toISOString().split('T')[0]}" id="ceoSignatureDate"></div>
-                            </div>
-                        </div>
-
-                        <!-- Client Signature -->
-                        <div class="signature-block">
-                            <h4>For ${data.clientCompany}</h4>
-                            
-                            <div class="signature-options">
-                                <button class="btn btn-secondary" onclick="switchSignatureMode('client', 'text')">Text</button>
-                                <button class="btn btn-secondary" onclick="switchSignatureMode('client', 'draw')">Draw</button>
-                                <button class="btn btn-danger" onclick="clearSignature('client')">Clear</button>
-                            </div>
-                            
-                            <div id="clientSignatureContainer">
-                                <canvas id="clientSignatureCanvas" class="signature-canvas" style="display: none;"></canvas>
-                                <input type="text" id="clientSignatureText" class="signature-text" placeholder="Type signature here" style="display: block;">
-                            </div>
-                            
-                            <div class="signature-info">
-                                <div>Name: <input type="text" value="${data.clientName}" id="clientSignatureName"></div>
-                                <div>Title: <input type="text" placeholder="Client Title" id="clientSignatureTitle"></div>
-                                <div>Date: <input type="date" value="${new Date().toISOString().split('T')[0]}" id="clientSignatureDate"></div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Terms and Conditions -->
-                    <div class="terms-section">
-                        <h4>TERMS AND CONDITIONS</h4>
-                        <p>
-                            Subject to the terms of this Agreement, Company will use commercially reasonable efforts to provide Customer the 
-                            Migration Services. As part of the registration process, Customer will identify an administrative username and 
-                            password for Customer's Company account. Company reserves the right to refuse registration of or cancel 
-                            passwords it deems inappropriate.
+                        <p contenteditable="true" style="outline: none; border: none; background: transparent; margin: 0 0 15px 0; line-height: 1.8; font-size: 16px; color: #374151;">
+                            <strong>Total Investment:</strong> $2,000.00 USD
+                        </p>
+                        <p contenteditable="true" style="outline: none; border: none; background: transparent; margin: 0; line-height: 1.8; font-size: 16px; color: #374151;">
+                            <strong>Status:</strong> Pending signature acceptance
                         </p>
                     </div>
                 </div>
             `;
-        }
-
-        // Initialize signature pads
-        function initializeSignaturePads() {
-            // Initialize CEO signature pad
-            const ceoCanvas = document.getElementById('ceoSignatureCanvas');
-            if (ceoCanvas && !currentSignaturePads.ceo) {
-                currentSignaturePads.ceo = new SignaturePad(ceoCanvas, {
-                    backgroundColor: 'rgba(255, 255, 255, 0)',
-                    penColor: 'rgb(0, 0, 0)'
-                });
-            }
-
-            // Initialize Client signature pad
-            const clientCanvas = document.getElementById('clientSignatureCanvas');
-            if (clientCanvas && !currentSignaturePads.client) {
-                currentSignaturePads.client = new SignaturePad(clientCanvas, {
-                    backgroundColor: 'rgba(255, 255, 255, 0)',
-                    penColor: 'rgb(0, 0, 0)'
-                });
-            }
-        }
-
-        // Switch signature mode (text/draw)
-        function switchSignatureMode(type, mode) {
-            const textInput = document.getElementById(`${type}SignatureText`);
-            const canvas = document.getElementById(`${type}SignatureCanvas`);
+            canvasContent.appendChild(outputBlock);
             
-            if (mode === 'text') {
-                textInput.style.display = 'block';
-                canvas.style.display = 'none';
-            } else {
-                textInput.style.display = 'none';
-                canvas.style.display = 'block';
-                
-                // Reinitialize signature pad if needed
-                if (!currentSignaturePads[type]) {
-                    initializeSignaturePads();
-                }
-            }
-        }
-
-        // Clear signature
-        function clearSignature(type) {
-            const textInput = document.getElementById(`${type}SignatureText`);
-            const signaturePad = currentSignaturePads[type];
-            
-            if (textInput) {
-                textInput.value = '';
-            }
-            
-            if (signaturePad) {
-                signaturePad.clear();
-            }
-        }
-
-        // Generate PDF
-        async function generatePDF() {
-            try {
-                showMessage('Generating PDF...', 'info');
-                
-                const templateData = gatherTemplateData();
-                
-                const response = await fetch('/api/templates/generate-agreement-pdf', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(templateData)
-                });
-
-                if (!response.ok) {
-                    const error = await response.json();
-                    showMessage(`Error generating PDF: ${error.message}`, 'error');
-                    return;
-                }
-
-                // Check if response is a PDF file
-                const contentType = response.headers.get('content-type');
-                if (contentType && contentType.includes('application/pdf')) {
-                    // Direct PDF download
-                    const blob = await response.blob();
-                    const url = window.URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    a.href = url;
-                    a.download = `agreement_${new Date().toISOString().slice(0,10)}.pdf`;
-                    document.body.appendChild(a);
-                    a.click();
-                    window.URL.revokeObjectURL(url);
-                    document.body.removeChild(a);
-                    
-                    showMessage('✅ Complete 3-page agreement generated and downloaded successfully!', 'success');
-                } else {
-                    // Fallback to JSON response (for backward compatibility)
-                    const responseData = await response.json();
-                    if (!responseData.success) {
-                        showMessage(`Error: ${responseData.message}`, 'error');
-                        return;
-                    }
-                    await downloadGeneratedPDF(responseData.agreement_id);
-                    showMessage('✅ PDF generated and downloaded successfully!', 'success');
-                }
-                
-            } catch (error) {
-                console.error('Error generating PDF:', error);
-                showMessage('Error generating PDF', 'error');
-            }
-        }
-
-        // Download generated PDF
-        async function downloadGeneratedPDF(agreementId) {
-            try {
-                // Get the PDF from the stored agreement
-                const response = await fetch(`/api/agreements/download/${agreementId}`);
-                
-                if (!response.ok) {
-                    throw new Error('Failed to download PDF');
-                }
-
-                // Download the PDF
-                const blob = await response.blob();
-                const url = window.URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `agreement_${agreementId}.pdf`;
-                document.body.appendChild(a);
-                a.click();
-                window.URL.revokeObjectURL(url);
-                document.body.removeChild(a);
-                
-            } catch (error) {
-                console.error('Error downloading PDF:', error);
-                showMessage('Error downloading PDF', 'error');
-            }
-        }
-
-        // Gather template data
-        function gatherTemplateData() {
-            // Get signature data
-            const ceoSignature = getSignatureData('ceo');
-            const clientSignature = getSignatureData('client');
-            
-            return {
-                companyName: document.getElementById('companyName').value,
-                companyAddress: document.getElementById('companyAddress').value,
-                clientCompany: document.getElementById('clientCompany').value,
-                clientName: document.getElementById('clientName').value,
-                serviceType: document.getElementById('serviceType').value,
-                serviceDescription: document.getElementById('serviceDescription').value,
-                totalPrice: parseFloat(document.getElementById('totalPrice').value || 0),
-                currency: document.getElementById('currency').value,
-                startDate: document.getElementById('startDate').value,
-                endDate: document.getElementById('endDate').value,
-                ceoSignature: ceoSignature,
-                clientSignature: clientSignature,
-                generatedAt: new Date().toISOString()
-            };
-        }
-
-        // Get signature data
-        function getSignatureData(type) {
-            const textInput = document.getElementById(`${type}SignatureText`);
-            const canvas = document.getElementById(`${type}SignatureCanvas`);
-            const signaturePad = currentSignaturePads[type];
-            
-            let signatureData = null;
-            let signatureType = 'none';
-            
-            if (textInput && textInput.style.display !== 'none' && textInput.value.trim()) {
-                signatureData = textInput.value.trim();
-                signatureType = 'text';
-            } else if (canvas && canvas.style.display !== 'none' && signaturePad && !signaturePad.isEmpty()) {
-                signatureData = signaturePad.toDataURL();
-                signatureType = 'drawn';
-            }
-            
-            return {
-                type: signatureType,
-                data: signatureData,
-                name: document.getElementById(`${type}SignatureName`).value,
-                title: document.getElementById(`${type}SignatureTitle`).value,
-                date: document.getElementById(`${type}SignatureDate`).value,
-                timestamp: new Date().toISOString()
-            };
-        }
-
-        // Send for signature
-        async function sendForSignature() {
-            try {
-                // Validate required fields
-                const clientEmail = prompt('Enter client email address:');
-                if (!clientEmail || !clientEmail.includes('@')) {
-                    showMessage('Valid client email is required', 'error');
-                    return;
-                }
-
-                showMessage('Creating agreement and sending signature request...', 'info');
-                
-                // First generate and save the agreement
-                const templateData = gatherTemplateData();
-                templateData.clientEmail = clientEmail;
-                
-                // Generate the agreement (but don't download it)
-                templateData.signature_workflow = true; // Add parameter to indicate signature workflow
-                const response = await fetch('/api/templates/generate-agreement-pdf', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(templateData)
-                });
-
-                if (!response.ok) {
-                    const error = await response.json();
-                    showMessage(`Error creating agreement: ${error.message}`, 'error');
-                    return;
-                }
-
-                // Get the agreement ID from the response
-                const responseData = await response.json();
-                if (!responseData.success || !responseData.agreement_id) {
-                    showMessage('Error: Could not get agreement ID from response', 'error');
-                    return;
-                }
-                
-                const agreementId = responseData.agreement_id;
-                
-                // Send signature request
-                const signatureResponse = await fetch('/api/agreements/send-for-signature', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        agreement_id: agreementId,
-                        client_email: clientEmail,
-                        client_name: templateData.clientName || 'Client'
-                    })
-                });
-
-                if (signatureResponse.ok) {
-                    const result = await signatureResponse.json();
-                    showMessage(`✅ Signature request sent to ${clientEmail}!`, 'success');
-                    
-                    // Show signature URL for reference
-                    const signatureUrl = result.signature_url;
-                    if (signatureUrl) {
-                        setTimeout(() => {
-                            showMessage(`Signature URL: ${window.location.origin}${signatureUrl}`, 'info');
-                        }, 2000);
-                    }
-                } else {
-                    const error = await signatureResponse.json();
-                    showMessage(`Error sending signature request: ${error.message}`, 'error');
-                }
-                
-            } catch (error) {
-                console.error('Error sending signature request:', error);
-                showMessage('Error sending signature request', 'error');
-            }
-        }
-
-        // Save template
-        async function saveTemplate() {
-            try {
-                showMessage('Saving template...', 'info');
-                
-                const templateData = {
-                    name: `Agreement Template - ${new Date().toLocaleDateString()}`,
-                    description: 'Custom agreement template with signature tracking',
-                    category: 'agreements',
-                    content: document.getElementById('agreementPreview').innerHTML,
-                    placeholders: [
-                        'companyName', 'companyAddress', 'clientCompany', 'clientName',
-                        'serviceType', 'serviceDescription', 'totalPrice', 'currency',
-                        'startDate', 'endDate', 'ceoName', 'ceoTitle'
-                    ],
-                    type: 'html'
-                };
-
-                const response = await fetch('/api/templates', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(templateData)
-                });
-
-                if (response.ok) {
-                    const result = await response.json();
-                    showMessage('Template saved successfully!', 'success');
-                } else {
-                    const error = await response.json();
-                    showMessage(`Error saving template: ${error.message}`, 'error');
-                }
-                
-            } catch (error) {
-                console.error('Error saving template:', error);
-                showMessage('Error saving template', 'error');
-            }
-        }
-
-        // Load completed agreements for certificate generation
-        async function loadCompletedAgreements() {
-            try {
-                showMessage('Loading completed agreements...', 'info');
-                
-                const response = await fetch('/api/agreements/completed');
-                if (response.ok) {
-                    const data = await response.json();
-                    const agreements = data.agreements || [];
-                    updateCompletedAgreementsOptions(agreements);
-                    showMessage('Completed agreements loaded!', 'success');
-                } else {
-                    showMessage('Error loading completed agreements', 'error');
-                }
-                
-            } catch (error) {
-                console.error('Error loading completed agreements:', error);
-                showMessage('Error loading completed agreements', 'error');
-            }
-        }
-
-        // Update completed agreements dropdown
-        function updateCompletedAgreementsOptions(agreements) {
-            const select = document.getElementById('completedAgreementsSelect');
-            select.innerHTML = '<option value="">Select a completed agreement...</option>';
-            
-            agreements.forEach(agreement => {
-                const option = document.createElement('option');
-                option.value = agreement._id;
-                const completedDate = new Date(agreement.completed_at).toLocaleDateString();
-                option.textContent = `${agreement.client_name || agreement.client_company || 'Unknown'} - ${agreement.service_type || 'Service'} (Completed: ${completedDate})`;
-                select.appendChild(option);
+            // Setup toolbars for all blocks
+            canvasContent.querySelectorAll('.editable-block').forEach(block => {
+                setupBlockToolbar(block);
             });
-        }
-
-        // Select agreement for certificate generation
-        function selectAgreementForCertificate() {
-            const agreementId = document.getElementById('completedAgreementsSelect').value;
-            if (agreementId) {
-                document.getElementById('certificateAgreementId').value = agreementId;
-            }
-        }
-
-        // View all certificates
-        async function viewAllCertificates() {
-            try {
-                showMessage('Loading certificates...', 'info');
-                
-                const response = await fetch('/api/agreements/certificates');
-                if (response.ok) {
-                    const data = await response.json();
-                    const certificates = data.certificates || [];
-                    displayCertificates(certificates);
-                } else {
-                    showMessage('Error loading certificates', 'error');
-                }
-                
-            } catch (error) {
-                console.error('Error loading certificates:', error);
-                showMessage('Error loading certificates', 'error');
-            }
-        }
-
-        // Display certificates in a modal or new section
-        function displayCertificates(certificates) {
-            let html = '<div style="background: white; padding: 20px; border-radius: 8px; margin: 20px 0;">';
-            html += '<h4>📋 Generated Signature Certificates</h4>';
             
-            if (certificates.length === 0) {
-                html += '<p>No certificates generated yet.</p>';
-            } else {
-                html += '<table style="width: 100%; border-collapse: collapse;">';
-                html += '<tr style="background: #f8f9fa;"><th style="padding: 10px; border: 1px solid #ddd;">Reference</th><th style="padding: 10px; border: 1px solid #ddd;">Document</th><th style="padding: 10px; border: 1px solid #ddd;">Created</th><th style="padding: 10px; border: 1px solid #ddd;">Actions</th></tr>';
-                
-                certificates.forEach(cert => {
-                    const createdDate = new Date(cert.created_at).toLocaleDateString();
-                    html += `<tr>
-                        <td style="padding: 10px; border: 1px solid #ddd;">${cert.reference_number}</td>
-                        <td style="padding: 10px; border: 1px solid #ddd;">${cert.document_title}</td>
-                        <td style="padding: 10px; border: 1px solid #ddd;">${createdDate}</td>
-                        <td style="padding: 10px; border: 1px solid #ddd;">
-                            <button class="btn btn-secondary" onclick="downloadCertificate('${cert._id}')" style="padding: 5px 10px; font-size: 12px; margin-right: 5px;">Download</button>
-                            <button class="btn btn-info" onclick="previewCertificate('${cert._id}')" style="padding: 5px 10px; font-size: 12px;">Preview</button>
-                        </td>
-                    </tr>`;
+            updateStatus('Complete agreement template created!', 'success');
+        }
+
+        function initializeApp() {
+            // Load saved templates
+            displaySavedTemplates();
+            
+            // Load document counts
+            loadDocumentCounts();
+            
+            console.log('Template Builder initialized successfully!');
+        }
+
+                // Setup event listeners
+        function setupEventListeners() {
+            // File input change event
+            const fileInput = document.getElementById('fileInput');
+            if (fileInput) {
+                fileInput.addEventListener('change', handleFileSelect);
+            }
+
+            // Drag and drop functionality for file upload
+            const uploadArea = document.getElementById('uploadArea');
+            if (uploadArea) {
+                uploadArea.addEventListener('dragover', function(e) {
+                    e.preventDefault();
+                    this.classList.add('dragover');
                 });
                 
-                html += '</table>';
-            }
-            
-            html += '</div>';
-            
-            // Show in preview panel
-            document.getElementById('agreementPreview').innerHTML = html;
-        }
-        
-        // Preview certificate content without HTML tags
-        function previewCertificate(certificateId) {
-            // Find the certificate in the current certificates list
-            fetch('/api/agreements/certificates')
-                .then(response => response.json())
-                .then(data => {
-                    const certificates = data.certificates || [];
-                    const cert = certificates.find(c => c._id === certificateId);
+                uploadArea.addEventListener('dragleave', function(e) {
+                    e.preventDefault();
+                    this.classList.remove('dragover');
+                });
+                
+                uploadArea.addEventListener('drop', function(e) {
+                    e.preventDefault();
+                    this.classList.remove('dragover');
                     
-                    if (cert) {
-                        let html = '<div style="background: white; padding: 20px; border-radius: 8px; margin: 20px 0;">';
-                        html += '<h4>📋 Certificate Preview</h4>';
-                        html += `<p><strong>Reference:</strong> ${cert.reference_number}</p>`;
-                        html += `<p><strong>Document:</strong> ${cert.document_title}</p>`;
-                        html += `<p><strong>Created:</strong> ${new Date(cert.created_at).toLocaleString()}</p>`;
-                        
-                        html += '<h5>Signers:</h5>';
-                        html += '<table style="width: 100%; border-collapse: collapse; margin-top: 10px;">';
-                        html += '<tr style="background: #f8f9fa;"><th style="padding: 10px; border: 1px solid #ddd;">Name</th><th style="padding: 10px; border: 1px solid #ddd;">Email</th><th style="padding: 10px; border: 1px solid #ddd;">Signed At</th><th style="padding: 10px; border: 1px solid #ddd;">IP Address</th></tr>';
-                        
-                        cert.signers.forEach(signer => {
-                            const signedDate = new Date(signer.signed_at).toLocaleString();
-                            html += `<tr>
-                                <td style="padding: 10px; border: 1px solid #ddd;">${signer.name}</td>
-                                <td style="padding: 10px; border: 1px solid #ddd;">${signer.email}</td>
-                                <td style="padding: 10px; border: 1px solid #ddd;">${signedDate}</td>
-                                <td style="padding: 10px; border: 1px solid #ddd;">${signer.ip_address}</td>
-                            </tr>`;
-                        });
-                        
-                        html += '</table>';
-                        html += '<p style="margin-top: 20px;"><em>This is a preview of the certificate data. The actual PDF contains properly formatted content.</em></p>';
-                        html += '</div>';
-                        
-                        document.getElementById('agreementPreview').innerHTML = html;
+                    const files = e.dataTransfer.files;
+                    console.log(`Dropped ${files.length} files:`, files);
+                    
+                    // Process dropped files
+                    for (let file of files) {
+                        console.log(`Processing dropped file: ${file.name} (${file.type})`);
                     }
-                })
-                .catch(error => {
-                    console.error('Error loading certificate:', error);
-                    showMessage('Error loading certificate preview', 'error');
-                });
-        }
-
-        // Download certificate
-        async function downloadCertificate(certificateId) {
-            try {
-                const response = await fetch(`/api/agreements/download-certificate/${certificateId}`);
-                if (response.ok) {
-                    const blob = await response.blob();
-                    const url = window.URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    a.href = url;
-                    a.download = `signature_certificate_${certificateId}.pdf`;
-                    document.body.appendChild(a);
-                    a.click();
-                    window.URL.revokeObjectURL(url);
-                    document.body.removeChild(a);
-                    showMessage('Certificate downloaded successfully!', 'success');
-                } else {
-                    showMessage('Error downloading certificate', 'error');
-                }
-            } catch (error) {
-                console.error('Error downloading certificate:', error);
-                showMessage('Error downloading certificate', 'error');
-            }
-        }
-
-        // Generate signature certificate
-        async function generateSignatureCertificate() {
-            try {
-                const agreementId = document.getElementById('certificateAgreementId').value.trim();
-                if (!agreementId) {
-                    showMessage('Please enter an Agreement ID', 'error');
-                    return;
-                }
-
-                showMessage('Generating signature certificate...', 'info');
-                
-                const response = await fetch('/api/agreements/generate-signature-certificate', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        agreement_id: agreementId
-                    })
-                });
-
-                if (!response.ok) {
-                    const error = await response.json();
-                    showMessage(`Error generating certificate: ${error.message}`, 'error');
-                    return;
-                }
-
-                const result = await response.json();
-                if (result.success) {
-                    // Download the certificate PDF
-                    const blob = await fetch(`/api/agreements/download-certificate/${result.certificate_id}`).then(r => r.blob());
-                    const url = window.URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    a.href = url;
-                    a.download = `signature_certificate_${agreementId}.pdf`;
-                    document.body.appendChild(a);
-                    a.click();
-                    window.URL.revokeObjectURL(url);
-                    document.body.removeChild(a);
                     
-                    showMessage('✅ Signature certificate generated and downloaded!', 'success');
+                    alert(`Uploaded ${files.length} file(s) via drag and drop!`);
+                });
+            }
+
+            // Search functionality
+            const templateSearch = document.getElementById('templateSearch');
+            if (templateSearch) {
+                templateSearch.addEventListener('input', function(e) {
+                    const searchTerm = e.target.value.toLowerCase();
+                    const templateCards = document.querySelectorAll('.template-card');
+                    
+                    templateCards.forEach(card => {
+                        const templateName = card.querySelector('.template-name').textContent.toLowerCase();
+                        if (templateName.includes(searchTerm)) {
+                            card.style.display = 'block';
+            } else {
+                            card.style.display = 'none';
+                        }
+                    });
+                });
+            }
+
+            // Drag and drop for content blocks
+            setupDragAndDrop();
+        }
+
+        // Setup drag and drop for content blocks
+        function setupDragAndDrop() {
+            // Make block buttons draggable
+            const blockButtons = document.querySelectorAll('.block-btn');
+            blockButtons.forEach(btn => {
+                btn.addEventListener('dragstart', function(e) {
+                    e.dataTransfer.setData('text/plain', this.dataset.block);
+                    e.dataTransfer.effectAllowed = 'copy';
+                });
+            });
+
+            // Make field buttons draggable
+            const fieldButtons = document.querySelectorAll('.field-btn');
+            fieldButtons.forEach(btn => {
+                btn.addEventListener('dragstart', function(e) {
+                    e.dataTransfer.setData('text/plain', 'field:' + this.dataset.field);
+                    e.dataTransfer.effectAllowed = 'copy';
+                });
+            });
+
+            // Setup drop zone
+            const dropZone = document.getElementById('dropZone');
+            if (dropZone) {
+                dropZone.addEventListener('dragover', function(e) {
+                    e.preventDefault();
+                    e.dataTransfer.dropEffect = 'copy';
+                    this.classList.add('dragover');
+                });
+
+                dropZone.addEventListener('dragleave', function(e) {
+                    e.preventDefault();
+                    this.classList.remove('dragover');
+                });
+
+                dropZone.addEventListener('drop', function(e) {
+                    e.preventDefault();
+                    this.classList.remove('dragover');
+                    
+                    const data = e.dataTransfer.getData('text/plain');
+                    
+                    if (data.startsWith('field:')) {
+                        const fieldType = data.replace('field:', '');
+                        addField(fieldType);
                 } else {
-                    showMessage(`Error: ${result.message}`, 'error');
-                }
-                
-            } catch (error) {
-                console.error('Error generating signature certificate:', error);
-                showMessage('Error generating signature certificate', 'error');
+                        addBlock(data);
+                    }
+                });
             }
         }
 
-        function signAsCEO() {
-            const agreementId = document.getElementById('certificateAgreementId').value.trim();
-            
-            if (!agreementId) {
-                showMessage('Please enter an agreement ID to sign as CEO', 'error');
-                return;
-            }
-            
-            // Open CEO signature page in new tab
-            window.open(`/sign-ceo/${agreementId}`, '_blank');
-        }
-
-        // Show message
-        function showMessage(message, type) {
-            const container = document.getElementById('actionMessages');
-            const messageDiv = document.createElement('div');
-            messageDiv.className = type === 'success' ? 'success-message' : type === 'error' ? 'error-message' : 'loading';
-            messageDiv.textContent = message;
-            
-            container.innerHTML = '';
-            container.appendChild(messageDiv);
-            
-            if (type === 'success' || type === 'error') {
-                setTimeout(() => {
-                    container.innerHTML = '';
-                }, 5000);
-            }
-        }
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            setupEventListeners();
+            initializeApp();
+        });
     </script>
 </body>
 </html>
