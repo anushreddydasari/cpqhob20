@@ -162,6 +162,8 @@
             align-items: center;
         }
 
+
+
         .tabs {
             display: flex;
             gap: 8px;
@@ -636,6 +638,408 @@
         .content-block.dragover {
             border-color: #10b981;
             background: #f0fdf4;
+        }
+
+        /* Toast Notification Styles */
+        .toast {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+            padding: 16px 20px;
+            z-index: 10000;
+            transform: translateX(400px);
+            opacity: 0;
+            transition: all 0.3s ease;
+            border-left: 4px solid #10b981;
+            min-width: 300px;
+        }
+
+        .toast.show {
+            transform: translateX(0);
+            opacity: 1;
+        }
+
+        .toast-success {
+            border-left-color: #10b981;
+        }
+
+        .toast-error {
+            border-left-color: #ef4444;
+        }
+
+        .toast-info {
+            border-left-color: #3b82f6;
+        }
+
+        .toast-content {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .toast-icon {
+            font-size: 18px;
+        }
+
+        .toast-message {
+            font-weight: 500;
+            color: #374151;
+        }
+
+        /* Enhanced Block Interactions */
+        .content-block {
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .content-block:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+        }
+
+        .editable-block {
+            transition: all 0.3s ease;
+        }
+
+        .editable-block:hover {
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        /* Drag and Drop Visual Feedback */
+        .editable-block[draggable="true"] {
+            cursor: move;
+        }
+
+        .editable-block[draggable="true"]:hover {
+            cursor: grab;
+        }
+
+        .editable-block[draggable="true"]:active {
+            cursor: grabbing;
+        }
+
+        /* Block Toolbar Enhancements */
+        .block-toolbar {
+            transition: all 0.2s ease;
+        }
+
+        .block-toolbar button {
+            transition: all 0.2s ease;
+            border-radius: 4px;
+            padding: 4px 8px;
+        }
+
+        .block-toolbar button:hover {
+            background: #f3f4f6;
+            transform: scale(1.1);
+        }
+
+        /* Canvas Drag and Drop States */
+        .editor-canvas.drag-active {
+            border: 2px dashed #10b981;
+            background: #f0fdf4;
+        }
+
+        .editor-canvas.drag-over {
+            border: 2px solid #10b981;
+            background: #f0fdf4;
+            box-shadow: 0 0 20px rgba(16, 185, 129, 0.3);
+        }
+
+        /* Sidebar Block Button Drag States */
+        .block-btn {
+            transition: all 0.2s ease;
+        }
+
+        .block-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        }
+
+        .block-btn:active {
+            transform: translateY(0);
+        }
+
+        /* Modal Styles */
+        .help-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10000;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 12px;
+            max-width: 600px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.3);
+            animation: slideIn 0.3s ease;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 24px;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        .modal-header h2 {
+            margin: 0;
+            color: #1f2937;
+            font-size: 24px;
+        }
+
+        .close-btn {
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            color: #6b7280;
+            padding: 4px 8px;
+            border-radius: 4px;
+            transition: all 0.2s ease;
+        }
+
+        .close-btn:hover {
+            background: #f3f4f6;
+            color: #374151;
+        }
+
+        .modal-body {
+            padding: 24px;
+        }
+
+        .help-section {
+            margin-bottom: 24px;
+        }
+
+        .help-section h3 {
+            color: #1f2937;
+            margin-bottom: 12px;
+            font-size: 18px;
+        }
+
+        .help-section ul {
+            list-style: none;
+            padding: 0;
+        }
+
+        .help-section li {
+            padding: 8px 0;
+            color: #374151;
+            border-bottom: 1px solid #f3f4f6;
+        }
+
+        .help-section li:last-child {
+            border-bottom: none;
+        }
+
+        kbd {
+            background: #f3f4f6;
+            border: 1px solid #d1d5db;
+            border-radius: 4px;
+            padding: 2px 6px;
+            font-family: monospace;
+            font-size: 12px;
+            color: #374151;
+        }
+
+        .send-options {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+        }
+
+        .send-btn {
+            background: #10b981;
+            color: white;
+            border: none;
+            padding: 16px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 500;
+            transition: all 0.2s ease;
+            text-align: center;
+        }
+
+        .send-btn:hover {
+            background: #059669;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        @keyframes slideIn {
+            from { 
+                opacity: 0;
+                transform: translateY(-20px) scale(0.95);
+            }
+            to { 
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+        }
+
+        /* Preview Modal Styles */
+        .preview-modal .modal-content {
+            max-width: 90vw;
+            width: 90vw;
+            max-height: 90vh;
+            height: 90vh;
+        }
+
+        .preview-actions {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .preview-btn {
+            background: #10b981;
+            color: white;
+            border: none;
+            padding: 8px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .preview-btn:hover {
+            background: #059669;
+            transform: translateY(-1px);
+        }
+
+        .preview-body {
+            padding: 0;
+            height: calc(100% - 80px);
+            overflow-y: auto;
+        }
+
+        .preview-document {
+            background: white;
+            min-height: 100%;
+            padding: 40px;
+        }
+
+        .preview-header {
+            text-align: center;
+            margin-bottom: 40px;
+            border-bottom: 2px solid #e5e7eb;
+            padding-bottom: 20px;
+        }
+
+        .preview-title {
+            font-size: 32px;
+            font-weight: 700;
+            color: #1f2937;
+            margin: 0 0 10px 0;
+        }
+
+        .preview-meta {
+            color: #6b7280;
+            font-size: 14px;
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+        }
+
+        .preview-content-area {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .preview-content-area .editable-block {
+            margin: 30px 0;
+            padding: 30px;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            background: #f9fafb;
+        }
+
+        .preview-content-area .editable-block h3 {
+            font-size: 24px;
+            font-weight: 600;
+            margin: 0 0 15px 0;
+            color: #1f2937;
+        }
+
+        .preview-content-area .editable-block p {
+            font-size: 16px;
+            line-height: 1.8;
+            color: #374151;
+        }
+
+        .preview-content-area table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+        }
+
+        .preview-content-area th, 
+        .preview-content-area td {
+            border: 1px solid #e5e7eb;
+            padding: 12px;
+            text-align: left;
+        }
+
+        .preview-content-area th {
+            background: #f3f4f6;
+            font-weight: 600;
+        }
+
+        .preview-content-area .signature-pad canvas {
+            border: 1px solid #d1d5db;
+            border-radius: 4px;
+        }
+
+        /* Print-friendly styles for preview */
+        @media print {
+            .preview-modal {
+                position: static !important;
+                background: white !important;
+            }
+            .modal-content {
+                box-shadow: none !important;
+                border-radius: 0 !important;
+                max-width: none !important;
+                width: 100% !important;
+                height: auto !important;
+                max-height: none !important;
+            }
+            .modal-header {
+                display: none !important;
+            }
+            .preview-body {
+                height: auto !important;
+                overflow: visible !important;
+            }
+            .preview-document {
+                padding: 0 !important;
+            }
         }
 
         [contenteditable="true"]:focus {
@@ -1331,27 +1735,30 @@
                         <div class="document-status">Draft • $0.00 • All documents • ✓ Updated less than a minute ago</div>
                     </div>
                     <div class="editor-toolbar-right">
-                        <button class="toolbar-btn" onclick="saveTemplate()">💾 Save</button>
-                        <button class="toolbar-btn" onclick="exportTemplate()">📄 Export</button>
+                        <button class="toolbar-btn" onclick="saveTemplate()" title="Save document (Ctrl+S)">💾 Save</button>
+                        <button class="toolbar-btn" onclick="showPreviewModal()" title="Preview document (Ctrl+P)">👁️ Preview</button>
+                        <button class="toolbar-btn" onclick="exportTemplate()" title="Export as HTML (Ctrl+E)">📄 Export</button>
                         <button class="toolbar-btn" onclick="viewAllSavedDocuments()" title="View all saved documents">📁</button>
                         <button class="toolbar-btn" onclick="exportAllDocuments()" title="Export all documents">📦</button>
-                        <button class="toolbar-btn">👤 Invite</button>
-                        <button class="toolbar-btn primary">Send ▼</button>
-                        <button class="toolbar-btn">👁️</button>
-                        <button class="toolbar-btn">💬</button>
-                        <button class="toolbar-btn">ℹ️</button>
-                        <button class="toolbar-btn">⋯</button>
-                        <button class="toolbar-btn">❓ Need help</button>
+                        <button class="toolbar-btn" onclick="showHelpModal()" title="Show help and shortcuts">❓ Help</button>
+                        <button class="toolbar-btn primary" onclick="showSendModal()">Send ▼</button>
                         <div class="user-avatar">RD</div>
                             </div>
                         </div>
 
                 <!-- Document Canvas -->
                 <div class="editor-canvas" id="editorCanvas">
-                    <div class="canvas-content">
+                    <div class="canvas-content" ondrop="handleCanvasDrop(event)" ondragover="handleCanvasDragOver(event)" ondragleave="handleCanvasDragLeave(event)">
                         <div class="content-block" id="dropZone">
-                            <div style="text-align: center; color: #9ca3af; font-size: 16px;">
-                                Drag and drop content blocks from the sidebar, or choose from the options below.
+                            <div style="text-align: center; color: #9ca3af; font-size: 16px; padding: 40px;">
+                                <div style="font-size: 48px; margin-bottom: 20px;">📝</div>
+                                <h3 style="color: #374151; margin-bottom: 16px;">Start Building Your Document</h3>
+                                <p style="margin-bottom: 24px;">Drag blocks from the sidebar or click to add them</p>
+                                <div style="display: flex; gap: 12px; justify-content: center; flex-wrap: wrap;">
+                                    <button onclick="addBlock('text')" style="background: #10b981; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 14px;">📝 Add Text</button>
+                                    <button onclick="addBlock('image')" style="background: #3b82f6; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 14px;">🖼️ Add Image</button>
+                                    <button onclick="addBlock('table')" style="background: #8b5cf6; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 14px;">📊 Add Table</button>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -1370,35 +1777,35 @@
                     <div class="sidebar-section">
                         <div class="section-title">Blocks</div>
                         <div class="blocks-grid">
-                            <div class="block-btn" draggable="true" data-block="text" onclick="addBlock('text')">
+                            <div class="block-btn" draggable="true" data-block="text" onclick="addBlock('text')" ondragstart="handleSidebarDragStart(event, 'text')">
                                 <span class="block-icon">📝</span>
                                 Text
                             </div>
-                            <div class="block-btn" draggable="true" data-block="image" onclick="addBlock('image')">
+                            <div class="block-btn" draggable="true" data-block="image" onclick="addBlock('image')" ondragstart="handleSidebarDragStart(event, 'image')">
                                 <span class="block-icon">🖼️</span>
                                 Image
                             </div>
-                            <div class="block-btn" draggable="true" data-block="video" onclick="addBlock('video')">
+                            <div class="block-btn" draggable="true" data-block="video" onclick="addBlock('video')" ondragstart="handleSidebarDragStart(event, 'video')">
                                 <span class="block-icon">🎥</span>
                                 Video
                             </div>
-                            <div class="block-btn" draggable="true" data-block="table" onclick="addBlock('table')">
+                            <div class="block-btn" draggable="true" data-block="table" onclick="addBlock('table')" ondragstart="handleSidebarDragStart(event, 'table')">
                                 <span class="block-icon">📊</span>
                                 Table
                             </div>
-                            <div class="block-btn" draggable="true" data-block="pricing" onclick="addBlock('pricing')">
+                            <div class="block-btn" draggable="true" data-block="pricing" onclick="addBlock('pricing')" ondragstart="handleSidebarDragStart(event, 'pricing')">
                                 <span class="block-icon">💰</span>
                                 Pricing table
                             </div>
-                            <div class="block-btn" draggable="true" data-block="quote" onclick="addBlock('quote')">
+                            <div class="block-btn" draggable="true" data-block="quote" onclick="addBlock('quote')" ondragstart="handleSidebarDragStart(event, 'quote')">
                                 <span class="block-icon">🛒</span>
                                 Quote builder
                             </div>
-                            <div class="block-btn" draggable="true" data-block="toc" onclick="addBlock('toc')">
+                            <div class="block-btn" draggable="true" data-block="toc" onclick="addBlock('toc')" ondragstart="handleSidebarDragStart(event, 'toc')">
                                 <span class="block-icon">📋</span>
                                 Table of contents
                             </div>
-                            <div class="block-btn" draggable="true" data-block="break" onclick="addBlock('break')">
+                            <div class="block-btn" draggable="true" data-block="break" onclick="addBlock('break')" ondragstart="handleSidebarDragStart(event, 'break')">
                                 <span class="block-icon">✂️</span>
                                 Page break
                             </div>
@@ -1569,6 +1976,12 @@
             const canvas = document.getElementById('editorCanvas');
             const canvasContent = canvas.querySelector('.canvas-content');
             
+            // Remove placeholder if it's the only element
+            const placeholder = canvasContent.querySelector('#dropZone');
+            if (placeholder && canvasContent.children.length === 1) {
+                placeholder.remove();
+            }
+            
             // Create new block element
             const newBlock = document.createElement('div');
             newBlock.className = 'content-block';
@@ -1577,7 +1990,11 @@
             // Add to canvas
             canvasContent.appendChild(newBlock);
             
-            alert(`Added ${blockType} block to document`);
+            // Setup enhanced interactions
+            setupBlockInteractions(newBlock);
+            
+            // Show success feedback
+            showBlockAddedFeedback(blockType);
         }
 
         function addField(fieldType) {
@@ -1585,6 +2002,12 @@
             
             const canvas = document.getElementById('editorCanvas');
             const canvasContent = canvas.querySelector('.canvas-content');
+            
+            // Remove placeholder if it's the only element
+            const placeholder = canvasContent.querySelector('#dropZone');
+            if (placeholder && canvasContent.children.length === 1) {
+                placeholder.remove();
+            }
             
             // Create new field element
             const newField = document.createElement('div');
@@ -1594,7 +2017,598 @@
             // Add to canvas
             canvasContent.appendChild(newField);
             
-            alert(`Added ${fieldType} field to document`);
+            // Setup enhanced interactions
+            setupBlockInteractions(newField);
+            
+            // Show success feedback
+            showBlockAddedFeedback(fieldType);
+        }
+
+        // Enhanced block interaction setup
+        function setupBlockInteractions(block) {
+            // Hover effects for toolbar
+            block.addEventListener('mouseenter', function() {
+                const toolbar = this.querySelector('.block-toolbar');
+                if (toolbar) {
+                    toolbar.style.display = 'block';
+                }
+                this.style.transform = 'translateY(-2px)';
+                this.style.boxShadow = '0 8px 25px rgba(0, 0, 0, 0.15)';
+                this.style.transition = 'all 0.3s ease';
+            });
+            
+            block.addEventListener('mouseleave', function() {
+                const toolbar = this.querySelector('.block-toolbar');
+                if (toolbar) {
+                    toolbar.style.display = 'none';
+                }
+                this.style.transform = 'translateY(0)';
+                this.style.boxShadow = '0 4px 15px rgba(0, 0, 0, 0.1)';
+            });
+
+            // Make block draggable for reordering
+            const editableBlock = block.querySelector('.editable-block');
+            if (editableBlock) {
+                editableBlock.draggable = true;
+                editableBlock.addEventListener('dragstart', handleBlockDragStart);
+                editableBlock.addEventListener('dragover', handleBlockDragOver);
+                editableBlock.addEventListener('drop', handleBlockDrop);
+                editableBlock.addEventListener('dragend', handleBlockDragEnd);
+            }
+        }
+
+        // Drag and drop handlers for blocks
+        let draggedBlock = null;
+
+        function handleBlockDragStart(e) {
+            draggedBlock = this.closest('.content-block');
+            this.style.opacity = '0.5';
+            e.dataTransfer.effectAllowed = 'move';
+            e.dataTransfer.setData('text/html', this.outerHTML);
+        }
+
+        function handleBlockDragOver(e) {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
+            this.style.borderTop = '3px solid #10b981';
+        }
+
+        function handleBlockDrop(e) {
+            e.preventDefault();
+            this.style.borderTop = '';
+            
+            if (draggedBlock && draggedBlock !== this.closest('.content-block')) {
+                const canvasContent = document.querySelector('.canvas-content');
+                const targetBlock = this.closest('.content-block');
+                const rect = targetBlock.getBoundingClientRect();
+                const dropY = e.clientY;
+                const blockY = rect.top + rect.height / 2;
+                
+                if (dropY < blockY) {
+                    canvasContent.insertBefore(draggedBlock, targetBlock);
+                } else {
+                    canvasContent.insertBefore(draggedBlock, targetBlock.nextSibling);
+                }
+            }
+        }
+
+        function handleBlockDragEnd(e) {
+            this.style.opacity = '';
+            this.style.borderTop = '';
+            draggedBlock = null;
+        }
+
+        // Visual feedback for block addition
+        function showBlockAddedFeedback(blockType) {
+            const blockNames = {
+                'text': 'Text Block',
+                'image': 'Image Block', 
+                'table': 'Table Block',
+                'pricing': 'Pricing Table',
+                'quote': 'Quote Builder',
+                'signature': 'Signature Field',
+                'video': 'Video Block',
+                'toc': 'Table of Contents',
+                'break': 'Page Break'
+            };
+            
+            const message = `${blockNames[blockType] || blockType} added successfully!`;
+            showToast(message, 'success');
+        }
+
+        // Toast notification system
+        function showToast(message, type = 'info') {
+            // Remove existing toasts
+            const existingToasts = document.querySelectorAll('.toast');
+            existingToasts.forEach(toast => toast.remove());
+            
+            const toast = document.createElement('div');
+            toast.className = `toast toast-${type}`;
+            toast.innerHTML = `
+                <div class="toast-content">
+                    <span class="toast-icon">${type === 'success' ? '✅' : type === 'error' ? '❌' : 'ℹ️'}</span>
+                    <span class="toast-message">${message}</span>
+                </div>
+            `;
+            
+            document.body.appendChild(toast);
+            
+            // Animate in
+            setTimeout(() => toast.classList.add('show'), 100);
+            
+            // Auto remove
+            setTimeout(() => {
+                toast.classList.remove('show');
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+
+        // Sidebar drag and drop handlers
+        function handleSidebarDragStart(event, blockType) {
+            event.dataTransfer.setData('text/plain', blockType);
+            event.dataTransfer.effectAllowed = 'copy';
+            
+            // Add visual feedback
+            event.target.style.opacity = '0.5';
+            
+            // Show drop zone highlight
+            const canvas = document.getElementById('editorCanvas');
+            canvas.classList.add('drag-active');
+        }
+
+        function handleCanvasDragOver(event) {
+            event.preventDefault();
+            event.dataTransfer.dropEffect = 'copy';
+            
+            const canvas = document.getElementById('editorCanvas');
+            canvas.classList.add('drag-over');
+        }
+
+        function handleCanvasDragLeave(event) {
+            const canvas = document.getElementById('editorCanvas');
+            canvas.classList.remove('drag-over');
+        }
+
+        function handleCanvasDrop(event) {
+            event.preventDefault();
+            
+            const canvas = document.getElementById('editorCanvas');
+            canvas.classList.remove('drag-over', 'drag-active');
+            
+            const blockType = event.dataTransfer.getData('text/plain');
+            if (blockType) {
+                addBlock(blockType);
+                showToast(`${blockType} block added via drag & drop!`, 'success');
+            }
+        }
+
+        // Reset sidebar button opacity after drag
+        document.addEventListener('dragend', function(event) {
+            if (event.target.classList.contains('block-btn')) {
+                event.target.style.opacity = '';
+            }
+        });
+
+        // Keyboard shortcuts
+        document.addEventListener('keydown', function(event) {
+            // Ctrl/Cmd + S to save
+            if ((event.ctrlKey || event.metaKey) && event.key === 's') {
+                event.preventDefault();
+                saveTemplate();
+                showToast('Document saved!', 'success');
+            }
+            
+            // Ctrl/Cmd + E to export
+            if ((event.ctrlKey || event.metaKey) && event.key === 'e') {
+                event.preventDefault();
+                exportTemplate();
+            }
+            
+            // Ctrl/Cmd + P to preview
+            if ((event.ctrlKey || event.metaKey) && event.key === 'p') {
+                event.preventDefault();
+                showPreviewModal();
+            }
+            
+            // Delete key to remove selected block
+            if (event.key === 'Delete' || event.key === 'Backspace') {
+                const focusedElement = document.activeElement;
+                const block = focusedElement.closest('.editable-block');
+                if (block && !focusedElement.isContentEditable) {
+                    event.preventDefault();
+                    if (confirm('Delete this block?')) {
+                        block.closest('.content-block').remove();
+                        showToast('Block deleted', 'info');
+                    }
+                }
+            }
+        });
+
+        // Enhanced save with better feedback
+        function saveTemplate() {
+            const canvas = document.getElementById('editorCanvas');
+            const canvasContent = canvas.querySelector('.canvas-content');
+            const documentTitle = document.querySelector('.document-title').textContent || 'Untitled Document';
+            
+            // Show saving indicator
+            showToast('Saving document...', 'info');
+            
+            // Collect all blocks data
+            const blocks = [];
+            const blockElements = canvasContent.querySelectorAll('.editable-block');
+            
+            blockElements.forEach((block, index) => {
+                const blockData = {
+                    id: `block_${index}`,
+                    type: block.dataset.blockType || 'unknown',
+                    content: block.innerHTML,
+                    position: index
+                };
+                blocks.push(blockData);
+            });
+            
+            // Create template data
+            const templateData = {
+                id: Date.now().toString(),
+                title: documentTitle,
+                created: new Date().toISOString(),
+                updated: new Date().toISOString(),
+                blocks: blocks,
+                metadata: {
+                    totalBlocks: blocks.length,
+                    hasImages: blocks.some(b => b.type === 'image'),
+                    hasSignatures: blocks.some(b => b.type === 'signature'),
+                    hasPricing: blocks.some(b => b.type === 'pricing')
+                }
+            };
+            
+            // Save to MongoDB
+            saveToMongoDB(templateData);
+        }
+
+        // Help modal
+        function showHelpModal() {
+            const modal = document.createElement('div');
+            modal.className = 'help-modal';
+            modal.innerHTML = `
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h2>Template Builder Help</h2>
+                        <button onclick="closeModal(this)" class="close-btn">×</button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="help-section">
+                            <h3>🎯 Getting Started</h3>
+                            <ul>
+                                <li>Drag blocks from the sidebar to the canvas</li>
+                                <li>Click blocks in the sidebar to add them quickly</li>
+                                <li>Click on any text to edit it directly</li>
+                                <li>Use the toolbar buttons to manage your document</li>
+                            </ul>
+                        </div>
+                        <div class="help-section">
+                            <h3>⌨️ Keyboard Shortcuts</h3>
+                            <ul>
+                                <li><kbd>Ctrl/Cmd + S</kbd> - Save document</li>
+                                <li><kbd>Ctrl/Cmd + P</kbd> - Preview document</li>
+                                <li><kbd>Ctrl/Cmd + E</kbd> - Export as HTML</li>
+                                <li><kbd>Delete</kbd> - Delete selected block</li>
+                            </ul>
+                        </div>
+                        <div class="help-section">
+                            <h3>🖱️ Drag & Drop</h3>
+                            <ul>
+                                <li>Drag blocks from sidebar to canvas to add them</li>
+                                <li>Drag blocks within canvas to reorder them</li>
+                                <li>Hover over blocks to see management options</li>
+                            </ul>
+                        </div>
+                        <div class="help-section">
+                            <h3>📝 Block Types</h3>
+                            <ul>
+                                <li><strong>Text:</strong> Rich text editing with headings</li>
+                                <li><strong>Image:</strong> Upload and display images</li>
+                                <li><strong>Table:</strong> Data tables with editable cells</li>
+                                <li><strong>Pricing:</strong> Specialized pricing tables</li>
+                                <li><strong>Signature:</strong> Digital signature fields</li>
+                            </ul>
+                        </div>
+                        <div class="help-section">
+                            <h3>👁️ Preview & Export</h3>
+                            <ul>
+                                <li><strong>Preview:</strong> See how your document will look</li>
+                                <li><strong>Print:</strong> Print directly from preview mode</li>
+                                <li><strong>Export:</strong> Download as HTML file</li>
+                                <li><strong>Save:</strong> Store in your document library</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+        }
+
+        // Send modal
+        function showSendModal() {
+            const modal = document.createElement('div');
+            modal.className = 'help-modal';
+            modal.innerHTML = `
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h2>Send Document</h2>
+                        <button onclick="closeModal(this)" class="close-btn">×</button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="send-options">
+                            <button onclick="exportTemplate(); closeModal(this);" class="send-btn">
+                                📄 Export as HTML
+                            </button>
+                            <button onclick="saveTemplate(); closeModal(this);" class="send-btn">
+                                💾 Save to Library
+                            </button>
+                            <button onclick="alert('Email integration coming soon!'); closeModal(this);" class="send-btn">
+                                📧 Email Document
+                            </button>
+                            <button onclick="alert('PDF export coming soon!'); closeModal(this);" class="send-btn">
+                                📋 Export as PDF
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+        }
+
+        // Close modal
+        function closeModal(button) {
+            const modal = button.closest('.help-modal');
+            modal.remove();
+        }
+
+        // Preview modal
+        function showPreviewModal() {
+            const canvas = document.getElementById('editorCanvas');
+            const canvasContent = canvas.querySelector('.canvas-content');
+            const documentTitle = document.querySelector('.document-title').textContent || 'Untitled Document';
+            
+            // Create a clean version for preview
+            const previewContent = canvasContent.cloneNode(true);
+            
+            // Remove toolbars and interactive elements
+            const toolbars = previewContent.querySelectorAll('.block-toolbar');
+            toolbars.forEach(toolbar => toolbar.remove());
+            
+            // Remove onclick handlers and make content static
+            const interactiveElements = previewContent.querySelectorAll('[onclick]');
+            interactiveElements.forEach(el => {
+                el.removeAttribute('onclick');
+                el.removeAttribute('ondrop');
+                el.removeAttribute('ondragover');
+                el.removeAttribute('ondragleave');
+            });
+            
+            // Remove the placeholder if it exists
+            const placeholder = previewContent.querySelector('#dropZone');
+            if (placeholder) {
+                placeholder.remove();
+            }
+            
+            const modal = document.createElement('div');
+            modal.className = 'help-modal preview-modal';
+            modal.innerHTML = `
+                <div class="modal-content preview-content">
+                    <div class="modal-header">
+                        <h2>📄 Document Preview</h2>
+                        <div class="preview-actions">
+                            <button onclick="printPreview()" class="preview-btn" title="Print document">🖨️ Print</button>
+                            <button onclick="exportFromPreview()" class="preview-btn" title="Export as HTML">📄 Export</button>
+                            <button onclick="closeModal(this)" class="close-btn">×</button>
+                        </div>
+                    </div>
+                    <div class="modal-body preview-body">
+                        <div class="preview-document">
+                            <div class="preview-header">
+                                <h1 class="preview-title">${documentTitle}</h1>
+                                <div class="preview-meta">
+                                    <span class="preview-date">${new Date().toLocaleDateString()}</span>
+                                    <span class="preview-status">Draft</span>
+                                </div>
+                            </div>
+                            <div class="preview-content-area">
+                                ${previewContent.innerHTML}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+        }
+
+        // Print preview
+        function printPreview() {
+            const previewContent = document.querySelector('.preview-document');
+            if (previewContent) {
+                const printWindow = window.open('', '_blank');
+                printWindow.document.write(`
+                    <!DOCTYPE html>
+                    <html>
+                    <head>
+                        <title>Document Preview</title>
+                        <style>
+                            body {
+                                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                                max-width: 800px;
+                                margin: 0 auto;
+                                padding: 40px 20px;
+                                line-height: 1.6;
+                                color: #333;
+                            }
+                            .preview-header {
+                                text-align: center;
+                                margin-bottom: 40px;
+                                border-bottom: 2px solid #e5e7eb;
+                                padding-bottom: 20px;
+                            }
+                            .preview-title {
+                                font-size: 32px;
+                                font-weight: 700;
+                                color: #1f2937;
+                                margin: 0 0 10px 0;
+                            }
+                            .preview-meta {
+                                color: #6b7280;
+                                font-size: 14px;
+                            }
+                            .editable-block {
+                                margin: 30px 0;
+                                padding: 30px;
+                                border: 1px solid #e5e7eb;
+                                border-radius: 8px;
+                                background: #f9fafb;
+                            }
+                            .editable-block h3 {
+                                font-size: 24px;
+                                font-weight: 600;
+                                margin: 0 0 15px 0;
+                                color: #1f2937;
+                            }
+                            .editable-block p {
+                                font-size: 16px;
+                                line-height: 1.8;
+                                color: #374151;
+                            }
+                            table {
+                                width: 100%;
+                                border-collapse: collapse;
+                                margin: 15px 0;
+                            }
+                            th, td {
+                                border: 1px solid #e5e7eb;
+                                padding: 12px;
+                                text-align: left;
+                            }
+                            th {
+                                background: #f3f4f6;
+                                font-weight: 600;
+                            }
+                            .signature-pad canvas {
+                                border: 1px solid #d1d5db;
+                                border-radius: 4px;
+                            }
+                            @media print {
+                                body { padding: 0; }
+                                .editable-block { break-inside: avoid; }
+                            }
+                        </style>
+                    </head>
+                    <body>
+                        ${previewContent.innerHTML}
+                    </body>
+                    </html>
+                `);
+                printWindow.document.close();
+                printWindow.print();
+            }
+        }
+
+        // Export from preview
+        function exportFromPreview() {
+            const previewContent = document.querySelector('.preview-document');
+            if (previewContent) {
+                const documentTitle = document.querySelector('.document-title').textContent || 'Untitled Document';
+                
+                const htmlContent = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>${documentTitle}</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 40px 20px;
+            line-height: 1.6;
+            color: #333;
+        }
+        .preview-header {
+            text-align: center;
+            margin-bottom: 40px;
+            border-bottom: 2px solid #e5e7eb;
+            padding-bottom: 20px;
+        }
+        .preview-title {
+            font-size: 32px;
+            font-weight: 700;
+            color: #1f2937;
+            margin: 0 0 10px 0;
+        }
+        .preview-meta {
+            color: #6b7280;
+            font-size: 14px;
+        }
+        .editable-block {
+            margin: 30px 0;
+            padding: 30px;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            background: #f9fafb;
+        }
+        .editable-block h3 {
+            font-size: 24px;
+            font-weight: 600;
+            margin: 0 0 15px 0;
+            color: #1f2937;
+        }
+        .editable-block p {
+            font-size: 16px;
+            line-height: 1.8;
+            color: #374151;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+        }
+        th, td {
+            border: 1px solid #e5e7eb;
+            padding: 12px;
+            text-align: left;
+        }
+        th {
+            background: #f3f4f6;
+            font-weight: 600;
+        }
+        .signature-pad canvas {
+            border: 1px solid #d1d5db;
+            border-radius: 4px;
+        }
+        @media print {
+            body { padding: 0; }
+            .editable-block { break-inside: avoid; }
+        }
+    </style>
+</head>
+<body>
+    ${previewContent.innerHTML}
+</body>
+</html>`;
+                
+                // Create and download file
+                const blob = new Blob([htmlContent], { type: 'text/html' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `${documentTitle.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.html`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                
+                showToast('Document exported from preview!', 'success');
+            }
         }
 
         function getBlockContent(blockType) {
