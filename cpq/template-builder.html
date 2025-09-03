@@ -3,36 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Agreement Template Builder</title>
+    <title>Template Builder - Agreement Generator</title>
     
-    <!-- TipTap UMD builds (global window.tiptap) -->
-    <script src="https://unpkg.com/@tiptap/core@2.1.13/dist/tiptap-core.umd.js"></script>
-    <script src="https://unpkg.com/@tiptap/starter-kit@2.1.13/dist/tiptap-starter-kit.umd.js"></script>
-    <script src="https://unpkg.com/@tiptap/extension-placeholder@2.1.13/dist/tiptap-extension-placeholder.umd.js"></script>
-    <script src="https://unpkg.com/@tiptap/extension-highlight@2.1.13/dist/tiptap-extension-highlight.umd.js"></script>
-    <script src="https://unpkg.com/@tiptap/extension-underline@2.1.13/dist/tiptap-extension-underline.umd.js"></script>
-    <script>
-        // Fallback loader if unpkg is blocked
-        (function(){
-            function load(src){
-                return new Promise(function(resolve){
-                    var s=document.createElement('script');
-                    s.src=src; s.onload=resolve; s.async=true; document.head.appendChild(s);
-                });
-            }
-            function ensure(){
-                var ok = !!(window.tiptap || window.tiptapCore || window['@tiptap/core']);
-                if (ok) return Promise.resolve();
-                // Try jsDelivr fallback
-                return load('https://cdn.jsdelivr.net/npm/@tiptap/core@2.1.13/dist/tiptap-core.umd.min.js')
-                .then(function(){ return load('https://cdn.jsdelivr.net/npm/@tiptap/starter-kit@2.1.13/dist/tiptap-starter-kit.umd.min.js'); })
-                .then(function(){ return load('https://cdn.jsdelivr.net/npm/@tiptap/extension-placeholder@2.1.13/dist/tiptap-extension-placeholder.umd.min.js'); })
-                .then(function(){ return load('https://cdn.jsdelivr.net/npm/@tiptap/extension-highlight@2.1.13/dist/tiptap-extension-highlight.umd.min.js'); })
-                .then(function(){ return load('https://cdn.jsdelivr.net/npm/@tiptap/extension-underline@2.1.13/dist/tiptap-extension-underline.umd.min.js'); });
-            }
-            window.__ensureTipTap = ensure;
-        })();
-    </script>
+    <!-- Signature Pad Library -->
+    <script src="https://cdn.jsdelivr.net/npm/signature_pad@4.1.7/dist/signature_pad.umd.min.js"></script>
     
     <style>
         * {
@@ -49,7 +23,7 @@
         }
 
         .container {
-            max-width: 1400px;
+            max-width: 1600px;
             margin: 0 auto;
         }
 
@@ -99,39 +73,45 @@
             transform: translateY(-2px);
         }
 
-        .main-content {
+        .main-layout {
             display: grid;
-            grid-template-columns: 300px 1fr;
-            gap: 20px;
-            margin-bottom: 20px;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            align-items: start;
         }
 
-        .sidebar {
-            background: white;
+        .control-panel {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
             border-radius: 15px;
-            padding: 20px;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-            height: fit-content;
+            padding: 30px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
         }
 
-        .editor-container {
-            background: white;
+        .preview-panel {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
             border-radius: 15px;
-            padding: 20px;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            padding: 30px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            max-height: 800px;
+            overflow-y: auto;
         }
 
         .section {
             margin-bottom: 25px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid #eee;
+        }
+
+        .section:last-child {
+            border-bottom: none;
         }
 
         .section h3 {
             color: #333;
-            font-size: 1.2rem;
             margin-bottom: 15px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
+            font-size: 1.2rem;
         }
 
         .form-group {
@@ -140,45 +120,41 @@
 
         .form-label {
             display: block;
+            margin-bottom: 5px;
             font-weight: 600;
-            color: #333;
-            margin-bottom: 8px;
+            color: #555;
         }
 
-        .form-input, .form-select, .form-textarea {
+        .form-input, .form-select {
             width: 100%;
             padding: 10px;
-            border: 2px solid #dee2e6;
-            border-radius: 8px;
-            font-size: 0.9rem;
+            border: 2px solid #e1e5e9;
+            border-radius: 6px;
+            font-size: 14px;
             transition: border-color 0.3s;
         }
 
-        .form-input:focus, .form-select:focus, .form-textarea:focus {
+        .form-input:focus, .form-select:focus {
             outline: none;
             border-color: #667eea;
-        }
-
-        .form-textarea {
-            resize: vertical;
-            min-height: 80px;
         }
 
         .btn {
             background: #667eea;
             color: white;
             border: none;
-            padding: 12px 24px;
-            border-radius: 8px;
+            padding: 10px 20px;
+            border-radius: 6px;
             cursor: pointer;
-            font-size: 0.9rem;
-            margin: 5px 5px 5px 0;
+            font-size: 14px;
             transition: all 0.3s ease;
+            margin-right: 10px;
+            margin-bottom: 10px;
         }
 
         .btn:hover {
             background: #5a6fd8;
-            transform: translateY(-2px);
+            transform: translateY(-1px);
         }
 
         .btn-success {
@@ -189,23 +165,6 @@
             background: #218838;
         }
 
-        .btn-info {
-            background: #17a2b8;
-        }
-
-        .btn-info:hover {
-            background: #138496;
-        }
-
-        .btn-warning {
-            background: #ffc107;
-            color: #212529;
-        }
-
-        .btn-warning:hover {
-            background: #e0a800;
-        }
-
         .btn-danger {
             background: #dc3545;
         }
@@ -214,355 +173,264 @@
             background: #c82333;
         }
 
-        /* TipTap Editor Styles */
-        #editor .ProseMirror {
-            border: 2px solid #dee2e6;
-            border-radius: 8px;
-            padding: 20px;
-            min-height: 500px;
-            font-size: 14px;
-            line-height: 1.6;
-            background: #fff;
+        .btn-secondary {
+            background: #6c757d;
         }
 
-        #editor .ProseMirror:focus {
-            outline: none;
-            border-color: #667eea;
+        .btn-secondary:hover {
+            background: #5a6268;
         }
 
-        #editor .ProseMirror h1, 
-        #editor .ProseMirror h2, 
-        #editor .ProseMirror h3, 
-        #editor .ProseMirror h4, 
-        #editor .ProseMirror h5, 
-        #editor .ProseMirror h6 {
-            margin: 1em 0 0.5em 0;
-            font-weight: 600;
-        }
-
-        #editor .ProseMirror p {
-            margin: 0.5em 0;
-        }
-
-        #editor .ProseMirror ul, #editor .ProseMirror ol {
-            margin: 0.5em 0;
-            padding-left: 1.5em;
-        }
-
-        #editor .ProseMirror blockquote {
-            border-left: 4px solid #667eea;
-            margin: 1em 0;
-            padding-left: 1em;
-            font-style: italic;
-            color: #666;
-        }
-
-        #editor .ProseMirror code {
-            background: #f8f9fa;
-            padding: 2px 4px;
-            border-radius: 4px;
-            font-family: monospace;
-        }
-
-        #editor .ProseMirror pre {
-            background: #f8f9fa;
-            padding: 1em;
-            border-radius: 8px;
-            overflow-x: auto;
-        }
-
-        #editor .ProseMirror pre code {
-            background: none;
-            padding: 0;
-        }
-
-        /* Table preview styling in the editor */
-        #editor .ProseMirror table {
-            border-collapse: collapse;
-            width: 100%;
-            margin: 10px 0;
-        }
-        #editor .ProseMirror th, #editor .ProseMirror td {
-            border: 1px solid #dee2e6;
-            padding: 6px 8px;
-        }
-        #editor .ProseMirror th {
-            background: #f1f3f5;
-            font-weight: 600;
-        }
-
-        #editor .ProseMirror mark {
-            background: #fff3cd;
-            padding: 2px 4px;
-            border-radius: 4px;
-        }
-
-        /* Placeholder text when editor is empty */
-        #editor .ProseMirror p.is-editor-empty::before {
-            color: #adb5bd;
-            content: attr(data-placeholder);
-            float: left;
-            height: 0;
-            pointer-events: none;
-        }
-
-        .config-row select {
-            padding: 6px 10px;
-            border: 1px solid #ced4da;
-            border-radius: 4px;
+        /* Agreement Preview Styles */
+        .agreement-preview {
             background: white;
-            font-size: 0.9rem;
+            padding: 40px;
+            margin: 20px 0;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            border-radius: 8px;
         }
 
-        .config-row select:focus {
-            outline: none;
-            border-color: #667eea;
-            box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.25);
+        .agreement-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid #e1e5e9;
         }
 
-        .upload-row {
+        .company-logo {
             display: flex;
             align-items: center;
-            margin-bottom: 12px;
-            flex-wrap: wrap;
             gap: 10px;
         }
 
-        .upload-row label {
-            min-width: 180px;
-            font-weight: 500;
-            color: #495057;
+        .company-logo img {
+            height: 60px;
         }
 
-        .upload-row select {
-            padding: 6px 10px;
-            border: 1px solid #ced4da;
-            border-radius: 4px;
-            background: white;
-            font-size: 0.9rem;
+        .company-name {
+            font-size: 24px;
+            font-weight: bold;
+            color: #1a73e8;
         }
 
-        .upload-row select:focus {
-            outline: none;
-            border-color: #667eea;
-            box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.25);
+        .microsoft-partner {
+            text-align: right;
         }
 
+        .microsoft-partner img {
+            height: 50px;
+        }
 
+        .agreement-title {
+            text-align: center;
+            font-size: 20px;
+            font-weight: bold;
+            margin: 30px 0;
+            color: #333;
+        }
 
-        /* Toolbar Styles */
-        .toolbar {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 5px;
+        .service-description {
+            margin-bottom: 25px;
+            line-height: 1.6;
+            color: #555;
+        }
+
+        .service-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 25px 0;
+        }
+
+        .service-table th {
+            background: #b8dff0;
+            padding: 12px;
+            text-align: center;
+            font-weight: bold;
+            border: 1px solid #999;
+        }
+
+        .service-table td {
+            padding: 12px;
+            border: 1px solid #999;
+            vertical-align: top;
+        }
+
+        .service-table .job-requirement {
+            text-align: center;
+            font-weight: bold;
+        }
+
+        .service-table .price {
+            text-align: right;
+            font-weight: bold;
+        }
+
+        .total-price {
+            text-align: right;
+            font-size: 18px;
+            font-weight: bold;
+            margin-top: 10px;
+        }
+
+        .payment-notes {
+            background: #b8dff0;
             padding: 15px;
-            background: #f8f9fa;
-            border: 2px solid #dee2e6;
-            border-bottom: none;
-            border-radius: 8px 8px 0 0;
+            margin: 25px 0;
+            border-radius: 5px;
         }
 
-        .toolbar button {
-            background: white;
-            border: 1px solid #dee2e6;
-            padding: 8px 12px;
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 0.9rem;
-            transition: all 0.2s ease;
+        .payment-notes h4 {
+            text-align: center;
+            margin-bottom: 10px;
+            font-weight: bold;
         }
 
-        .toolbar button:hover {
-            background: #667eea;
-            color: white;
-            border-color: #667eea;
+        .payment-notes ul {
+            list-style-type: disc;
+            margin-left: 20px;
         }
 
-        .toolbar button.is-active {
-            background: #667eea;
-            color: white;
-            border-color: #667eea;
-        }
-
-        /* Placeholder Styles */
-        .placeholder-item {
-            background: #e3f2fd;
-            border: 1px solid #bbdefb;
-            border-radius: 6px;
-            padding: 8px 12px;
-            margin: 5px 0;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .placeholder-item .placeholder-name {
-            font-weight: 600;
-            color: #1976d2;
-        }
-
-        .placeholder-item .placeholder-description {
-            font-size: 0.8rem;
-            color: #666;
-        }
-
-        .placeholder-item .placeholder-actions {
-            display: flex;
-            gap: 5px;
-        }
-
-        .placeholder-item .placeholder-actions button {
-            background: none;
-            border: none;
-            cursor: pointer;
-            padding: 4px;
-            border-radius: 4px;
-            transition: background 0.2s;
-        }
-
-        .placeholder-item .placeholder-actions button:hover {
-            background: rgba(25, 118, 210, 0.1);
-        }
-
-        /* Clause Styles */
-        .clause-item {
-            background: #f3e5f5;
-            border: 1px solid #e1bee7;
-            border-radius: 6px;
-            padding: 10px;
-            margin: 8px 0;
-        }
-
-        .clause-item .clause-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
+        .payment-notes li {
             margin-bottom: 8px;
         }
 
-        .clause-item .clause-title {
-            font-weight: 600;
-            color: #7b1fa2;
+        .saas-agreement {
+            background: #b8dff0;
+            padding: 15px;
+            margin: 25px 0;
+            border-radius: 5px;
         }
 
-        .clause-item .clause-content {
-            font-size: 0.9rem;
-            color: #666;
-            line-height: 1.4;
-        }
-
-        .clause-item .clause-actions {
-            display: flex;
-            gap: 5px;
-            margin-top: 8px;
-        }
-
-        .clause-item .clause-actions button {
-            background: none;
-            border: 1px solid #e1bee7;
-            padding: 4px 8px;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 0.8rem;
-            transition: all 0.2s;
-        }
-
-        .clause-item .clause-actions button:hover {
-            background: #e1bee7;
-            color: #7b1fa2;
-        }
-
-        /* Status Messages */
-        .status {
-            margin: 15px 0;
-            padding: 12px;
-            border-radius: 8px;
-            font-weight: 500;
-        }
-
-        .status.success {
-            background: #d4edda;
-            color: #155724;
-            border: 1px solid #c3e6cb;
-        }
-
-        .status.error {
-            background: #f8d7da;
-            color: #721c24;
-            border: 1px solid #f5c6cb;
-        }
-
-        .status.info {
-            background: #d1ecf1;
-            color: #0c5460;
-            border: 1px solid #bee5eb;
-        }
-
-        /* Preview Modal */
-        .preview-modal {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.8);
-            z-index: 1000;
-        }
-
-        .preview-content {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            background: white;
-            padding: 30px;
-            border-radius: 15px;
-            max-width: 90%;
-            max-height: 90%;
-            overflow-y: auto;
-        }
-
-        .preview-content h2 {
-            color: #667eea;
-            margin-bottom: 20px;
-        }
-
-        .preview-content .preview-actions {
+        .saas-agreement h4 {
             text-align: center;
-            margin-top: 20px;
+            margin-bottom: 10px;
+            font-weight: bold;
         }
 
-        .close-btn {
-            position: absolute;
-            top: 15px;
-            right: 20px;
-            background: #dc3545;
-            color: white;
-            border: none;
-            border-radius: 50%;
-            width: 30px;
-            height: 30px;
-            cursor: pointer;
+        .signature-section {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 40px;
+            margin-top: 40px;
+            padding-top: 30px;
+            border-top: 2px solid #e1e5e9;
+        }
+
+        .signature-block {
+            text-align: center;
+        }
+
+        .signature-block h4 {
+            font-weight: bold;
+            margin-bottom: 20px;
+            text-decoration: underline;
+        }
+
+        .signature-line {
+            border-bottom: 2px solid #333;
+            height: 50px;
+            margin: 10px 0;
+            position: relative;
+        }
+
+        .signature-canvas {
+            border: 2px solid #333;
+            width: 100%;
+            height: 80px;
+            cursor: crosshair;
+        }
+
+        .signature-text {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #333;
+            text-align: center;
+            font-family: cursive;
             font-size: 18px;
         }
 
-        .close-btn:hover {
-            background: #c82333;
+        .signature-info {
+            margin-top: 10px;
+            text-align: left;
         }
 
-        /* Responsive Design */
-        @media (max-width: 768px) {
-            .main-content {
+        .signature-info input {
+            width: 100%;
+            padding: 5px;
+            margin: 5px 0;
+            border: none;
+            border-bottom: 1px solid #333;
+        }
+
+        .terms-section {
+            background: #b8dff0;
+            padding: 15px;
+            margin: 25px 0;
+            border-radius: 5px;
+        }
+
+        .terms-section h4 {
+            text-align: center;
+            margin-bottom: 10px;
+            font-weight: bold;
+        }
+
+        .placeholder {
+            background: #fff3cd;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-weight: bold;
+            color: #856404;
+        }
+
+        .quote-selector {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .quote-selector select {
+            flex: 1;
+        }
+
+        .signature-options {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+
+        .signature-options button {
+            padding: 5px 10px;
+            font-size: 12px;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #666;
+        }
+
+        .success-message {
+            background: #d4edda;
+            color: #155724;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+
+        .error-message {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+
+        @media (max-width: 1200px) {
+            .main-layout {
                 grid-template-columns: 1fr;
-            }
-            
-            .sidebar {
-                order: 2;
-            }
-            
-            .editor-container {
-                order: 1;
             }
         }
     </style>
@@ -571,594 +439,317 @@
     <div class="container">
         <!-- Header -->
         <div class="header">
-            <h1>🏗️ Agreement Template Builder</h1>
-            <p>Create professional agreement templates with dynamic placeholders</p>
+            <h1>🚀 Template Builder</h1>
+            <p>Create professional agreement templates with signature tracking</p>
         </div>
 
         <!-- Navigation -->
         <div class="nav-bar">
             <a href="/" class="nav-btn">🏠 Home</a>
-            <a href="/template-builder" class="nav-btn">🏗️ Template Builder</a>
-            <a href="/quote-management" class="nav-btn">📊 Quote Management</a>
-            <a href="/client-management" class="nav-btn">👥 Clients</a>
-            <a href="/hubspot-data" class="nav-btn">🔗 HubSpot</a>
+            <a href="/quote-calculator" class="nav-btn">🧮 Quote Calculator</a>
+            <a href="/client-management" class="nav-btn">👥 Client Management</a>
+            <a href="/quote-management" class="nav-btn">📋 Quote Management</a>
+            <a href="/approval-dashboard" class="nav-btn">✅ Approval Dashboard</a>
         </div>
 
-        <!-- Main Content -->
-        <div class="main-content">
-            <!-- Sidebar -->
-            <div class="sidebar">
-                <!-- Template Info -->
+        <!-- Main Layout -->
+        <div class="main-layout">
+            <!-- Control Panel -->
+            <div class="control-panel">
+                <!-- Template Management Section -->
                 <div class="section">
-                    <h3>📝 Template Info</h3>
+                    <h3>📋 Template Management</h3>
                     <div class="form-group">
-                        <label class="form-label">Template Name *</label>
-                        <input type="text" id="templateName" class="form-input" placeholder="e.g., Standard Service Agreement">
+                        <label class="form-label">Load Existing Template</label>
+                        <div class="quote-selector">
+                            <select id="templateSelect" class="form-select" onchange="loadTemplate()">
+                                <option value="">Select template to load...</option>
+                            </select>
+                            <button class="btn btn-secondary" onclick="loadTemplates()">🔄 Refresh</button>
+                        </div>
                     </div>
                     <div class="form-group">
-                        <label class="form-label">Description</label>
-                        <textarea id="templateDescription" class="form-textarea" placeholder="Brief description of this template"></textarea>
+                        <button class="btn btn-secondary" onclick="saveAsNewTemplate()">💾 Save As New Template</button>
+                        <button class="btn btn-secondary" onclick="updateCurrentTemplate()">✏️ Update Current Template</button>
+                    </div>
+                </div>
+
+                <!-- Data Source Section -->
+                <div class="section">
+                    <h3>📊 Data Source</h3>
+                    <div class="form-group">
+                        <label class="form-label">Select Quote/Deal</label>
+                        <div class="quote-selector">
+                            <select id="dataSourceType" class="form-select" onchange="onDataSourceChange()">
+                                <option value="quote">From Quote</option>
+                                <option value="deal">From HubSpot Deal</option>
+                                <option value="manual">Manual Entry</option>
+                            </select>
+                            <button class="btn btn-secondary" onclick="loadDataSources()">🔄 Refresh</button>
+                        </div>
                     </div>
                     <div class="form-group">
-                        <label class="form-label">Category</label>
-                        <select id="templateCategory" class="form-select">
-                            <option value="general">General</option>
-                            <option value="service">Service Agreement</option>
-                            <option value="consulting">Consulting</option>
-                            <option value="development">Development</option>
-                            <option value="support">Support</option>
+                        <select id="dataSourceSelect" class="form-select" onchange="loadDataSource()">
+                            <option value="">Select data source...</option>
                         </select>
                     </div>
-                    <div class="form-group">
-                        <label class="form-label">Tags</label>
-                        <input type="text" id="templateTags" class="form-input" placeholder="comma-separated tags">
-                    </div>
                 </div>
 
-                <!-- Dynamic Placeholders -->
+                <!-- Company Information -->
                 <div class="section">
-                    <h3>🔤 Dynamic Placeholders</h3>
+                    <h3>🏢 Company Information</h3>
                     <div class="form-group">
-                        <label class="form-label">Add Placeholder</label>
-                        <div style="display: flex; gap: 5px;">
-                            <input type="text" id="newPlaceholder" class="form-input" placeholder="e.g., client_name" style="flex: 1;">
-                            <button class="btn btn-info" onclick="addPlaceholder()" style="padding: 8px 12px;">+</button>
-                        </div>
+                        <label class="form-label">Your Company Name</label>
+                        <input type="text" id="companyName" class="form-input" value="CloudFuze" placeholder="Your company name">
                     </div>
                     <div class="form-group">
-                        <label class="form-label">Available Fields (from quote)</label>
-                        <div style="display: flex; gap: 5px;">
-                            <input type="text" id="fieldsQuoteId" class="form-input" placeholder="Optional: Quote ID / Client / Company" style="flex: 1;">
-                            <button class="btn" onclick="loadAvailableFields()" style="padding: 8px 12px;">Load</button>
-                        </div>
-                        <div id="availableFields" style="margin-top: 8px; display: flex; flex-wrap: wrap; gap: 6px;"></div>
-                    </div>
-                    <div id="placeholdersList">
-                        <!-- Placeholders will be added here -->
-                    </div>
-                    <div style="margin-top: 10px; display: flex; gap: 6px; flex-wrap: wrap;">
-                        <button class="btn btn-info" onclick="validatePlaceholders()">Validate Placeholders</button>
-                        <button class="btn" onclick="insertPlaceholderPrompt()">Insert Placeholder</button>
+                        <label class="form-label">Company Address</label>
+                        <input type="text" id="companyAddress" class="form-input" value="2500 Regency Parkway, Cary, NC 27518" placeholder="Company address">
                     </div>
                 </div>
 
-                <!-- Pre-built Clauses (hidden) -->
-                <div class="section" style="display:none;">
-                    <h3>📋 Pre-built Clauses</h3>
+                <!-- Client Information -->
+                <div class="section">
+                    <h3>👥 Client Information</h3>
                     <div class="form-group">
-                        <button class="btn btn-warning" onclick="addClause('payment')">💰 Payment Terms</button>
-                        <button class="btn btn-warning" onclick="addClause('confidentiality')">🔒 Confidentiality</button>
-                        <button class="btn btn-warning" onclick="addClause('termination')">🚪 Termination</button>
-                        <button class="btn btn-warning" onclick="addClause('warranty')">⚖️ Warranty</button>
-                        <button class="btn btn-warning" onclick="addClause('liability')">🛡️ Liability</button>
+                        <label class="form-label">Client Company</label>
+                        <input type="text" id="clientCompany" class="form-input" placeholder="Client company name">
                     </div>
-                    <div id="clausesList">
-                        <!-- Clauses will be added here -->
+                    <div class="form-group">
+                        <label class="form-label">Client Name</label>
+                        <input type="text" id="clientName" class="form-input" placeholder="Client contact name">
+                    </div>
+                </div>
+
+                <!-- Service Information -->
+                <div class="section">
+                    <h3>🛠️ Service Information</h3>
+                    <div class="form-group">
+                        <label class="form-label">Service Type</label>
+                        <input type="text" id="serviceType" class="form-input" placeholder="e.g., Slack to Teams Migration">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Service Description</label>
+                        <textarea id="serviceDescription" class="form-input" rows="3" placeholder="Detailed service description"></textarea>
+                    </div>
+                </div>
+
+                <!-- Pricing Information -->
+                <div class="section">
+                    <h3>💰 Pricing</h3>
+                    <div class="form-group">
+                        <label class="form-label">Total Price</label>
+                        <input type="number" id="totalPrice" class="form-input" placeholder="2000.00" step="0.01">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Currency</label>
+                        <select id="currency" class="form-select">
+                            <option value="USD">USD</option>
+                            <option value="EUR">EUR</option>
+                            <option value="GBP">GBP</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Term Information -->
+                <div class="section">
+                    <h3>📅 Agreement Terms</h3>
+                    <div class="form-group">
+                        <label class="form-label">Start Date</label>
+                        <input type="date" id="startDate" class="form-input">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">End Date</label>
+                        <input type="date" id="endDate" class="form-input">
+                    </div>
+                </div>
+
+                <!-- Signature Configuration -->
+                <div class="section">
+                    <h3>✍️ Signature Setup</h3>
+                    <div class="form-group">
+                        <label class="form-label">CEO/Manager Name</label>
+                        <input type="text" id="ceoName" class="form-input" value="Adi Nandyala" placeholder="CEO/Manager name">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">CEO/Manager Title</label>
+                        <input type="text" id="ceoTitle" class="form-input" value="Director of operations" placeholder="CEO/Manager title">
                     </div>
                 </div>
 
                 <!-- Actions -->
                 <div class="section">
-                    <h3>⚡ Actions</h3>
-                    <button class="btn btn-info" onclick="previewTemplate()" style="width: 100%; margin-bottom: 10px;">👁️ Preview</button>
-                    <button class="btn btn-success" onclick="saveTemplate()" style="width: 100%; margin-bottom: 10px;">💾 Save Template</button>
-                    <button class="btn btn-warning" onclick="loadTemplate()" style="width: 100%; margin-bottom: 10px;">📂 Load Template</button>
-                    <div class="form-group" style="margin-top: 10px; display:flex; gap:8px; flex-wrap:wrap;">
-                        <button class="btn" onclick="openSignatureModal('client')">✍️ Capture Client Signature</button>
-                        <button class="btn" onclick="openSignatureModal('manager')">✍️ Capture Company Signature</button>
-                        <button class="btn" onclick="syncToGoogleDoc()">🟢 Sync to Google Doc</button>
-                        <button class="btn" onclick="exportGoogleDocPDF()">⬇️ Export Google Doc PDF</button>
+                    <h3>🚀 Actions</h3>
+                    <div style="background: #e8f4fd; padding: 10px; border-radius: 5px; margin-bottom: 15px; font-size: 14px;">
+                        <strong>📋 Complete 3-Page Agreement includes:</strong><br/>
+                        • <strong>Page 1:</strong> Main agreement with pricing and terms<br/>
+                        • <strong>Page 2:</strong> Signature page for CEO and client<br/>
+                        • <strong>Page 3:</strong> Professional signature certificate
                     </div>
-                    <div class="form-group" style="margin-top: 10px;">
-                        <label class="form-label">Upload DOCX Template</label>
-                        <input type="file" id="docxFile" accept=".docx" class="form-input">
-                        <button class="btn btn-info" onclick="uploadDocxTemplate()" style="width: 100%; margin-top: 8px;">⬆️ Upload DOCX</button>
+                    <button class="btn btn-success" onclick="updatePreview()">🔄 Update Preview</button>
+                    <button class="btn" onclick="generatePDF()">📄 Generate Complete 3-Page Agreement</button>
+                    <button class="btn" onclick="sendForSignature()">📧 Send for Signature</button>
+                    <button class="btn btn-secondary" onclick="saveTemplate()">💾 Save Template</button>
+                    <div id="actionMessages"></div>
+                </div>
+
+                <!-- Signature Certificate Section -->
+                <div class="section">
+                    <h3>🏆 Signature Certificate</h3>
+                    <div style="background: #e8f4fd; padding: 10px; border-radius: 5px; margin-bottom: 15px; font-size: 14px;">
+                        <strong>📋 Complete 3-Page Agreement includes:</strong><br/>
+                        • <strong>Page 1:</strong> Main agreement with pricing and terms<br/>
+                        • <strong>Page 2:</strong> Signature page for CEO and client<br/>
+                        • <strong>Page 3:</strong> Professional signature certificate
                     </div>
-                    <button class="btn btn-danger" onclick="clearEditor()" style="width: 100%;">🗑️ Clear</button>
+                    <div class="form-group">
+                        <label class="form-label">Select Completed Agreement</label>
+                        <select id="completedAgreementsSelect" class="form-select" onchange="selectAgreementForCertificate()">
+                            <option value="">Select a completed agreement...</option>
+                        </select>
+                        <button class="btn btn-secondary" onclick="loadCompletedAgreements()">🔄 Refresh</button>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Or Enter Agreement ID Manually</label>
+                        <input type="text" id="certificateAgreementId" class="form-input" placeholder="Enter agreement ID manually">
+                    </div>
+                    <div class="form-group">
+                        <button class="btn" onclick="generateSignatureCertificate()">🏆 Generate Signature Certificate</button>
+                        <button class="btn btn-secondary" onclick="viewAllCertificates()">📋 View All Certificates</button>
+                        <button class="btn" onclick="signAsCEO()">👔 Sign as CEO</button>
+                    </div>
                 </div>
             </div>
 
-            <!-- Editor Container -->
-            <div class="editor-container">
-                <h3>📝 Template Content</h3>
-                <p style="color: #666; margin-bottom: 15px;">Use the toolbar below to format your content. Add placeholders like {{client_name}} for dynamic data.</p>
-                
-                <!-- Toolbar -->
-                <div class="toolbar">
-                    <button onclick="editor.chain().focus().toggleBold().run()" class="bold">B</button>
-                    <button onclick="editor.chain().focus().toggleItalic().run()" class="italic">I</button>
-                    <button onclick="editor.chain().focus().toggleUnderline().run()" class="underline">U</button>
-                    <button onclick="editor.chain().focus().toggleStrike().run()" class="strike">S</button>
-                    <button onclick="editor.chain().focus().toggleCode().run()" class="code">Code</button>
-                    <button onclick="editor.chain().focus().toggleHighlight().run()" class="highlight">Highlight</button>
-                    
-                    <div style="width: 1px; background: #dee2e6; margin: 0 10px;"></div>
-                    
-                    <button onclick="editor.chain().focus().toggleHeading({ level: 1 }).run()" class="h1">H1</button>
-                    <button onclick="editor.chain().focus().toggleHeading({ level: 2 }).run()" class="h2">H2</button>
-                    <button onclick="editor.chain().focus().toggleHeading({ level: 3 }).run()" class="h3">H3</button>
-                    
-                    <div style="width: 1px; background: #dee2e6; margin: 0 10px;"></div>
-                    
-                    <button onclick="editor.chain().focus().toggleBulletList().run()" class="bullet-list">• List</button>
-                    <button onclick="editor.chain().focus().toggleOrderedList().run()" class="ordered-list">1. List</button>
-                    <button onclick="editor.chain().focus().toggleBlockquote().run()" class="blockquote">Quote</button>
-                    
-                    <div style="width: 1px; background: #dee2e6; margin: 0 10px;"></div>
-                    
-                    <button onclick="insertImagePrompt()" class="image">Image</button>
-                    
-                    <div style="width: 1px; background: #dee2e6; margin: 0 10px;"></div>
-                    
-                    <button onclick="insertTablePrompt()" class="table">Table</button>
-                    
-                    <div style="width: 1px; background: #dee2e6; margin: 0 10px;"></div>
-                    
-                    
-                    
-                    <div style="width: 1px; background: #dee2e6; margin: 0 10px;"></div>
-                    
-                    <button onclick="editor.chain().focus().undo().run()" class="undo">↶</button>
-                    <button onclick="editor.chain().focus().redo().run()" class="redo">↷</button>
+            <!-- Preview Panel -->
+            <div class="preview-panel">
+                <h3>📄 Agreement Preview</h3>
+                <div id="agreementPreview">
+                    <div class="loading">
+                        <p>Configure your agreement settings to see the preview...</p>
+                    </div>
                 </div>
-
-                <!-- TipTap Editor -->
-                <div id="editor"></div>
-                <!-- Fallback contenteditable editor (shown if TipTap unavailable) -->
-                <div id="fallback-editor" contenteditable="true" style="display:none;"></div>
-
-                <!-- Status Messages -->
-                <div id="status"></div>
-                <div style="margin-top: 12px; display: flex; gap: 8px; flex-wrap: wrap;">
-                    <button class="btn btn-info" onclick="exportFromEditorDocx()">📄 Export DOCX from Editor</button>
-                    <button class="btn" onclick="exportSavedTemplateDocx()">📦 Export Saved Template as DOCX</button>
-                    <button class="btn btn-success" onclick="previewWithLiveData()">🔄 Preview with Live Data</button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Preview Modal -->
-    <div id="previewModal" class="preview-modal">
-        <div class="preview-content">
-            <button class="close-btn" onclick="closePreview()">&times;</button>
-            <h2>📋 Template Preview</h2>
-            <div id="previewContent"></div>
-            <div class="preview-actions">
-                <button class="btn btn-success" onclick="saveTemplate()">💾 Save Template</button>
-                <button class="btn btn-info" onclick="closePreview()">Close</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Template Loader Modal -->
-    <div id="loadModal" class="preview-modal">
-        <div class="preview-content">
-            <button class="close-btn" onclick="closeLoadModal()">&times;</button>
-            <h2>📂 Load Template</h2>
-            <div id="templatesList"></div>
-        </div>
-    </div>
-
-    <!-- Signature Manager Modal -->
-    <div id="sigModalTB" class="preview-modal" style="background: rgba(0,0,0,0.5);">
-        <div class="preview-content" style="max-width:780px;">
-            <button class="close-btn" onclick="closeSignatureModalTB()">&times;</button>
-            <h2>✍️ Add Signature</h2>
-            <div style="display:flex; gap:10px; align-items:center; margin-bottom:10px;">
-                <button id="tbModeDraw" class="btn">Draw</button>
-                <button id="tbModeType" class="btn">Type</button>
-                <button id="tbClear" class="btn btn-warning" style="margin-left:auto;">Clear</button>
-            </div>
-            <div id="tbDrawArea">
-                <canvas id="tbCanvas" width="700" height="220" style="border:2px solid #dee2e6; border-radius:8px; width:100%"></canvas>
-            </div>
-            <div id="tbTypeArea" style="display:none;">
-                <input id="tbTypeInput" placeholder="Type your name" class="form-input" style="font-size:22px;">
-                <div style="margin-top:6px; color:#666;">It will be rendered in a cursive style.</div>
-            </div>
-            <div style="text-align:right; margin-top:12px;">
-                <button class="btn btn-success" onclick="saveSignatureTB()">Save to Editor</button>
             </div>
         </div>
     </div>
 
     <script>
-        let editor;
-        let useFallback = false;
-        let fallbackEl;
-        let placeholders = [];
-        let clauses = [];
-        let availableFields = new Set();
-        let sigTargetRoleTB = 'client';
+        // Global variables
+        let quotes = [];
+        let deals = [];
+        let templates = [];
+        let currentTemplateId = null;
+        let currentSignaturePads = {};
 
-        function resolveTipTapGlobals() {
-            const Core = window.tiptap || window.tiptapCore || window['@tiptap/core'];
-            const Starter = window.tiptapStarterKit || window['@tiptap/starter-kit'];
-            const PlaceholderNS = window.tiptapExtensionPlaceholder || window['@tiptap/extension-placeholder'];
-            const HighlightNS = window.tiptapExtensionHighlight || window['@tiptap/extension-highlight'];
-            const UnderlineNS = window.tiptapExtensionUnderline || window['@tiptap/extension-underline'];
-            return { Core, Starter, PlaceholderNS, HighlightNS, UnderlineNS };
-        }
-
-        function activateFallbackEditor(initialContent) {
-            useFallback = true;
-            fallbackEl = document.getElementById('fallback-editor');
-            document.getElementById('editor').style.display = 'none';
-            fallbackEl.style.display = 'block';
-            fallbackEl.innerHTML = initialContent || getDefaultTemplate();
-            // placeholder detection on input
-            fallbackEl.addEventListener('input', function(){
-                detectPlaceholders(fallbackEl.innerHTML);
-            });
-
-            // Minimal editor proxy implementing required APIs used by toolbar/buttons
-            editor = {
-                chain: function(){
-                    const api = {
-                        focus(){ fallbackEl.focus(); return api; },
-                        toggleBold(){ document.execCommand('bold'); return api; },
-                        toggleItalic(){ document.execCommand('italic'); return api; },
-                        toggleUnderline(){ document.execCommand('underline'); return api; },
-                        toggleStrike(){ document.execCommand('strikeThrough'); return api; },
-                        toggleCode(){ document.execCommand('formatBlock', false, 'pre'); return api; },
-                        toggleHighlight(){ document.execCommand('backColor', false, '#fff3cd'); return api; },
-                        toggleHeading(opts){ const lvl = (opts && opts.level) || 1; document.execCommand('formatBlock', false, 'H'+lvl); return api; },
-                        toggleBulletList(){ document.execCommand('insertUnorderedList'); return api; },
-                        toggleOrderedList(){ document.execCommand('insertOrderedList'); return api; },
-                        toggleBlockquote(){ document.execCommand('formatBlock', false, 'blockquote'); return api; },
-                        undo(){ document.execCommand('undo'); return api; },
-                        redo(){ document.execCommand('redo'); return api; },
-                        run(){ return true; }
-                    };
-                    return api;
-                },
-                commands: {
-                    setContent(html){ fallbackEl.innerHTML = html || '<p></p>'; }
-                },
-                getHTML: function(){ return fallbackEl.innerHTML; }
-            };
-        }
-
-        function initEditor(initialContent) {
-            const { Core, Starter, PlaceholderNS, HighlightNS, UnderlineNS } = resolveTipTapGlobals();
-            if (!Core) {
-                // Switch to fallback editor
-                activateFallbackEditor(initialContent);
-                return;
-            }
-            const Editor = Core.Editor || Core.default?.Editor || Core;
-            const StarterKit = Starter?.StarterKit || Starter?.default || Starter;
-            const Placeholder = PlaceholderNS?.Placeholder || PlaceholderNS?.default || PlaceholderNS;
-            const Highlight = HighlightNS?.Highlight || HighlightNS?.default || HighlightNS;
-            const Underline = UnderlineNS?.Underline || UnderlineNS?.default || UnderlineNS;
-
-            editor = new Editor({
-                element: document.querySelector('#editor'),
-                extensions: [
-                    StarterKit,
-                    Placeholder.configure({
-                        placeholder: 'Start writing your agreement template here... Use {{client_name}} for dynamic placeholders.',
-                    }),
-                    Highlight,
-                    Underline,
-                ],
-                content: initialContent || getDefaultTemplate(),
-                onUpdate: ({ editor }) => {
-                    detectPlaceholders(editor.getHTML());
-                },
-            });
-        }
-
-        // Initialize TipTap Editor on load
-        document.addEventListener('DOMContentLoaded', async function() {
-            if (window.__ensureTipTap) { await window.__ensureTipTap(); }
-            initEditor(getDefaultTemplate());
-            initializeDefaultPlaceholders();
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            loadDataSources();
+            loadTemplates();
+            loadCompletedAgreements();
+            updatePreview();
+            
+            // Set default dates
+            const today = new Date();
+            const nextMonth = new Date(today);
+            nextMonth.setMonth(nextMonth.getMonth() + 1);
+            
+            document.getElementById('startDate').value = today.toISOString().split('T')[0];
+            document.getElementById('endDate').value = nextMonth.toISOString().split('T')[0];
         });
 
-        function getDefaultTemplate() {
-            return `
-                <h1>AGREEMENT TEMPLATE</h1>
-                <p>This is a template for creating professional agreements. Use placeholders like {{client_name}}, {{company_name}}, and {{service_type}} for dynamic content.</p>
-                
-                <h2>1. PARTIES</h2>
-                <p><strong>Company:</strong> {{company_name}}</p>
-                <p><strong>Client:</strong> {{client_name}} at {{client_company}}</p>
-                
-                <h2>2. SERVICES</h2>
-                <p>We will provide {{service_type}} services as described in this agreement.</p>
-                
-                <h2>3. PAYMENT TERMS</h2>
-                <p>Total cost: ${{total_cost}}</p>
-                <p>Payment schedule: {{payment_schedule}}</p>
-                
-                <h2>4. TERM</h2>
-                <p>This agreement is effective from {{start_date}} to {{end_date}}.</p>
-            `;
-        }
-
-        function initializeDefaultPlaceholders() {
-            const defaultPlaceholders = [
-                { name: 'client_name', description: 'Client\'s full name' },
-                { name: 'client_company', description: 'Client\'s company name' },
-                { name: 'company_name', description: 'Your company name' },
-                { name: 'service_type', description: 'Type of service being provided' },
-                { name: 'total_cost', description: 'Total cost of services' },
-                { name: 'payment_schedule', description: 'Payment terms and schedule' },
-                { name: 'start_date', description: 'Agreement start date' },
-                { name: 'end_date', description: 'Agreement end date' }
-            ];
-
-            placeholders = [...defaultPlaceholders];
-            updatePlaceholdersList();
-        }
-
-        function addPlaceholder() {
-            const input = document.getElementById('newPlaceholder');
-            const name = input.value.trim();
-            
-            if (name && !placeholders.find(p => p.name === name)) {
-                placeholders.push({
-                    name: name,
-                    description: 'Custom placeholder'
-                });
-                updatePlaceholdersList();
-                input.value = '';
-                showStatus('✅ Placeholder added successfully!', 'success');
-            } else if (placeholders.find(p => p.name === name)) {
-                showStatus('❌ Placeholder already exists!', 'error');
-            }
-        }
-
-        function removePlaceholder(name) {
-            placeholders = placeholders.filter(p => p.name !== name);
-            updatePlaceholdersList();
-            showStatus('✅ Placeholder removed successfully!', 'success');
-        }
-
-        function updatePlaceholdersList() {
-            const container = document.getElementById('placeholdersList');
-            container.innerHTML = '';
-
-            placeholders.forEach(placeholder => {
-                const item = document.createElement('div');
-                item.className = 'placeholder-item';
-                item.innerHTML = `
-                    <div>
-                        <div class="placeholder-name">{{${placeholder.name}}}</div>
-                        <div class="placeholder-description">${placeholder.description}</div>
-                    </div>
-                    <div class="placeholder-actions">
-                        <button onclick="insertPlaceholder('${placeholder.name}')" title="Insert">➕</button>
-                        <button onclick="removePlaceholderOccurrences('${placeholder.name}')" title="Remove from content">🧹</button>
-                        <button onclick="removePlaceholder('${placeholder.name}')" title="Remove">🗑️</button>
-                    </div>
-                `;
-                container.appendChild(item);
-            });
-            // Add a bulk-clean button
-            const bulk = document.createElement('div');
-            bulk.style.marginTop = '8px';
-            bulk.innerHTML = `<button class="btn" onclick="removeAllPlaceholdersFromContent()">Remove All Placeholders from Content</button>`;
-            container.appendChild(bulk);
-        }
-
-        function addClause(type) {
-            const clauseContent = getClauseContent(type);
-            if (clauseContent) {
-                clauses.push({
-                    type: type,
-                    title: getClauseTitle(type),
-                    content: clauseContent
-                });
-                updateClausesList();
-                
-                // Insert clause into editor
-                editor.chain().focus().insertContent(clauseContent).run();
-                showStatus('✅ Clause added to template!', 'success');
-            }
-        }
-
-        function removeClause(index) {
-            clauses.splice(index, 1);
-            updateClausesList();
-            showStatus('✅ Clause removed!', 'success');
-        }
-
-        function updateClausesList() {
-            const container = document.getElementById('clausesList');
-            container.innerHTML = '';
-
-            clauses.forEach((clause, index) => {
-                const item = document.createElement('div');
-                item.className = 'clause-item';
-                item.innerHTML = `
-                    <div class="clause-header">
-                        <div class="clause-title">${clause.title}</div>
-                    </div>
-                    <div class="clause-content">${clause.content.substring(0, 100)}...</div>
-                    <div class="clause-actions">
-                        <button onclick="removeClause(${index})">Remove</button>
-                    </div>
-                `;
-                container.appendChild(item);
-            });
-        }
-
-        function getClauseTitle(type) {
-            const titles = {
-                'payment': 'Payment Terms',
-                'confidentiality': 'Confidentiality',
-                'termination': 'Termination',
-                'warranty': 'Warranty',
-                'liability': 'Limitation of Liability'
-            };
-            return titles[type] || 'Custom Clause';
-        }
-
-        function getClauseContent(type) {
-            const clauses = {
-                'payment': `
-                    <h3>Payment Terms</h3>
-                    <p><strong>Total Amount:</strong> ${{total_cost}}</p>
-                    <p><strong>Payment Schedule:</strong> {{payment_schedule}}</p>
-                    <p><strong>Late Payment:</strong> 2% monthly fee on overdue amounts</p>
-                    <p><strong>Payment Method:</strong> Bank transfer or check</p>
-                `,
-                'confidentiality': `
-                    <h3>Confidentiality</h3>
-                    <p>Both parties agree to maintain the confidentiality of all proprietary information shared during this engagement.</p>
-                    <p><strong>Confidentiality Period:</strong> 5 years from the date of disclosure</p>
-                    <p><strong>Non-Disclosure:</strong> Standard NDA terms apply</p>
-                    <p><strong>Data Protection:</strong> GDPR compliant data handling</p>
-                `,
-                'termination': `
-                    <h3>Termination</h3>
-                    <p>Either party may terminate this agreement with written notice.</p>
-                    <p><strong>Termination Notice:</strong> 30 days written notice required</p>
-                    <p><strong>Termination Fees:</strong> Pro-rated based on completion</p>
-                    <p><strong>Post-Termination:</strong> Return of materials and final payment</p>
-                `,
-                'warranty': `
-                    <h3>Warranty</h3>
-                    <p>We warrant that our services will be performed in a professional manner.</p>
-                    <p><strong>Warranty Period:</strong> 1 year from completion</p>
-                    <p><strong>Warranty Coverage:</strong> Standard warranty applies</p>
-                    <p><strong>Support Terms:</strong> 30 days post-completion support included</p>
-                `,
-                'liability': `
-                    <h3>Limitation of Liability</h3>
-                    <p>Our total liability is limited to the amount paid for services.</p>
-                    <p><strong>Liability Cap:</strong> Total contract value</strong></p>
-                    <p><strong>Exclusions:</strong> Indirect, consequential, or punitive damages</p>
-                    <p><strong>Indemnification:</strong> Standard indemnification terms apply</p>
-                `
-            };
-            return clauses[type] || '';
-        }
-
-        function detectPlaceholders(content) {
-            const placeholderRegex = /\{\{(\w+)\}\}/g;
-            const matches = [...content.matchAll(placeholderRegex)];
-            const detectedPlaceholders = matches.map(match => match[1]);
-            
-            // Add new placeholders that aren't already in the list
-            detectedPlaceholders.forEach(name => {
-                if (!placeholders.find(p => p.name === name)) {
-                    placeholders.push({
-                        name: name,
-                        description: 'Auto-detected placeholder'
-                    });
-                }
-            });
-            
-            updatePlaceholdersList();
-        }
-
-        function previewTemplate() {
-            const previewContent = document.getElementById('previewContent');
-            const content = editor.getHTML();
-            
-            // Replace placeholders with sample data for preview
-            let previewHTML = content;
-            placeholders.forEach(placeholder => {
-                const sampleValue = getSampleValue(placeholder.name);
-                previewHTML = previewHTML.replace(
-                    new RegExp(`\\{\\{${placeholder.name}\\}\\}`, 'g'),
-                    `<span style="background: #fff3cd; padding: 2px 4px; border-radius: 4px; font-weight: 600;">${sampleValue}</span>`
-                );
-            });
-            
-            previewContent.innerHTML = previewHTML;
-            document.getElementById('previewModal').style.display = 'block';
-        }
-
-        async function previewWithLiveData() {
-            const quoteId = document.getElementById('fieldsQuoteId').value.trim();
-            const previewContent = document.getElementById('previewContent');
-            const content = editor.getHTML();
+        // Load templates
+        async function loadTemplates() {
             try {
-                const url = quoteId ? `/api/templates/available-fields?quote_id=${encodeURIComponent(quoteId)}` : '/api/templates/available-fields';
-                const res = await fetch(url);
-                const json = await res.json();
-                if (!json.success) {
-                    showStatus(`❌ Could not load live data: ${json.message}`, 'error');
-                    return;
+                showMessage('Loading templates...', 'info');
+                
+                const response = await fetch('/api/templates');
+                if (response.ok) {
+                    const data = await response.json();
+                    templates = data.templates || [];
+                    updateTemplateOptions();
+                    showMessage('Templates loaded successfully!', 'success');
+                } else {
+                    showMessage('Error loading templates', 'error');
                 }
-                let html = content;
-                const data = json.template_data || {};
-                Object.keys(data).forEach(key => {
-                    const val = String(data[key] == null ? '' : data[key]);
-                    html = html.replace(new RegExp(`\\{\\{${key}\\}\\}`, 'g'), `<span style="background:#e6ffed;padding:2px 4px;border-radius:4px;">${val}</span>`);
-                });
-                previewContent.innerHTML = html;
-                document.getElementById('previewModal').style.display = 'block';
-                showStatus('✅ Previewed with live data.', 'success');
-            } catch (e) {
-                showStatus(`❌ Error during live preview: ${e.message}`, 'error');
+                
+            } catch (error) {
+                console.error('Error loading templates:', error);
+                showMessage('Error loading templates', 'error');
             }
         }
 
-        function closePreview() {
-            document.getElementById('previewModal').style.display = 'none';
+        // Update template options
+        function updateTemplateOptions() {
+            const select = document.getElementById('templateSelect');
+            select.innerHTML = '<option value="">Select template to load...</option>';
+            
+            templates.forEach(template => {
+                const option = document.createElement('option');
+                option.value = template._id;
+                option.textContent = `${template.name} (${template.category}) - ${new Date(template.created_at).toLocaleDateString()}`;
+                select.appendChild(option);
+            });
         }
 
-        function closeLoadModal() {
-            document.getElementById('loadModal').style.display = 'none';
-        }
-
-        function getSampleValue(placeholderName) {
-            const samples = {
-                'client_name': 'John Smith',
-                'client_company': 'Acme Corp',
-                'company_name': 'Your Company LLC',
-                'service_type': 'Web Development',
-                'total_cost': '25,000',
-                'payment_schedule': '50% upfront, 50% upon completion',
-                'start_date': 'January 15, 2024',
-                'end_date': 'March 15, 2024'
-            };
-            return samples[placeholderName] || '[Sample Data]';
-        }
-
-        async function saveTemplate() {
-            const templateData = {
-                name: document.getElementById('templateName').value,
-                description: document.getElementById('templateDescription').value,
-                category: document.getElementById('templateCategory').value,
-                tags: document.getElementById('templateTags').value.split(',').map(tag => tag.trim()).filter(tag => tag),
-                content: editor.getHTML(),
-                placeholders: placeholders,
-                clauses: clauses
-            };
-
-            if (!templateData.name) {
-                showStatus('❌ Please enter a template name!', 'error');
-                return;
-            }
+        // Load selected template
+        async function loadTemplate() {
+            const templateId = document.getElementById('templateSelect').value;
+            if (!templateId) return;
 
             try {
+                const template = templates.find(t => t._id === templateId);
+                if (template) {
+                    populateFromTemplate(template);
+                    currentTemplateId = templateId;
+                    updatePreview();
+                    showMessage(`Template "${template.name}" loaded successfully!`, 'success');
+                }
+            } catch (error) {
+                console.error('Error loading template:', error);
+                showMessage('Error loading template', 'error');
+            }
+        }
+
+        // Populate form from template data
+        function populateFromTemplate(template) {
+            // Extract data from template content or metadata
+            // This is a simplified version - you might need to parse the template content
+            if (template.metadata) {
+                const meta = template.metadata;
+                if (meta.companyName) document.getElementById('companyName').value = meta.companyName;
+                if (meta.companyAddress) document.getElementById('companyAddress').value = meta.companyAddress;
+                if (meta.ceoName) document.getElementById('ceoName').value = meta.ceoName;
+                if (meta.ceoTitle) document.getElementById('ceoTitle').value = meta.ceoTitle;
+            }
+        }
+
+        // Save as new template
+        async function saveAsNewTemplate() {
+            try {
+                const templateName = prompt('Enter template name:');
+                if (!templateName) return;
+
+                showMessage('Saving template...', 'info');
+                
+                const templateData = {
+                    name: templateName,
+                    description: 'Custom agreement template with signature tracking',
+                    category: 'agreements',
+                    content: document.getElementById('agreementPreview').innerHTML,
+                    placeholders: [
+                        'companyName', 'companyAddress', 'clientCompany', 'clientName',
+                        'serviceType', 'serviceDescription', 'totalPrice', 'currency',
+                        'startDate', 'endDate', 'ceoName', 'ceoTitle'
+                    ],
+                    type: 'html',
+                    metadata: {
+                        companyName: document.getElementById('companyName').value,
+                        companyAddress: document.getElementById('companyAddress').value,
+                        ceoName: document.getElementById('ceoName').value,
+                        ceoTitle: document.getElementById('ceoTitle').value
+                    }
+                };
+
                 const response = await fetch('/api/templates', {
                     method: 'POST',
                     headers: {
@@ -1167,500 +758,890 @@
                     body: JSON.stringify(templateData)
                 });
 
-                const result = await response.json();
-
-                if (result.success) {
-                    showStatus('✅ Template saved successfully!', 'success');
-                    closePreview();
+                if (response.ok) {
+                    const result = await response.json();
+                    showMessage('Template saved successfully!', 'success');
+                    loadTemplates(); // Refresh template list
                 } else {
-                    showStatus(`❌ Failed to save template: ${result.message}`, 'error');
+                    const error = await response.json();
+                    showMessage(`Error saving template: ${error.message}`, 'error');
                 }
+                
             } catch (error) {
-                showStatus(`❌ Error saving template: ${error.message}`, 'error');
+                console.error('Error saving template:', error);
+                showMessage('Error saving template', 'error');
             }
         }
 
-        async function loadTemplate() {
-            try {
-                const response = await fetch('/api/templates');
-                const result = await response.json();
-
-                if (result.success && result.templates.length > 0) {
-                    const templatesList = document.getElementById('templatesList');
-                    let html = '<div style="max-height: 400px; overflow-y: auto;">';
-                    
-                    result.templates.forEach(template => {
-                        html += `
-                            <div style="border: 1px solid #dee2e6; border-radius: 8px; padding: 15px; margin: 10px 0; cursor: pointer;" 
-                                 onclick="loadTemplateById('${template._id}')">
-                                <h4 style="margin: 0 0 8px 0; color: #667eea;">${template.name}</h4>
-                                <p style="margin: 0 0 8px 0; color: #666; font-size: 0.9rem;">${template.description || 'No description'}</p>
-                                <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.8rem; color: #999;">
-                                    <span>Category: ${template.category}</span>
-                                    <span>Version: ${template.version}</span>
-                                </div>
-                            </div>
-                        `;
-                    });
-                    
-                    html += '</div>';
-                    templatesList.innerHTML = html;
-                    document.getElementById('loadModal').style.display = 'block';
-                } else {
-                    showStatus('ℹ️ No templates found to load.', 'info');
-                }
-            } catch (error) {
-                showStatus(`❌ Error loading templates: ${error.message}`, 'error');
+        // Update current template
+        async function updateCurrentTemplate() {
+            if (!currentTemplateId) {
+                showMessage('No template selected to update', 'error');
+                return;
             }
-        }
 
-        async function loadTemplateById(templateId) {
             try {
-                const response = await fetch(`/api/templates/${templateId}`);
-                const result = await response.json();
-
-                if (result.success) {
-                    const template = result.template;
-                    
-                    // Load template data
-                    document.getElementById('templateName').value = template.name;
-                    document.getElementById('templateDescription').value = template.description || '';
-                    document.getElementById('templateCategory').value = template.category || 'general';
-                    document.getElementById('templateTags').value = (template.tags || []).join(', ');
-                    
-                    // Load content or convert DOCX to HTML
-                    if (template.type === 'docx') {
-                        // Convert to HTML for editing
-                        const convertRes = await fetch(`/api/templates/${templateId}/as-html`);
-                        const convertJson = await convertRes.json();
-                        if (convertJson.success) {
-                            if (!editor) {
-                                initEditor(convertJson.html || '<p></p>');
-                            } else {
-                                editor?.commands?.setContent(convertJson.html || '<p></p>');
-                            }
-                            showStatus('✅ DOCX converted to HTML for editing.', 'success');
-                        } else {
-                            if (!editor) {
-                                initEditor('<p></p>');
-                            } else {
-                                editor?.commands?.setContent('<p></p>');
-                            }
-                            showStatus(`❌ Convert failed: ${convertJson.message}`, 'error');
-                        }
-                    } else {
-                        if (!editor) {
-                            initEditor(template.content || '<p></p>');
-                        } else {
-                            editor?.commands?.setContent(template.content || '<p></p>');
-                        }
+                showMessage('Updating template...', 'info');
+                
+                const templateData = {
+                    content: document.getElementById('agreementPreview').innerHTML,
+                    metadata: {
+                        companyName: document.getElementById('companyName').value,
+                        companyAddress: document.getElementById('companyAddress').value,
+                        ceoName: document.getElementById('ceoName').value,
+                        ceoTitle: document.getElementById('ceoTitle').value
                     }
-                    
-                    // Load placeholders and clauses
-                    placeholders = template.placeholders || [];
-                    clauses = template.clauses || [];
-                    updatePlaceholdersList();
-                    updateClausesList();
-                    
-                    closeLoadModal();
-                    showStatus('✅ Template loaded successfully!', 'success');
+                };
+
+                const response = await fetch(`/api/templates/${currentTemplateId}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(templateData)
+                });
+
+                if (response.ok) {
+                    showMessage('Template updated successfully!', 'success');
+                    loadTemplates(); // Refresh template list
                 } else {
-                    showStatus(`❌ Failed to load template: ${result.message}`, 'error');
+                    const error = await response.json();
+                    showMessage(`Error updating template: ${error.message}`, 'error');
+                }
+                
+            } catch (error) {
+                console.error('Error updating template:', error);
+                showMessage('Error updating template', 'error');
+            }
+        }
+
+        // Load data sources (quotes and deals)
+        async function loadDataSources() {
+            try {
+                showMessage('Loading data sources...', 'info');
+                
+                // Load quotes
+                const quotesResponse = await fetch('/api/quotes/list');
+                if (quotesResponse.ok) {
+                    const quotesData = await quotesResponse.json();
+                    quotes = quotesData.quotes || [];
+                }
+
+                // Load HubSpot deals
+                const dealsResponse = await fetch('/api/hubspot/fetch-deals');
+                if (dealsResponse.ok) {
+                    const dealsData = await dealsResponse.json();
+                    deals = dealsData.deals || [];
+                }
+
+                updateDataSourceOptions();
+                showMessage('Data sources loaded successfully!', 'success');
+                
+            } catch (error) {
+                console.error('Error loading data sources:', error);
+                showMessage('Error loading data sources', 'error');
+            }
+        }
+
+        // Update data source options based on type
+        function onDataSourceChange() {
+            updateDataSourceOptions();
+        }
+
+        function updateDataSourceOptions() {
+            const type = document.getElementById('dataSourceType').value;
+            const select = document.getElementById('dataSourceSelect');
+            
+            select.innerHTML = '<option value="">Select data source...</option>';
+            
+            if (type === 'quote') {
+                quotes.forEach(quote => {
+                    const option = document.createElement('option');
+                    option.value = quote._id;
+                    option.textContent = `${quote.client?.name || 'Unknown'} - ${quote.client?.company || 'Unknown'} ($${quote.quote?.total_cost || 0})`;
+                    select.appendChild(option);
+                });
+            } else if (type === 'deal') {
+                deals.forEach(deal => {
+                    const option = document.createElement('option');
+                    option.value = deal.id;
+                    option.textContent = `${deal.dealname || 'Unknown Deal'} - ${deal.company || 'Unknown'} ($${deal.amount || 0})`;
+                    select.appendChild(option);
+                });
+            }
+        }
+
+        // Load selected data source
+        async function loadDataSource() {
+            const type = document.getElementById('dataSourceType').value;
+            const id = document.getElementById('dataSourceSelect').value;
+            
+            if (!id) return;
+
+            try {
+                if (type === 'quote') {
+                    const quote = quotes.find(q => q._id === id);
+                    if (quote) {
+                        populateFromQuote(quote);
+                    }
+                } else if (type === 'deal') {
+                    const deal = deals.find(d => d.id === id);
+                    if (deal) {
+                        populateFromDeal(deal);
+                    }
+                }
+                
+                updatePreview();
+                
+            } catch (error) {
+                console.error('Error loading data source:', error);
+                showMessage('Error loading data source', 'error');
+            }
+        }
+
+        // Populate form from quote data
+        function populateFromQuote(quote) {
+            document.getElementById('clientCompany').value = quote.client?.company || '';
+            document.getElementById('clientName').value = quote.client?.name || '';
+            document.getElementById('serviceType').value = quote.client?.serviceType || '';
+            document.getElementById('totalPrice').value = quote.quote?.total_cost || '';
+            
+            // Build service description from quote configuration
+            if (quote.configuration) {
+                const config = quote.configuration;
+                let description = `Service: ${quote.client?.serviceType || 'Custom Service'}\n`;
+                
+                if (config.users) description += `Users: ${config.users}\n`;
+                if (config.channels) description += `Channels: ${config.channels}\n`;
+                if (config.features) description += `Features: ${config.features.join(', ')}\n`;
+                
+                document.getElementById('serviceDescription').value = description;
+            }
+        }
+
+        // Populate form from deal data
+        function populateFromDeal(deal) {
+            document.getElementById('clientCompany').value = deal.company || '';
+            document.getElementById('clientName').value = deal.dealname || '';
+            document.getElementById('serviceType').value = deal.dealtype || '';
+            document.getElementById('totalPrice').value = deal.amount || '';
+            document.getElementById('serviceDescription').value = `Deal: ${deal.dealname}\nStage: ${deal.dealstage}\nPipeline: ${deal.pipeline}`;
+        }
+
+        // Update preview
+        function updatePreview() {
+            const previewDiv = document.getElementById('agreementPreview');
+            
+            const data = {
+                companyName: document.getElementById('companyName').value || 'CloudFuze',
+                companyAddress: document.getElementById('companyAddress').value || '2500 Regency Parkway, Cary, NC 27518',
+                clientCompany: document.getElementById('clientCompany').value || 'Client Company',
+                clientName: document.getElementById('clientName').value || 'Client Name',
+                serviceType: document.getElementById('serviceType').value || 'Service Type',
+                serviceDescription: document.getElementById('serviceDescription').value || 'Service description will appear here',
+                totalPrice: document.getElementById('totalPrice').value || '0.00',
+                currency: document.getElementById('currency').value || 'USD',
+                startDate: document.getElementById('startDate').value || new Date().toISOString().split('T')[0],
+                endDate: document.getElementById('endDate').value || new Date().toISOString().split('T')[0],
+                ceoName: document.getElementById('ceoName').value || 'CEO Name',
+                ceoTitle: document.getElementById('ceoTitle').value || 'CEO Title'
+            };
+
+            previewDiv.innerHTML = generateAgreementHTML(data);
+            
+            // Initialize signature pads after DOM update
+            setTimeout(initializeSignaturePads, 100);
+        }
+
+        // Generate agreement HTML
+        function generateAgreementHTML(data) {
+            return `
+                <div class="agreement-preview">
+                    <!-- Header with logos -->
+                    <div class="agreement-header">
+                        <div class="company-logo">
+                            <div class="company-name">${data.companyName}</div>
+                        </div>
+                        <div class="microsoft-partner">
+                            <div style="font-weight: bold; color: #666;">Microsoft Partner</div>
+                            <div style="font-size: 12px; color: #888;">Gold Cloud Productivity</div>
+                        </div>
+                    </div>
+
+                    <!-- Agreement Title -->
+                    <div class="agreement-title">
+                        ${data.companyName} Purchase Agreement for ${data.clientCompany}
+                    </div>
+
+                    <!-- Service Description -->
+                    <div class="service-description">
+                        This agreement provides <strong>${data.clientCompany}</strong> with pricing for use of the ${data.companyName}'s X-Change Enterprise Data Migration Solution:
+                    </div>
+
+                    <!-- Service Table Header -->
+                    <div style="background: #b8dff0; padding: 10px; text-align: center; font-weight: bold; border: 1px solid #999;">
+                        Cloud-Hosted SaaS Solution | Managed Migration | Dedicated Migration Manager
+                    </div>
+
+                    <!-- Service Details Table -->
+                    <table class="service-table">
+                        <thead>
+                            <tr>
+                                <th>Job Requirement</th>
+                                <th>Description</th>
+                                <th>Migration Type</th>
+                                <th>Price(${data.currency})</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td class="job-requirement">${data.companyName} X-Change Data Migration</td>
+                                <td>
+                                    ${data.serviceDescription.replace(/\n/g, '<br>')}
+                                    <hr style="margin: 10px 0;">
+                                    <strong>Valid for One Month</strong>
+                                </td>
+                                <td style="text-align: center;">
+                                    Managed Migration<br>
+                                    One-Time
+                                </td>
+                                <td class="price">$${parseFloat(data.totalPrice || 0).toFixed(2)}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    <!-- Total Price -->
+                    <div class="total-price">
+                        <strong>Total Price: $${parseFloat(data.totalPrice || 0).toFixed(2)}</strong>
+                    </div>
+
+                    <!-- Payment Notes -->
+                    <div class="payment-notes">
+                        <h4>Important Payment Notes:</h4>
+                        <ul>
+                            <li>100% pre-payment before initiating the migration.</li>
+                            <li>All prices are in US dollars (${data.currency}).</li>
+                            <li>Any required sales taxes are not included in the above agreement.</li>
+                            <li>Overage Charges: $35 per User | $500 per Additional Month</li>
+                            <li>Initial Service Term: ${data.startDate} till ${data.endDate}</li>
+                        </ul>
+                    </div>
+
+                    <!-- SaaS Agreement -->
+                    <div class="saas-agreement">
+                        <h4>SAAS SERVICE AGREEMENT:</h4>
+                        <p>
+                            This SaaS Services Agreement ("Agreement") is entered on this <strong>${new Date().toLocaleDateString()}</strong> (the "Effective Date") between 
+                            <strong>${data.companyName}, Inc.</strong> with a place of business at <strong>${data.companyAddress}</strong> ("Company"), and the 
+                            Customer listed above ("Customer"). This Agreement includes and incorporates the above Order Form, In Scope 
+                            Features list Exhibit ("Exhibit 1"), Out of Scope Features list Exhibit ("Exhibit 2"), all attachments hereto, as well as 
+                            the attached Terms and Conditions and contains, among other things, warranty disclaimers, liability limitations and 
+                            use limitations. There shall be no force or effect to any different terms of any related purchase order or similar form 
+                            even if signed by the parties after the date hereof.
+                        </p>
+                    </div>
+
+                    <!-- Signature Section -->
+                    <div class="signature-section">
+                        <!-- Company Signature -->
+                        <div class="signature-block">
+                            <h4>For ${data.companyName}, Inc.</h4>
+                            
+                            <div class="signature-options">
+                                <button class="btn btn-secondary" onclick="switchSignatureMode('ceo', 'text')">Text</button>
+                                <button class="btn btn-secondary" onclick="switchSignatureMode('ceo', 'draw')">Draw</button>
+                                <button class="btn btn-danger" onclick="clearSignature('ceo')">Clear</button>
+                            </div>
+                            
+                            <div id="ceoSignatureContainer">
+                                <canvas id="ceoSignatureCanvas" class="signature-canvas" style="display: none;"></canvas>
+                                <input type="text" id="ceoSignatureText" class="signature-text" placeholder="Type signature here" style="display: block;">
+                            </div>
+                            
+                            <div class="signature-info">
+                                <div>Name: <input type="text" value="${data.ceoName}" id="ceoSignatureName"></div>
+                                <div>Title: <input type="text" value="${data.ceoTitle}" id="ceoSignatureTitle"></div>
+                                <div>Date: <input type="date" value="${new Date().toISOString().split('T')[0]}" id="ceoSignatureDate"></div>
+                            </div>
+                        </div>
+
+                        <!-- Client Signature -->
+                        <div class="signature-block">
+                            <h4>For ${data.clientCompany}</h4>
+                            
+                            <div class="signature-options">
+                                <button class="btn btn-secondary" onclick="switchSignatureMode('client', 'text')">Text</button>
+                                <button class="btn btn-secondary" onclick="switchSignatureMode('client', 'draw')">Draw</button>
+                                <button class="btn btn-danger" onclick="clearSignature('client')">Clear</button>
+                            </div>
+                            
+                            <div id="clientSignatureContainer">
+                                <canvas id="clientSignatureCanvas" class="signature-canvas" style="display: none;"></canvas>
+                                <input type="text" id="clientSignatureText" class="signature-text" placeholder="Type signature here" style="display: block;">
+                            </div>
+                            
+                            <div class="signature-info">
+                                <div>Name: <input type="text" value="${data.clientName}" id="clientSignatureName"></div>
+                                <div>Title: <input type="text" placeholder="Client Title" id="clientSignatureTitle"></div>
+                                <div>Date: <input type="date" value="${new Date().toISOString().split('T')[0]}" id="clientSignatureDate"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Terms and Conditions -->
+                    <div class="terms-section">
+                        <h4>TERMS AND CONDITIONS</h4>
+                        <p>
+                            Subject to the terms of this Agreement, Company will use commercially reasonable efforts to provide Customer the 
+                            Migration Services. As part of the registration process, Customer will identify an administrative username and 
+                            password for Customer's Company account. Company reserves the right to refuse registration of or cancel 
+                            passwords it deems inappropriate.
+                        </p>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Initialize signature pads
+        function initializeSignaturePads() {
+            // Initialize CEO signature pad
+            const ceoCanvas = document.getElementById('ceoSignatureCanvas');
+            if (ceoCanvas && !currentSignaturePads.ceo) {
+                currentSignaturePads.ceo = new SignaturePad(ceoCanvas, {
+                    backgroundColor: 'rgba(255, 255, 255, 0)',
+                    penColor: 'rgb(0, 0, 0)'
+                });
+            }
+
+            // Initialize Client signature pad
+            const clientCanvas = document.getElementById('clientSignatureCanvas');
+            if (clientCanvas && !currentSignaturePads.client) {
+                currentSignaturePads.client = new SignaturePad(clientCanvas, {
+                    backgroundColor: 'rgba(255, 255, 255, 0)',
+                    penColor: 'rgb(0, 0, 0)'
+                });
+            }
+        }
+
+        // Switch signature mode (text/draw)
+        function switchSignatureMode(type, mode) {
+            const textInput = document.getElementById(`${type}SignatureText`);
+            const canvas = document.getElementById(`${type}SignatureCanvas`);
+            
+            if (mode === 'text') {
+                textInput.style.display = 'block';
+                canvas.style.display = 'none';
+            } else {
+                textInput.style.display = 'none';
+                canvas.style.display = 'block';
+                
+                // Reinitialize signature pad if needed
+                if (!currentSignaturePads[type]) {
+                    initializeSignaturePads();
+                }
+            }
+        }
+
+        // Clear signature
+        function clearSignature(type) {
+            const textInput = document.getElementById(`${type}SignatureText`);
+            const signaturePad = currentSignaturePads[type];
+            
+            if (textInput) {
+                textInput.value = '';
+            }
+            
+            if (signaturePad) {
+                signaturePad.clear();
+            }
+        }
+
+        // Generate PDF
+        async function generatePDF() {
+            try {
+                showMessage('Generating PDF...', 'info');
+                
+                const templateData = gatherTemplateData();
+                
+                const response = await fetch('/api/templates/generate-agreement-pdf', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(templateData)
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    showMessage(`Error generating PDF: ${error.message}`, 'error');
+                    return;
+                }
+
+                // Check if response is a PDF file
+                const contentType = response.headers.get('content-type');
+                if (contentType && contentType.includes('application/pdf')) {
+                    // Direct PDF download
+                    const blob = await response.blob();
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `agreement_${new Date().toISOString().slice(0,10)}.pdf`;
+                    document.body.appendChild(a);
+                    a.click();
+                    window.URL.revokeObjectURL(url);
+                    document.body.removeChild(a);
+                    
+                    showMessage('✅ Complete 3-page agreement generated and downloaded successfully!', 'success');
+                } else {
+                    // Fallback to JSON response (for backward compatibility)
+                    const responseData = await response.json();
+                    if (!responseData.success) {
+                        showMessage(`Error: ${responseData.message}`, 'error');
+                        return;
+                    }
+                    await downloadGeneratedPDF(responseData.agreement_id);
+                    showMessage('✅ PDF generated and downloaded successfully!', 'success');
+                }
+                
+            } catch (error) {
+                console.error('Error generating PDF:', error);
+                showMessage('Error generating PDF', 'error');
+            }
+        }
+
+        // Download generated PDF
+        async function downloadGeneratedPDF(agreementId) {
+            try {
+                // Get the PDF from the stored agreement
+                const response = await fetch(`/api/agreements/download/${agreementId}`);
+                
+                if (!response.ok) {
+                    throw new Error('Failed to download PDF');
+                }
+
+                // Download the PDF
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `agreement_${agreementId}.pdf`;
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+                document.body.removeChild(a);
+                
+            } catch (error) {
+                console.error('Error downloading PDF:', error);
+                showMessage('Error downloading PDF', 'error');
+            }
+        }
+
+        // Gather template data
+        function gatherTemplateData() {
+            // Get signature data
+            const ceoSignature = getSignatureData('ceo');
+            const clientSignature = getSignatureData('client');
+            
+            return {
+                companyName: document.getElementById('companyName').value,
+                companyAddress: document.getElementById('companyAddress').value,
+                clientCompany: document.getElementById('clientCompany').value,
+                clientName: document.getElementById('clientName').value,
+                serviceType: document.getElementById('serviceType').value,
+                serviceDescription: document.getElementById('serviceDescription').value,
+                totalPrice: parseFloat(document.getElementById('totalPrice').value || 0),
+                currency: document.getElementById('currency').value,
+                startDate: document.getElementById('startDate').value,
+                endDate: document.getElementById('endDate').value,
+                ceoSignature: ceoSignature,
+                clientSignature: clientSignature,
+                generatedAt: new Date().toISOString()
+            };
+        }
+
+        // Get signature data
+        function getSignatureData(type) {
+            const textInput = document.getElementById(`${type}SignatureText`);
+            const canvas = document.getElementById(`${type}SignatureCanvas`);
+            const signaturePad = currentSignaturePads[type];
+            
+            let signatureData = null;
+            let signatureType = 'none';
+            
+            if (textInput && textInput.style.display !== 'none' && textInput.value.trim()) {
+                signatureData = textInput.value.trim();
+                signatureType = 'text';
+            } else if (canvas && canvas.style.display !== 'none' && signaturePad && !signaturePad.isEmpty()) {
+                signatureData = signaturePad.toDataURL();
+                signatureType = 'drawn';
+            }
+            
+            return {
+                type: signatureType,
+                data: signatureData,
+                name: document.getElementById(`${type}SignatureName`).value,
+                title: document.getElementById(`${type}SignatureTitle`).value,
+                date: document.getElementById(`${type}SignatureDate`).value,
+                timestamp: new Date().toISOString()
+            };
+        }
+
+        // Send for signature
+        async function sendForSignature() {
+            try {
+                // Validate required fields
+                const clientEmail = prompt('Enter client email address:');
+                if (!clientEmail || !clientEmail.includes('@')) {
+                    showMessage('Valid client email is required', 'error');
+                    return;
+                }
+
+                showMessage('Creating agreement and sending signature request...', 'info');
+                
+                // First generate and save the agreement
+                const templateData = gatherTemplateData();
+                templateData.clientEmail = clientEmail;
+                
+                // Generate the agreement (but don't download it)
+                templateData.signature_workflow = true; // Add parameter to indicate signature workflow
+                const response = await fetch('/api/templates/generate-agreement-pdf', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(templateData)
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    showMessage(`Error creating agreement: ${error.message}`, 'error');
+                    return;
+                }
+
+                // Get the agreement ID from the response
+                const responseData = await response.json();
+                if (!responseData.success || !responseData.agreement_id) {
+                    showMessage('Error: Could not get agreement ID from response', 'error');
+                    return;
+                }
+                
+                const agreementId = responseData.agreement_id;
+                
+                // Send signature request
+                const signatureResponse = await fetch('/api/agreements/send-for-signature', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        agreement_id: agreementId,
+                        client_email: clientEmail,
+                        client_name: templateData.clientName || 'Client'
+                    })
+                });
+
+                if (signatureResponse.ok) {
+                    const result = await signatureResponse.json();
+                    showMessage(`✅ Signature request sent to ${clientEmail}!`, 'success');
+                    
+                    // Show signature URL for reference
+                    const signatureUrl = result.signature_url;
+                    if (signatureUrl) {
+                        setTimeout(() => {
+                            showMessage(`Signature URL: ${window.location.origin}${signatureUrl}`, 'info');
+                        }, 2000);
+                    }
+                } else {
+                    const error = await signatureResponse.json();
+                    showMessage(`Error sending signature request: ${error.message}`, 'error');
+                }
+                
+            } catch (error) {
+                console.error('Error sending signature request:', error);
+                showMessage('Error sending signature request', 'error');
+            }
+        }
+
+        // Save template
+        async function saveTemplate() {
+            try {
+                showMessage('Saving template...', 'info');
+                
+                const templateData = {
+                    name: `Agreement Template - ${new Date().toLocaleDateString()}`,
+                    description: 'Custom agreement template with signature tracking',
+                    category: 'agreements',
+                    content: document.getElementById('agreementPreview').innerHTML,
+                    placeholders: [
+                        'companyName', 'companyAddress', 'clientCompany', 'clientName',
+                        'serviceType', 'serviceDescription', 'totalPrice', 'currency',
+                        'startDate', 'endDate', 'ceoName', 'ceoTitle'
+                    ],
+                    type: 'html'
+                };
+
+                const response = await fetch('/api/templates', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(templateData)
+                });
+
+                if (response.ok) {
+                    const result = await response.json();
+                    showMessage('Template saved successfully!', 'success');
+                } else {
+                    const error = await response.json();
+                    showMessage(`Error saving template: ${error.message}`, 'error');
+                }
+                
+            } catch (error) {
+                console.error('Error saving template:', error);
+                showMessage('Error saving template', 'error');
+            }
+        }
+
+        // Load completed agreements for certificate generation
+        async function loadCompletedAgreements() {
+            try {
+                showMessage('Loading completed agreements...', 'info');
+                
+                const response = await fetch('/api/agreements/completed');
+                if (response.ok) {
+                    const data = await response.json();
+                    const agreements = data.agreements || [];
+                    updateCompletedAgreementsOptions(agreements);
+                    showMessage('Completed agreements loaded!', 'success');
+                } else {
+                    showMessage('Error loading completed agreements', 'error');
+                }
+                
+            } catch (error) {
+                console.error('Error loading completed agreements:', error);
+                showMessage('Error loading completed agreements', 'error');
+            }
+        }
+
+        // Update completed agreements dropdown
+        function updateCompletedAgreementsOptions(agreements) {
+            const select = document.getElementById('completedAgreementsSelect');
+            select.innerHTML = '<option value="">Select a completed agreement...</option>';
+            
+            agreements.forEach(agreement => {
+                const option = document.createElement('option');
+                option.value = agreement._id;
+                const completedDate = new Date(agreement.completed_at).toLocaleDateString();
+                option.textContent = `${agreement.client_name || agreement.client_company || 'Unknown'} - ${agreement.service_type || 'Service'} (Completed: ${completedDate})`;
+                select.appendChild(option);
+            });
+        }
+
+        // Select agreement for certificate generation
+        function selectAgreementForCertificate() {
+            const agreementId = document.getElementById('completedAgreementsSelect').value;
+            if (agreementId) {
+                document.getElementById('certificateAgreementId').value = agreementId;
+            }
+        }
+
+        // View all certificates
+        async function viewAllCertificates() {
+            try {
+                showMessage('Loading certificates...', 'info');
+                
+                const response = await fetch('/api/agreements/certificates');
+                if (response.ok) {
+                    const data = await response.json();
+                    const certificates = data.certificates || [];
+                    displayCertificates(certificates);
+                } else {
+                    showMessage('Error loading certificates', 'error');
+                }
+                
+            } catch (error) {
+                console.error('Error loading certificates:', error);
+                showMessage('Error loading certificates', 'error');
+            }
+        }
+
+        // Display certificates in a modal or new section
+        function displayCertificates(certificates) {
+            let html = '<div style="background: white; padding: 20px; border-radius: 8px; margin: 20px 0;">';
+            html += '<h4>📋 Generated Signature Certificates</h4>';
+            
+            if (certificates.length === 0) {
+                html += '<p>No certificates generated yet.</p>';
+            } else {
+                html += '<table style="width: 100%; border-collapse: collapse;">';
+                html += '<tr style="background: #f8f9fa;"><th style="padding: 10px; border: 1px solid #ddd;">Reference</th><th style="padding: 10px; border: 1px solid #ddd;">Document</th><th style="padding: 10px; border: 1px solid #ddd;">Created</th><th style="padding: 10px; border: 1px solid #ddd;">Actions</th></tr>';
+                
+                certificates.forEach(cert => {
+                    const createdDate = new Date(cert.created_at).toLocaleDateString();
+                    html += `<tr>
+                        <td style="padding: 10px; border: 1px solid #ddd;">${cert.reference_number}</td>
+                        <td style="padding: 10px; border: 1px solid #ddd;">${cert.document_title}</td>
+                        <td style="padding: 10px; border: 1px solid #ddd;">${createdDate}</td>
+                        <td style="padding: 10px; border: 1px solid #ddd;">
+                            <button class="btn btn-secondary" onclick="downloadCertificate('${cert._id}')" style="padding: 5px 10px; font-size: 12px; margin-right: 5px;">Download</button>
+                            <button class="btn btn-info" onclick="previewCertificate('${cert._id}')" style="padding: 5px 10px; font-size: 12px;">Preview</button>
+                        </td>
+                    </tr>`;
+                });
+                
+                html += '</table>';
+            }
+            
+            html += '</div>';
+            
+            // Show in preview panel
+            document.getElementById('agreementPreview').innerHTML = html;
+        }
+        
+        // Preview certificate content without HTML tags
+        function previewCertificate(certificateId) {
+            // Find the certificate in the current certificates list
+            fetch('/api/agreements/certificates')
+                .then(response => response.json())
+                .then(data => {
+                    const certificates = data.certificates || [];
+                    const cert = certificates.find(c => c._id === certificateId);
+                    
+                    if (cert) {
+                        let html = '<div style="background: white; padding: 20px; border-radius: 8px; margin: 20px 0;">';
+                        html += '<h4>📋 Certificate Preview</h4>';
+                        html += `<p><strong>Reference:</strong> ${cert.reference_number}</p>`;
+                        html += `<p><strong>Document:</strong> ${cert.document_title}</p>`;
+                        html += `<p><strong>Created:</strong> ${new Date(cert.created_at).toLocaleString()}</p>`;
+                        
+                        html += '<h5>Signers:</h5>';
+                        html += '<table style="width: 100%; border-collapse: collapse; margin-top: 10px;">';
+                        html += '<tr style="background: #f8f9fa;"><th style="padding: 10px; border: 1px solid #ddd;">Name</th><th style="padding: 10px; border: 1px solid #ddd;">Email</th><th style="padding: 10px; border: 1px solid #ddd;">Signed At</th><th style="padding: 10px; border: 1px solid #ddd;">IP Address</th></tr>';
+                        
+                        cert.signers.forEach(signer => {
+                            const signedDate = new Date(signer.signed_at).toLocaleString();
+                            html += `<tr>
+                                <td style="padding: 10px; border: 1px solid #ddd;">${signer.name}</td>
+                                <td style="padding: 10px; border: 1px solid #ddd;">${signer.email}</td>
+                                <td style="padding: 10px; border: 1px solid #ddd;">${signedDate}</td>
+                                <td style="padding: 10px; border: 1px solid #ddd;">${signer.ip_address}</td>
+                            </tr>`;
+                        });
+                        
+                        html += '</table>';
+                        html += '<p style="margin-top: 20px;"><em>This is a preview of the certificate data. The actual PDF contains properly formatted content.</em></p>';
+                        html += '</div>';
+                        
+                        document.getElementById('agreementPreview').innerHTML = html;
+                    }
+                })
+                .catch(error => {
+                    console.error('Error loading certificate:', error);
+                    showMessage('Error loading certificate preview', 'error');
+                });
+        }
+
+        // Download certificate
+        async function downloadCertificate(certificateId) {
+            try {
+                const response = await fetch(`/api/agreements/download-certificate/${certificateId}`);
+                if (response.ok) {
+                    const blob = await response.blob();
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `signature_certificate_${certificateId}.pdf`;
+                    document.body.appendChild(a);
+                    a.click();
+                    window.URL.revokeObjectURL(url);
+                    document.body.removeChild(a);
+                    showMessage('Certificate downloaded successfully!', 'success');
+                } else {
+                    showMessage('Error downloading certificate', 'error');
                 }
             } catch (error) {
-                showStatus(`❌ Error loading template: ${error.message}`, 'error');
+                console.error('Error downloading certificate:', error);
+                showMessage('Error downloading certificate', 'error');
             }
         }
 
-        function clearEditor() {
-            if (confirm('Are you sure you want to clear the editor? This action cannot be undone.')) {
-                editor.commands.setContent(getDefaultTemplate());
-                placeholders = [];
-                clauses = [];
-                updatePlaceholdersList();
-                updateClausesList();
+        // Generate signature certificate
+        async function generateSignatureCertificate() {
+            try {
+                const agreementId = document.getElementById('certificateAgreementId').value.trim();
+                if (!agreementId) {
+                    showMessage('Please enter an Agreement ID', 'error');
+                    return;
+                }
+
+                showMessage('Generating signature certificate...', 'info');
                 
-                document.getElementById('templateName').value = '';
-                document.getElementById('templateDescription').value = '';
-                document.getElementById('templateCategory').value = 'general';
-                document.getElementById('templateTags').value = '';
-                
-                showStatus('✅ Editor cleared successfully!', 'success');
-            }
-        }
-
-        function showStatus(message, type = 'info') {
-            const statusDiv = document.getElementById('status');
-            statusDiv.innerHTML = `<div class="status ${type}">${message}</div>`;
-            
-            // Auto-hide after 5 seconds
-            setTimeout(() => {
-                statusDiv.innerHTML = '';
-            }, 5000);
-        }
-
-        async function exportFromEditorDocx() {
-            const quoteId = prompt('Enter Quote ID to fill placeholders (optional, press Cancel to skip):');
-            const body = {
-                quote_id: quoteId || '',
-                template_content: editor.getHTML(),
-                template_name: document.getElementById('templateName').value || 'template'
-            };
-            try {
-                const res = await fetch('/api/templates/export-docx', {
+                const response = await fetch('/api/agreements/generate-signature-certificate', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(body)
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        agreement_id: agreementId
+                    })
                 });
-                if (!res.ok) {
-                    const err = await res.json();
-                    showStatus(`❌ Export failed: ${err.message}`, 'error');
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    showMessage(`Error generating certificate: ${error.message}`, 'error');
                     return;
                 }
-                const blob = await res.blob();
-                const url = window.URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `${body.template_name}_${new Date().toISOString().split('T')[0]}.docx`;
-                document.body.appendChild(a);
-                a.click();
-                window.URL.revokeObjectURL(url);
-                document.body.removeChild(a);
-                showStatus('✅ DOCX exported from editor!', 'success');
-            } catch (e) {
-                showStatus(`❌ Error exporting DOCX: ${e.message}`, 'error');
-            }
-        }
 
-        async function loadAvailableFields() {
-            const quoteId = document.getElementById('fieldsQuoteId').value.trim();
-            try {
-                const url = quoteId ? `/api/templates/available-fields?quote_id=${encodeURIComponent(quoteId)}` : '/api/templates/available-fields';
-                const res = await fetch(url);
-                const json = await res.json();
-                if (!json.success) {
-                    showStatus(`❌ Could not load fields: ${json.message || 'Unknown error'}`, 'error');
-                    return;
-                }
-                const fields = json.fields || [];
-                const container = document.getElementById('availableFields');
-                container.innerHTML = '';
-                fields.forEach(f => {
-                    const btn = document.createElement('button');
-                    btn.className = 'btn';
-                    btn.style.padding = '6px 10px';
-                    btn.textContent = `{{${f}}}`;
-                    btn.onclick = function(){ insertPlaceholder(f); };
-                    container.appendChild(btn);
-                });
-                showStatus(`✅ Loaded ${fields.length} available fields.`, 'success');
-            } catch (e) {
-                showStatus(`❌ Error loading fields: ${e.message}`, 'error');
-            }
-        }
-
-        function insertPlaceholder(name) {
-            const token = `{{${name}}}`;
-            if (useFallback && fallbackEl) {
-                // Insert at cursor for contenteditable fallback
-                document.execCommand('insertText', false, token);
-                return;
-            }
-            try {
-                editor.chain().focus().insertContent(token).run();
-            } catch (e) {
-                // Fallback append
-                const html = editor.getHTML();
-                editor.commands.setContent(html + token);
-            }
-        }
-
-        function insertPlaceholderPrompt() {
-            const name = prompt('Enter placeholder name (without braces), e.g., client_name');
-            if (name) insertPlaceholder(name.trim());
-        }
-
-        // ================= Signature insertion (Template Builder) =================
-        function openSignatureModal(role){
-            sigTargetRoleTB = role || 'client';
-            document.getElementById('sigModalTB').style.display = 'block';
-            // ensure canvas is sized
-            setTimeout(resizeTBCanvas, 0);
-        }
-        function closeSignatureModalTB(){ document.getElementById('sigModalTB').style.display = 'none'; }
-
-        function resizeTBCanvas(){ const c=document.getElementById('tbCanvas'); const w=c.parentElement.clientWidth-4; const r=c.height/c.width; c.width=w; c.height=Math.max(160, w*r); }
-        window.addEventListener('resize', resizeTBCanvas);
-
-        (function initTBDraw(){
-            const c = document.getElementById('tbCanvas');
-            const ctx = c.getContext('2d'); ctx.lineWidth=2.5; ctx.lineCap='round';
-            let drawing=false; const pos=e=>{const r=c.getBoundingClientRect(); const x=(e.touches?e.touches[0].clientX:e.clientX)-r.left; const y=(e.touches?e.touches[0].clientY:e.clientY)-r.top; return {x,y};};
-            const start=e=>{drawing=true; const p=pos(e); ctx.beginPath(); ctx.moveTo(p.x,p.y);};
-            const move=e=>{ if(!drawing) return; const p=pos(e); ctx.lineTo(p.x,p.y); ctx.stroke(); };
-            const end=()=>{drawing=false;};
-            c.addEventListener('mousedown', start); c.addEventListener('mousemove', move); window.addEventListener('mouseup', end);
-            c.addEventListener('touchstart', start, {passive:true}); c.addEventListener('touchmove', move, {passive:true}); window.addEventListener('touchend', end);
-            document.getElementById('tbClear').onclick = ()=>{ ctx.clearRect(0,0,c.width,c.height); };
-            document.getElementById('tbModeDraw').onclick = ()=>{ document.getElementById('tbDrawArea').style.display='block'; document.getElementById('tbTypeArea').style.display='none'; };
-            document.getElementById('tbModeType').onclick = ()=>{ document.getElementById('tbDrawArea').style.display='none'; document.getElementById('tbTypeArea').style.display='block'; };
-        })();
-
-        async function saveSignatureTB(){
-            const drawActive = document.getElementById('tbDrawArea').style.display!=='none';
-            const c = document.getElementById('tbCanvas');
-            if(!drawActive){
-                const name = document.getElementById('tbTypeInput').value.trim();
-                if(!name){ alert('Type your name first'); return; }
-                const ctx = c.getContext('2d'); ctx.clearRect(0,0,c.width,c.height); ctx.fillStyle='#000'; ctx.font='48px "Brush Script MT", "Lucida Handwriting", cursive'; ctx.fillText(name, 24, c.height/1.8);
-            }
-            const dataUrl = c.toDataURL('image/png');
-            try {
-                // save to backend (optional but keeps history)
-                await fetch('/api/signatures', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ role: sigTargetRoleTB, name: sigTargetRoleTB==='client'?'Client':'Manager', email: sigTargetRoleTB==='client'?'': '', company:'', signature_data: dataUrl }) });
-            } catch(e){}
-
-            // Replace known placeholder variants; else insert image at cursor
-            let html = editor.getHTML();
-            const clientTokens = ['{{client_signature}}','{{client_signature_1}}'];
-            const companyTokens = ['{{company_signature}}','{{company_signature1}}','{{company_signature_1}}'];
-            const tokens = sigTargetRoleTB==='client' ? clientTokens : companyTokens;
-            let replaced = false;
-            for (const t of tokens) {
-                if (html.includes(t)) {
-                    html = html.replace(t, `<img src="${dataUrl}" style="height:80px">`);
-                    replaced = true;
-                    break;
-                }
-            }
-            if (replaced) {
-                editor.commands.setContent(html);
-            } else {
-                try { editor.chain().focus().insertContent(`<img src="${dataUrl}" style="height:80px">`).run(); }
-                catch(e){ editor.commands.setContent(html + `<img src="${dataUrl}" style="height:80px">`); }
-            }
-            closeSignatureModalTB();
-            showStatus('✅ Signature inserted into template.', 'success');
-        }
-
-        function validatePlaceholders() {
-            const content = editor.getHTML();
-            const re = /\{\{(\w+)\}\}/g;
-            const found = new Set([...content.matchAll(re)].map(m => m[1]));
-            const defined = new Set(placeholders.map(p => p.name));
-            const unknown = [...found].filter(n => !defined.has(n));
-            const unused = [...defined].filter(n => !found.has(n));
-            let msg = '✅ Placeholders look good.';
-            let type = 'success';
-            if (unknown.length || unused.length) {
-                msg = '';
-                if (unknown.length) msg += `⚠️ Unknown in content: ${unknown.join(', ')}. `;
-                if (unused.length) msg += `ℹ️ Defined but unused: ${unused.join(', ')}.`;
-                type = 'info';
-            }
-            showStatus(msg, type);
-        }
-
-        function removePlaceholderOccurrences(name) {
-            if (!name) return;
-            const token = new RegExp(`\\{\\{${name}\\}\\}`, 'g');
-            const html = editor.getHTML();
-            const next = html.replace(token, '');
-            editor.commands.setContent(next || '<p></p>');
-            showStatus(`✅ Removed {{${name}}} from content.`, 'success');
-        }
-
-        function removeAllPlaceholdersFromContent() {
-            let html = editor.getHTML();
-            // Remove known placeholders first
-            placeholders.forEach(p => {
-                const re = new RegExp(`\\{\\{${p.name}\\}\\}`, 'g');
-                html = html.replace(re, '');
-            });
-            // Remove any remaining tokens of the form {{word}}
-            html = html.replace(/\{\{\w+\}\}/g, '');
-            editor.commands.setContent(html || '<p></p>');
-            showStatus('✅ Removed all placeholders from content.', 'success');
-        }
-
-        async function exportSavedTemplateDocx() {
-            const templateId = prompt('Enter saved Template ID to export as DOCX');
-            if (!templateId) return;
-            const quoteId = prompt('Enter Quote ID / Client / Company to fill placeholders (optional)');
-            try {
-                const res = await fetch(`/api/templates/${encodeURIComponent(templateId)}`);
-                const json = await res.json();
-                if (!json.success) { showStatus(`❌ Could not load template: ${json.message}`, 'error'); return; }
-                const body = { quote_id: quoteId || '' };
-                const ex = await fetch(`/api/templates/${encodeURIComponent(templateId)}/export-docx`, {
-                    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
-                });
-                if (!ex.ok) {
-                    const err = await ex.json();
-                    showStatus(`❌ Export failed: ${err.message}`, 'error');
-                    return;
-                }
-                const blob = await ex.blob();
-                const url = window.URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `${(json.template?.name || 'template')}_${new Date().toISOString().split('T')[0]}.docx`;
-                document.body.appendChild(a);
-                a.click();
-                window.URL.revokeObjectURL(url);
-                document.body.removeChild(a);
-                showStatus('✅ Exported saved template as DOCX!', 'success');
-            } catch (e) {
-                showStatus(`❌ Error exporting: ${e.message}`, 'error');
-            }
-        }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-        function fileToBase64(file) {
-            return new Promise((resolve, reject) => {
-                const reader = new FileReader();
-                reader.readAsDataURL(file);
-                reader.onload = () => {
-                    const base64 = reader.result.split(',')[1]; // Remove data:image/...;base64, prefix
-                    resolve(base64);
-                };
-                reader.onerror = error => reject(error);
-            });
-        }
-
-        function insertImagePrompt() {
-            const url = prompt('Enter image URL or data URI (data:image/...;base64,...)');
-            if (!url) return;
-            const width = prompt('Width in px (optional)');
-            const height = prompt('Height in px (optional)');
-            const alt = prompt('Alt text (optional)') || '';
-            const wAttr = (width && /^\d+$/.test(width)) ? ` width="${width}"` : '';
-            const hAttr = (height && /^\d+$/.test(height)) ? ` height="${height}"` : '';
-            const html = `<img src="${url}"${wAttr}${hAttr} alt="${alt}">`;
-            if (useFallback && fallbackEl) {
-                document.execCommand('insertHTML', false, html);
-            } else {
-                try { editor.chain().focus().insertContent(html).run(); }
-                catch(e){ const cur = editor.getHTML(); editor.commands.setContent(cur + html); }
-            }
-            showStatus('✅ Image inserted.', 'success');
-        }
-
-        function insertTablePrompt() {
-            const rowsStr = prompt('Number of rows?', '3');
-            const colsStr = prompt('Number of columns?', '3');
-            if (!rowsStr || !colsStr) return;
-            let rows = parseInt(rowsStr, 10);
-            let cols = parseInt(colsStr, 10);
-            if (!(rows > 0 && cols > 0 && rows <= 30 && cols <= 12)) {
-                showStatus('❌ Please enter reasonable rows (1-30) and columns (1-12).', 'error');
-                return;
-            }
-            const hasHeader = confirm('Use first row as header?');
-            let html = '<table style="width:100%; border-collapse:collapse;">';
-            for (let r = 0; r < rows; r++) {
-                html += '<tr>';
-                for (let c = 0; c < cols; c++) {
-                    const tag = (hasHeader && r === 0) ? 'th' : 'td';
-                    html += `<${tag} style="border:1px solid #dee2e6; padding:6px 8px;">Cell ${r+1}-${c+1}</${tag}>`;
-                }
-                html += '</tr>';
-            }
-            html += '</table>';
-            if (useFallback && fallbackEl) {
-                document.execCommand('insertHTML', false, html);
-            } else {
-                try { editor.chain().focus().insertContent(html).run(); }
-                catch(e){ const cur = editor.getHTML(); editor.commands.setContent(cur + html); }
-            }
-            showStatus('✅ Table inserted.', 'success');
-        }
-
-        async function uploadDocxTemplate() {
-            const fileInput = document.getElementById('docxFile');
-            const file = fileInput.files[0];
-            const name = document.getElementById('templateName').value.trim();
-            const description = document.getElementById('templateDescription').value.trim();
-            const category = document.getElementById('templateCategory').value;
-            if (!file) {
-                showStatus('❌ Please select a DOCX file to upload.', 'error');
-                return;
-            }
-            if (!name) {
-                showStatus('❌ Please enter a template name.', 'error');
-                return;
-            }
-            const formData = new FormData();
-            formData.append('file', file);
-            formData.append('name', name);
-            formData.append('description', description);
-            formData.append('category', category);
-            try {
-                const res = await fetch('/api/templates', {
-                    method: 'POST',
-                    body: formData
-                });
-                const result = await res.json();
+                const result = await response.json();
                 if (result.success) {
-                    showStatus('✅ DOCX template uploaded successfully!', 'success');
-                    fileInput.value = '';
-                } else {
-                    showStatus(`❌ Upload failed: ${result.message}`, 'error');
-                }
-            } catch (err) {
-                showStatus(`❌ Error uploading template: ${err.message}`, 'error');
-            }
-        }
-
-        // Google Docs sync/export
-        async function syncToGoogleDoc(){
-            try {
-                const title = document.getElementById('templateName').value || 'CPQ Template';
-                const template_content = editor.getHTML();
-                // Provide a minimal set of placeholders (optional); users can load live fields via available-fields
-                const placeholders = {};
-                const res = await fetch('/api/gdocs/upsert', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ title, template_content, placeholders }) });
-                const json = await res.json();
-                if (!json.success) { showStatus('❌ Google Doc sync failed: ' + (json.message||'Unknown'), 'error'); return; }
-                window.lastGDocId = json.document_id;
-                showStatus('✅ Synced to Google Doc: ' + json.document_id, 'success');
-            } catch (e) {
-                showStatus('❌ Google Doc sync error: ' + e.message, 'error');
-            }
-        }
-
-        async function exportGoogleDocPDF(){
-            try {
-                const document_id = window.lastGDocId || prompt('Enter Google Doc ID to export as PDF');
-                if (!document_id) return;
-                const res = await fetch('/api/gdocs/export-pdf', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ document_id }) });
-                if (res.headers.get('content-type')?.includes('application/pdf')){
-                    const blob = await res.blob();
+                    // Download the certificate PDF
+                    const blob = await fetch(`/api/agreements/download-certificate/${result.certificate_id}`).then(r => r.blob());
                     const url = window.URL.createObjectURL(blob);
-                    const a = document.createElement('a'); a.href = url; a.download = `${document_id}.pdf`; document.body.appendChild(a); a.click(); document.body.removeChild(a); window.URL.revokeObjectURL(url);
-                    showStatus('✅ Downloaded Google Doc PDF.', 'success');
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `signature_certificate_${agreementId}.pdf`;
+                    document.body.appendChild(a);
+                    a.click();
+                    window.URL.revokeObjectURL(url);
+                    document.body.removeChild(a);
+                    
+                    showMessage('✅ Signature certificate generated and downloaded!', 'success');
                 } else {
-                    const json = await res.json();
-                    showStatus('❌ Export failed: ' + (json.message||'Unknown'), 'error');
+                    showMessage(`Error: ${result.message}`, 'error');
                 }
-            } catch (e) {
-                showStatus('❌ Google Doc export error: ' + e.message, 'error');
+                
+            } catch (error) {
+                console.error('Error generating signature certificate:', error);
+                showMessage('Error generating signature certificate', 'error');
+            }
+        }
+
+        function signAsCEO() {
+            const agreementId = document.getElementById('certificateAgreementId').value.trim();
+            
+            if (!agreementId) {
+                showMessage('Please enter an agreement ID to sign as CEO', 'error');
+                return;
+            }
+            
+            // Open CEO signature page in new tab
+            window.open(`/sign-ceo/${agreementId}`, '_blank');
+        }
+
+        // Show message
+        function showMessage(message, type) {
+            const container = document.getElementById('actionMessages');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = type === 'success' ? 'success-message' : type === 'error' ? 'error-message' : 'loading';
+            messageDiv.textContent = message;
+            
+            container.innerHTML = '';
+            container.appendChild(messageDiv);
+            
+            if (type === 'success' || type === 'error') {
+                setTimeout(() => {
+                    container.innerHTML = '';
+                }, 5000);
             }
         }
     </script>

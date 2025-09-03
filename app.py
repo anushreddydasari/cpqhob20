@@ -13,6 +13,7 @@ from mongodb_collections import (
     GeneratedPDFCollection, GeneratedAgreementCollection,
     ApprovalWorkflowCollection
 )
+from mongodb_collections.signature_certificate_collection import SignatureCertificateCollection
 from cpq.pricing_logic import calculate_quote
 from flask import send_file
 from templates import PDFGenerator
@@ -91,6 +92,7 @@ hubspot_quotes = HubSpotQuoteCollection()
 signatures = SignatureCollection()
 generated_pdfs = GeneratedPDFCollection()
 generated_agreements = GeneratedAgreementCollection()
+signature_certificate_collection = SignatureCertificateCollection()
 approval_workflows = ApprovalWorkflowCollection()
 
 
@@ -289,15 +291,15 @@ def serve_client_management():
 
 @app.route('/hubspot-data')
 def serve_hubspot_data():
-    return send_from_directory('hubspot', 'hubspot-data.html')
+    return send_from_directory('deal_pages', 'hubspot-data.html')
 
 @app.route('/hubspot-cpq-setup')
 def serve_hubspot_cpq_setup():
-    return send_from_directory('hubspot', 'hubspot-cpq-setup.html')
+    return send_from_directory('deal_pages', 'hubspot-cpq-setup.html')
 
 @app.route('/hubspot-deals')
 def serve_hubspot_deals():
-    return send_from_directory('cpq', 'hubspot-deals.html')
+    return send_from_directory('deal_pages', 'hubspot-deals.html')
 
 @app.route('/debug-pdf')
 def serve_debug_pdf():
@@ -1299,7 +1301,7 @@ def serve_debug_documents():
 
 @app.route('/approval-dashboard')
 def serve_approval_dashboard():
-    return send_from_directory('cpq', 'approval-dashboard.html')
+    return send_from_directory('approval_workflow', 'approval-dashboard.html')
 
 
 
@@ -2299,6 +2301,1875 @@ def export_template_content_as_docx():
             'success': False,
             'message': f'Error exporting template: {str(e)}'
         }), 500
+
+@app.route('/api/templates/generate-agreement-for-signature', methods=['POST'])
+def generate_agreement_for_signature():
+    """Generate agreement for signature workflow (returns JSON with agreement_id)"""
+    try:
+        data = request.get_json()
+        
+        # Extract all the template data
+        company_name = data.get('companyName', 'CloudFuze')
+        company_address = data.get('companyAddress', '2500 Regency Parkway, Cary, NC 27518')
+        client_company = data.get('clientCompany', 'Client Company')
+        client_name = data.get('clientName', 'Client Name')
+        service_type = data.get('serviceType', 'Migration Service')
+        service_description = data.get('serviceDescription', 'Service description')
+        total_price = data.get('totalPrice', 0)
+        currency = data.get('currency', 'USD')
+        start_date = data.get('startDate', datetime.now().strftime('%Y-%m-%d'))
+        end_date = data.get('endDate', (datetime.now() + timedelta(days=30)).strftime('%Y-%m-%d'))
+        ceo_signature = data.get('ceoSignature', {})
+        client_signature = data.get('clientSignature', {})
+        
+        # Generate the PDF (same as the main function)
+        from reportlab.lib.pagesizes import letter
+        from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, PageBreak, Table, TableStyle
+        from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+        from reportlab.lib import colors
+        from reportlab.lib.units import inch
+        from io import BytesIO
+        
+        # Create PDF using ReportLab
+        buffer = BytesIO()
+        doc = SimpleDocTemplate(buffer, pagesize=letter, topMargin=1*inch, bottomMargin=1*inch)
+        story = []
+        styles = getSampleStyleSheet()
+        
+        # Custom styles
+        title_style = ParagraphStyle(
+            'CustomTitle',
+            parent=styles['Heading1'],
+            fontSize=20,
+            spaceAfter=20,
+            alignment=1  # Center
+        )
+        
+        header_style = ParagraphStyle(
+            'Header',
+            parent=styles['Heading2'],
+            fontSize=14,
+            spaceAfter=15,
+            alignment=1
+        )
+        
+        # PAGE 1: MAIN AGREEMENT
+        story.append(Paragraph(f"{company_name} Purchase Agreement for {client_company}", title_style))
+        story.append(Spacer(1, 20))
+        
+        # Service description
+        story.append(Paragraph(f"This agreement provides <b>{client_company}</b> with pricing for use of the {company_name}'s X-Change Enterprise Data Migration Solution:", styles['Normal']))
+        story.append(Spacer(1, 15))
+        
+        # Service table
+        service_data = [
+            ['Job Requirement', 'Description', 'Migration Type', f'Price({currency})'],
+            [f'{company_name} X-Change Data Migration', 
+             f'{service_description}<br/><br/><b>Valid for One Month</b>', 
+             'Managed Migration<br/>One-Time', 
+             f'${total_price:.2f}']
+        ]
+        
+        service_table = Table(service_data, colWidths=[1.5*inch, 2.5*inch, 1.5*inch, 1*inch])
+        service_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#b8dff0')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.black),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, 0), 10),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+            ('BACKGROUND', (0, 1), (-1, -1), colors.white),
+            ('GRID', (0, 0), (-1, -1), 1, colors.black)
+        ]))
+        story.append(service_table)
+        story.append(Spacer(1, 15))
+        
+        # Total price
+        story.append(Paragraph(f"<b>Total Price: ${total_price:.2f}</b>", ParagraphStyle('TotalPrice', parent=styles['Normal'], fontSize=14, alignment=2)))
+        story.append(Spacer(1, 20))
+        
+        # Payment notes
+        story.append(Paragraph("Important Payment Notes:", styles['Heading3']))
+        payment_notes = [
+            "100% pre-payment before initiating the migration.",
+            f"All prices are in US dollars ({currency}).",
+            "Any required sales taxes are not included in the above agreement.",
+            "Overage Charges: $35 per User | $500 per Additional Month",
+            f"Initial Service Term: {start_date} till {end_date}"
+        ]
+        for note in payment_notes:
+            story.append(Paragraph(f"• {note}", styles['Normal']))
+        
+        story.append(Spacer(1, 20))
+        
+        # SaaS Agreement
+        story.append(Paragraph("SAAS SERVICE AGREEMENT:", styles['Heading3']))
+        saas_text = f"""
+        This SaaS Services Agreement ("Agreement") is entered on this <b>{datetime.now().strftime('%m/%d/%Y')}</b> (the "Effective Date") between 
+        <b>{company_name}, Inc.</b> with a place of business at <b>{company_address}</b> ("Company"), and the 
+        Customer listed above ("Customer"). This Agreement includes and incorporates the above Order Form, In Scope 
+        Features list Exhibit ("Exhibit 1"), Out of Scope Features list Exhibit ("Exhibit 2"), all attachments hereto, as well as 
+        the attached Terms and Conditions and contains, among other things, warranty disclaimers, liability limitations and 
+        use limitations. There shall be no force or effect to any different terms of any related purchase order or similar form 
+        even if signed by the parties after the date hereof.
+        """
+        story.append(Paragraph(saas_text, styles['Normal']))
+        
+        # PAGE BREAK
+        story.append(PageBreak())
+        
+        # PAGE 2: SIGNATURE PAGE
+        story.append(Paragraph(f"{company_name} Purchase Agreement for {client_company}", header_style))
+        story.append(Spacer(1, 30))
+        
+        # Signature section
+        signature_data = [
+            [f"For {company_name}, Inc.", f"For {client_company}"],
+            ["", ""],  # Signature lines
+            [f"Name: {ceo_signature.get('name', 'Adi Nandyala')}", f"Name: {client_signature.get('name', client_name)}"],
+            [f"Title: {ceo_signature.get('title', 'Director of operations')}", f"Title: {client_signature.get('title', 'Client Title')}"],
+            [f"Date: {ceo_signature.get('date', datetime.now().strftime('%Y-%m-%d'))}", f"Date: {client_signature.get('date', datetime.now().strftime('%Y-%m-%d'))}"]
+        ]
+        
+        signature_table = Table(signature_data, colWidths=[3*inch, 3*inch])
+        signature_table.setStyle(TableStyle([
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, -1), 10),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+            ('BOTTOMPADDING', (0, 1), (-1, 1), 30),  # Space for signatures
+            ('LINEBELOW', (0, 1), (-1, 1), 1, colors.black),  # Signature lines
+            ('ALIGN', (0, 2), (-1, -1), 'LEFT'),
+            ('FONTNAME', (0, 2), (-1, -1), 'Helvetica'),
+        ]))
+        story.append(signature_table)
+        story.append(Spacer(1, 30))
+        
+        # Terms and Conditions
+        story.append(Paragraph("TERMS AND CONDITIONS", styles['Heading3']))
+        terms_text = """
+        Subject to the terms of this Agreement, Company will use commercially reasonable efforts to provide Customer the 
+        Migration Services. As part of the registration process, Customer will identify an administrative username and 
+        password for Customer's Company account. Company reserves the right to refuse registration of or cancel 
+        passwords it deems inappropriate.
+        """
+        story.append(Paragraph(terms_text, styles['Normal']))
+        
+        # PAGE BREAK
+        story.append(PageBreak())
+        
+        # PAGE 3: SIGNATURE CERTIFICATE
+        story.append(Paragraph("Signature Certificate", ParagraphStyle('CertificateTitle', parent=styles['Heading1'], fontSize=24, alignment=1, textColor=colors.HexColor('#1a73e8'))))
+        story.append(Paragraph(f"Reference number: {datetime.now().strftime('%Y%m%d%H%M%S')}", ParagraphStyle('Reference', parent=styles['Normal'], fontSize=10, alignment=1)))
+        story.append(Spacer(1, 20))
+        
+        # Document info
+        doc_info = f"""
+        <b>Document:</b> {company_name} Purchase Agreement for {client_company}<br/>
+        <b>Company:</b> {company_name}<br/>
+        <b>Client:</b> {client_company}<br/>
+        <b>Service:</b> {service_type}<br/>
+        <b>Amount:</b> ${total_price:.2f}
+        """
+        story.append(Paragraph(doc_info, styles['Normal']))
+        story.append(Spacer(1, 20))
+        
+        # Certificate table
+        cert_data = [
+            ['Signer', 'Timestamp', 'Signature'],
+            [f"<b>{ceo_signature.get('name', 'Adi Nandyala')}</b><br/>{ceo_signature.get('email', 'adi.nandyala@cloudfuze.com')}<br/><br/><b>Sent:</b> {datetime.now().strftime('%d %b %Y %H:%M:%S UTC')}<br/><b>Viewed:</b> {datetime.now().strftime('%d %b %Y %H:%M:%S UTC')}<br/><b>Signed:</b> {ceo_signature.get('date', datetime.now().strftime('%Y-%m-%dT%H:%M:%S UTC'))}<br/><br/><b>Recipient Verification:</b><br/>✓ Email verified<br/>{datetime.now().strftime('%d %b %Y %H:%M:%S UTC')}<br/><br/><b>IP address:</b> 127.0.0.1<br/><b>Location:</b> N/A",
+             f"<b>Sent:</b> {datetime.now().strftime('%d %b %Y %H:%M:%S UTC')}<br/><b>Viewed:</b> {datetime.now().strftime('%d %b %Y %H:%M:%S UTC')}<br/><b>Signed:</b> {ceo_signature.get('date', datetime.now().strftime('%Y-%m-%dT%H:%M:%S UTC'))}<br/><br/><b>Recipient Verification:</b><br/>✓ Email verified<br/>{datetime.now().strftime('%d %b %Y %H:%M:%S UTC')}<br/><br/><b>IP address:</b> 127.0.0.1<br/><b>Location:</b> N/A",
+             f"✓ Digital Signature<br/>{ceo_signature.get('data', '')}"],
+            [f"<b>{client_signature.get('name', client_name)}</b><br/>{client_signature.get('email', 'client@company.com')}<br/><br/><b>Sent:</b> {datetime.now().strftime('%d %b %Y %H:%M:%S UTC')}<br/><b>Viewed:</b> {datetime.now().strftime('%d %b %Y %H:%M:%S UTC')}<br/><b>Signed:</b> {client_signature.get('date', datetime.now().strftime('%Y-%m-%dT%H:%M:%S UTC'))}<br/><br/><b>Recipient Verification:</b><br/>✓ Email verified<br/>{datetime.now().strftime('%d %b %Y %H:%M:%S UTC')}<br/><br/><b>IP address:</b> 127.0.0.1<br/><b>Location:</b> N/A",
+             f"<b>Sent:</b> {datetime.now().strftime('%d %b %Y %H:%M:%S UTC')}<br/><b>Viewed:</b> {datetime.now().strftime('%d %b %Y %H:%M:%S UTC')}<br/><b>Signed:</b> {client_signature.get('date', datetime.now().strftime('%Y-%m-%dT%H:%M:%S UTC'))}<br/><br/><b>Recipient Verification:</b><br/>✓ Email verified<br/>{datetime.now().strftime('%d %b %Y %H:%M:%S UTC')}<br/><br/><b>IP address:</b> 127.0.0.1<br/><b>Location:</b> N/A",
+             f"✓ Digital Signature<br/>{client_signature.get('data', '')}"]
+        ]
+        
+        cert_table = Table(cert_data, colWidths=[2.5*inch, 2*inch, 2*inch])
+        cert_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1a73e8')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, 0), 10),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+            ('BACKGROUND', (0, 1), (-1, -1), colors.white),
+            ('GRID', (0, 0), (-1, -1), 1, colors.black),
+            ('ALIGN', (0, 1), (-1, -1), 'LEFT'),
+            ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
+            ('FONTSIZE', (0, 1), (-1, -1), 8),
+        ]))
+        story.append(cert_table)
+        story.append(Spacer(1, 20))
+        
+        # Completion info
+        completion_text = f"Document completed by all parties on: {datetime.now().strftime('%d %b %Y %H:%M:%S UTC')}<br/>Page 1 of 1"
+        story.append(Paragraph(completion_text, styles['Normal']))
+        
+        # Build PDF
+        doc.build(story)
+        pdf_bytes = buffer.getvalue()
+        buffer.close()
+        
+        # Save PDF to documents directory
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        filename = f"agreement_{client_name.replace(' ', '_')}_{timestamp}.pdf"
+        
+        # Use file handler to get correct path
+        file_handler.ensure_documents_directory()
+        file_path = file_handler.get_document_path(filename)
+        
+        # Save PDF file
+        with open(file_path, 'wb') as f:
+            f.write(pdf_bytes)
+        
+        # Store agreement metadata in MongoDB
+        agreement_metadata = {
+            'quote_id': f'template_{timestamp}',
+            'filename': filename,
+            'file_path': file_path,
+            'client_name': client_name,
+            'company_name': client_company,
+            'service_type': service_type,
+            'file_size': len(pdf_bytes),
+            'template_data': data,  # Store the original template data
+            'signatures': {
+                'ceo': ceo_signature,
+                'client': client_signature
+            }
+        }
+        
+        try:
+            generated_agreements.store_agreement_metadata(agreement_metadata)
+            print(f"✅ Agreement metadata stored: {filename}")
+        except Exception as e:
+            print(f"Warning: Failed to store agreement metadata: {e}")
+        
+        # Return JSON response for signature workflow
+        return jsonify({
+            'success': True,
+            'agreement_id': f'template_{timestamp}',
+            'filename': filename,
+            'message': 'Agreement generated successfully for signature workflow'
+        })
+        
+    except Exception as e:
+        print(f"Error in generate_agreement_for_signature: {str(e)}")
+        return jsonify({
+            'success': False,
+            'message': f'Error generating agreement: {str(e)}'
+        }), 500
+
+@app.route('/api/templates/generate-agreement-pdf', methods=['POST'])
+def generate_agreement_pdf_from_template():
+    """Generate agreement PDF from template builder data"""
+    try:
+        data = request.get_json()
+        
+        # Extract all the template data
+        company_name = data.get('companyName', 'CloudFuze')
+        company_address = data.get('companyAddress', '2500 Regency Parkway, Cary, NC 27518')
+        client_company = data.get('clientCompany', 'Client Company')
+        client_name = data.get('clientName', 'Client Name')
+        service_type = data.get('serviceType', 'Migration Service')
+        service_description = data.get('serviceDescription', 'Service description')
+        total_price = data.get('totalPrice', 0)
+        currency = data.get('currency', 'USD')
+        start_date = data.get('startDate', datetime.now().strftime('%Y-%m-%d'))
+        end_date = data.get('endDate', (datetime.now() + timedelta(days=30)).strftime('%Y-%m-%d'))
+        ceo_signature = data.get('ceoSignature', {})
+        client_signature = data.get('clientSignature', {})
+        
+        # Create 3-page HTML content for the complete agreement
+        html_content = f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            <title>{company_name} Purchase Agreement for {client_company}</title>
+            <style>
+                body {{ font-family: Arial, sans-serif; margin: 40px; line-height: 1.4; }}
+                .page-break {{ page-break-before: always; }}
+                .header {{ display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; padding-bottom: 20px; border-bottom: 2px solid #ddd; }}
+                .company-name {{ font-size: 24px; font-weight: bold; color: #1a73e8; }}
+                .microsoft-partner {{ text-align: right; font-weight: bold; color: #666; }}
+                .agreement-title {{ text-align: center; font-size: 20px; font-weight: bold; margin: 30px 0; }}
+                .service-description {{ margin-bottom: 25px; line-height: 1.6; }}
+                .service-table {{ width: 100%; border-collapse: collapse; margin: 25px 0; }}
+                .service-table th {{ background: #b8dff0; padding: 12px; text-align: center; font-weight: bold; border: 1px solid #999; }}
+                .service-table td {{ padding: 12px; border: 1px solid #999; vertical-align: top; }}
+                .total-price {{ text-align: right; font-size: 18px; font-weight: bold; margin-top: 10px; }}
+                .payment-notes {{ background: #b8dff0; padding: 15px; margin: 25px 0; border-radius: 5px; }}
+                .payment-notes h4 {{ text-align: center; margin-bottom: 10px; font-weight: bold; }}
+                .payment-notes ul {{ list-style-type: disc; margin-left: 20px; }}
+                .payment-notes li {{ margin-bottom: 8px; }}
+                .saas-agreement {{ background: #b8dff0; padding: 15px; margin: 25px 0; border-radius: 5px; }}
+                .saas-agreement h4 {{ text-align: center; margin-bottom: 10px; font-weight: bold; }}
+                .service-header {{ background: #b8dff0; padding: 10px; text-align: center; font-weight: bold; border: 1px solid #999; }}
+                
+                /* Page 2 - Signature Page Styles */
+                .signature-page {{ text-align: center; padding: 50px 0; }}
+                .signature-section {{ display: flex; justify-content: space-between; margin-top: 40px; padding-top: 30px; }}
+                .signature-block {{ width: 45%; text-align: center; }}
+                .signature-block h4 {{ font-weight: bold; margin-bottom: 20px; text-decoration: underline; }}
+                .signature-line {{ border-bottom: 2px solid #333; height: 50px; margin: 10px 0; position: relative; }}
+                .signature-info {{ margin-top: 10px; text-align: left; }}
+                .signature-info div {{ margin: 5px 0; border-bottom: 1px solid #333; padding-bottom: 5px; }}
+                .terms-section {{ background: #b8dff0; padding: 15px; margin: 25px 0; border-radius: 5px; }}
+                .terms-section h4 {{ text-align: center; margin-bottom: 10px; font-weight: bold; }}
+                
+                /* Page 3 - Certificate Styles */
+                .certificate-page {{ background: linear-gradient(45deg, #f0f8ff, #e6f3ff); padding: 40px; border: 3px solid #1a73e8; border-radius: 10px; }}
+                .certificate-title {{ text-align: center; font-size: 28px; font-weight: bold; color: #1a73e8; margin-bottom: 20px; }}
+                .certificate-reference {{ text-align: center; font-size: 14px; color: #666; margin-bottom: 30px; }}
+                .certificate-table {{ width: 100%; border-collapse: collapse; margin: 20px 0; }}
+                .certificate-table th {{ background: #1a73e8; color: white; padding: 12px; text-align: center; font-weight: bold; }}
+                .certificate-table td {{ padding: 15px; border: 1px solid #ddd; vertical-align: top; background: white; }}
+                .completion-info {{ text-align: center; margin-top: 30px; font-size: 14px; color: #666; }}
+            </style>
+        </head>
+        <body>
+            <!-- PAGE 1: MAIN AGREEMENT -->
+            <div class="page">
+            <!-- Header with logos -->
+            <div class="header">
+                <div class="company-name">{company_name}</div>
+                <div class="microsoft-partner">
+                    Microsoft Partner<br>
+                    <span style="font-size: 12px;">Gold Cloud Productivity</span>
+                </div>
+            </div>
+
+            <!-- Agreement Title -->
+            <div class="agreement-title">
+                {company_name} Purchase Agreement for {client_company}
+            </div>
+
+            <!-- Service Description -->
+            <div class="service-description">
+                This agreement provides <strong>{client_company}</strong> with pricing for use of the {company_name}'s X-Change Enterprise Data Migration Solution:
+            </div>
+
+            <!-- Service Table Header -->
+            <div class="service-header">
+                Cloud-Hosted SaaS Solution | Managed Migration | Dedicated Migration Manager
+            </div>
+
+            <!-- Service Details Table -->
+            <table class="service-table">
+                <thead>
+                    <tr>
+                        <th>Job Requirement</th>
+                        <th>Description</th>
+                        <th>Migration Type</th>
+                        <th>Price({currency})</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td style="text-align: center; font-weight: bold;">{company_name} X-Change Data Migration</td>
+                        <td>
+                            {service_description.replace(chr(10), '<br>')}
+                            <hr style="margin: 10px 0;">
+                            <strong>Valid for One Month</strong>
+                        </td>
+                        <td style="text-align: center;">
+                            Managed Migration<br>
+                            One-Time
+                        </td>
+                        <td style="text-align: right; font-weight: bold;">${total_price:.2f}</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <!-- Total Price -->
+            <div class="total-price">
+                <strong>Total Price: ${total_price:.2f}</strong>
+            </div>
+
+            <!-- Payment Notes -->
+            <div class="payment-notes">
+                <h4>Important Payment Notes:</h4>
+                <ul>
+                    <li>100% pre-payment before initiating the migration.</li>
+                    <li>All prices are in US dollars ({currency}).</li>
+                    <li>Any required sales taxes are not included in the above agreement.</li>
+                    <li>Overage Charges: $35 per User | $500 per Additional Month</li>
+                    <li>Initial Service Term: {start_date} till {end_date}</li>
+                </ul>
+            </div>
+
+            <!-- SaaS Agreement -->
+            <div class="saas-agreement">
+                <h4>SAAS SERVICE AGREEMENT:</h4>
+                <p>
+                    This SaaS Services Agreement ("Agreement") is entered on this <strong>{datetime.now().strftime('%m/%d/%Y')}</strong> (the "Effective Date") between 
+                    <strong>{company_name}, Inc.</strong> with a place of business at <strong>{company_address}</strong> ("Company"), and the 
+                    Customer listed above ("Customer"). This Agreement includes and incorporates the above Order Form, In Scope 
+                    Features list Exhibit ("Exhibit 1"), Out of Scope Features list Exhibit ("Exhibit 2"), all attachments hereto, as well as 
+                    the attached Terms and Conditions and contains, among other things, warranty disclaimers, liability limitations and 
+                    use limitations. There shall be no force or effect to any different terms of any related purchase order or similar form 
+                    even if signed by the parties after the date hereof.
+                </p>
+            </div>
+            </div>
+
+            <!-- PAGE 2: SIGNATURE PAGE -->
+            <div class="page-break"></div>
+            <div class="page signature-page">
+                <!-- Header with logos -->
+                <div class="header">
+                    <div class="company-name">{company_name}</div>
+                    <div class="microsoft-partner">
+                        Microsoft Partner<br>
+                        <span style="font-size: 12px;">Gold Cloud Productivity</span>
+                    </div>
+                </div>
+
+            <!-- Signature Section -->
+            <div class="signature-section">
+                <!-- Company Signature -->
+                <div class="signature-block">
+                    <h4>For {company_name}, Inc.</h4>
+                    <div class="signature-line">
+                        {f'<div style="font-family: cursive; font-size: 18px; padding-top: 15px;">{ceo_signature.get("data", "")}</div>' if ceo_signature.get("type") == "text" else ""}
+                    </div>
+                    <div class="signature-info">
+                        <div>Name: {ceo_signature.get('name', 'Adi Nandyala')}</div>
+                        <div>Title: {ceo_signature.get('title', 'Director of operations')}</div>
+                        <div>Date: {ceo_signature.get('date', datetime.now().strftime('%Y-%m-%d'))}</div>
+                    </div>
+                </div>
+
+                <!-- Client Signature -->
+                <div class="signature-block">
+                    <h4>For {client_company}</h4>
+                    <div class="signature-line">
+                        {f'<div style="font-family: cursive; font-size: 18px; padding-top: 15px;">{client_signature.get("data", "")}</div>' if client_signature.get("type") == "text" else ""}
+                    </div>
+                    <div class="signature-info">
+                        <div>Name: {client_signature.get('name', client_name)}</div>
+                        <div>Title: {client_signature.get('title', 'Client Title')}</div>
+                        <div>Date: {client_signature.get('date', datetime.now().strftime('%Y-%m-%d'))}</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Terms and Conditions -->
+            <div class="terms-section">
+                <h4>TERMS AND CONDITIONS</h4>
+                <p>
+                    Subject to the terms of this Agreement, Company will use commercially reasonable efforts to provide Customer the 
+                    Migration Services. As part of the registration process, Customer will identify an administrative username and 
+                    password for Customer's Company account. Company reserves the right to refuse registration of or cancel 
+                    passwords it deems inappropriate.
+                </p>
+                </div>
+            </div>
+
+            <!-- PAGE 3: SIGNATURE CERTIFICATE -->
+            <div class="page-break"></div>
+            <div class="page certificate-page">
+                <div class="certificate-title">Signature Certificate</div>
+                <div class="certificate-reference">Reference number: {datetime.now().strftime('%Y%m%d%H%M%S')}</div>
+                
+                <div style="margin-bottom: 20px;">
+                    <strong>Document:</strong> {company_name} Purchase Agreement for {client_company}<br>
+                    <strong>Company:</strong> {company_name}<br>
+                    <strong>Client:</strong> {client_company}<br>
+                    <strong>Service:</strong> {service_type}<br>
+                    <strong>Amount:</strong> ${total_price:.2f}
+                </div>
+
+                <table class="certificate-table">
+                    <thead>
+                        <tr>
+                            <th>Signer</th>
+                            <th>Timestamp</th>
+                            <th>Signature</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>
+                                <strong>{ceo_signature.get('name', 'Adi Nandyala')}</strong><br/>
+                                {ceo_signature.get('email', 'adi.nandyala@cloudfuze.com')}<br/><br/>
+                                <strong>Sent:</strong> {datetime.now().strftime('%d %b %Y %H:%M:%S UTC')}<br/>
+                                <strong>Viewed:</strong> {datetime.now().strftime('%d %b %Y %H:%M:%S UTC')}<br/>
+                                <strong>Signed:</strong> {ceo_signature.get('date', datetime.now().strftime('%Y-%m-%dT%H:%M:%S UTC'))}<br/><br/>
+                                <strong>Recipient Verification:</strong><br/>
+                                ✓ Email verified<br/>
+                                {datetime.now().strftime('%d %b %Y %H:%M:%S UTC')}<br/><br/>
+                                <strong>IP address:</strong> 127.0.0.1<br/>
+                                <strong>Location:</strong> N/A
+                            </td>
+                            <td>
+                                <strong>Sent:</strong> {datetime.now().strftime('%d %b %Y %H:%M:%S UTC')}<br/>
+                                <strong>Viewed:</strong> {datetime.now().strftime('%d %b %Y %H:%M:%S UTC')}<br/>
+                                <strong>Signed:</strong> {ceo_signature.get('date', datetime.now().strftime('%Y-%m-%dT%H:%M:%S UTC'))}<br/><br/>
+                                <strong>Recipient Verification:</strong><br/>
+                                ✓ Email verified<br/>
+                                {datetime.now().strftime('%d %b %Y %H:%M:%S UTC')}<br/><br/>
+                                <strong>IP address:</strong> 127.0.0.1<br/>
+                                <strong>Location:</strong> N/A
+                            </td>
+                            <td>
+                                {f'<div style="font-family: cursive; font-size: 16px; padding: 10px; border: 1px solid #ddd; background: #f9f9f9;">{ceo_signature.get("data", "✓ Digital Signature")}</div>' if ceo_signature.get("data") else "✓ Digital Signature"}
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>
+                                <strong>{client_signature.get('name', client_name)}</strong><br/>
+                                {client_signature.get('email', 'client@company.com')}<br/><br/>
+                                <strong>Sent:</strong> {datetime.now().strftime('%d %b %Y %H:%M:%S UTC')}<br/>
+                                <strong>Viewed:</strong> {datetime.now().strftime('%d %b %Y %H:%M:%S UTC')}<br/>
+                                <strong>Signed:</strong> {client_signature.get('date', datetime.now().strftime('%Y-%m-%dT%H:%M:%S UTC'))}<br/><br/>
+                                <strong>Recipient Verification:</strong><br/>
+                                ✓ Email verified<br/>
+                                {datetime.now().strftime('%d %b %Y %H:%M:%S UTC')}<br/><br/>
+                                <strong>IP address:</strong> 127.0.0.1<br/>
+                                <strong>Location:</strong> N/A
+                            </td>
+                            <td>
+                                <strong>Sent:</strong> {datetime.now().strftime('%d %b %Y %H:%M:%S UTC')}<br/>
+                                <strong>Viewed:</strong> {datetime.now().strftime('%d %b %Y %H:%M:%S UTC')}<br/>
+                                <strong>Signed:</strong> {client_signature.get('date', datetime.now().strftime('%Y-%m-%dT%H:%M:%S UTC'))}<br/><br/>
+                                <strong>Recipient Verification:</strong><br/>
+                                ✓ Email verified<br/>
+                                {datetime.now().strftime('%d %b %Y %H:%M:%S UTC')}<br/><br/>
+                                <strong>IP address:</strong> 127.0.0.1<br/>
+                                <strong>Location:</strong> N/A
+                            </td>
+                            <td>
+                                {f'<div style="font-family: cursive; font-size: 16px; padding: 10px; border: 1px solid #ddd; background: #f9f9f9;">{client_signature.get("data", "✓ Digital Signature")}</div>' if client_signature.get("data") else "✓ Digital Signature"}
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <div class="completion-info">
+                    Document completed by all parties on: {datetime.now().strftime('%d %b %Y %H:%M:%S UTC')}<br/>
+                    Page 1 of 1
+                </div>
+            </div>
+        </body>
+        </html>
+        """
+
+        # Generate PDF from HTML using WeasyPrint (with ReportLab fallback)
+        try:
+            # Try WeasyPrint first (better HTML rendering)
+            try:
+                from weasyprint import HTML
+                from io import BytesIO
+                
+                # Create PDF
+                html_doc = HTML(string=html_content)
+                pdf_bytes = html_doc.write_pdf()
+                
+                print("✅ PDF generated successfully using WeasyPrint")
+                
+            except Exception as weasy_error:
+                print(f"WeasyPrint failed: {weasy_error}")
+                print("🔄 Falling back to ReportLab...")
+                
+                # Fallback to ReportLab with 3-page structure
+                from reportlab.lib.pagesizes import letter
+                from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, PageBreak, Table, TableStyle
+                from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+                from reportlab.lib import colors
+                from reportlab.lib.units import inch
+                from io import BytesIO
+                
+                # Create PDF using ReportLab
+                buffer = BytesIO()
+                doc = SimpleDocTemplate(buffer, pagesize=letter, topMargin=1*inch, bottomMargin=1*inch)
+                story = []
+                styles = getSampleStyleSheet()
+                
+                # Custom styles
+                title_style = ParagraphStyle(
+                    'CustomTitle',
+                    parent=styles['Heading1'],
+                    fontSize=20,
+                    spaceAfter=20,
+                    alignment=1  # Center
+                )
+                
+                company_style = ParagraphStyle(
+                    'CompanyName',
+                    parent=styles['Heading2'],
+                    fontSize=16,
+                    textColor=colors.HexColor('#1a73e8'),
+                    spaceAfter=10
+                )
+                
+                header_style = ParagraphStyle(
+                    'Header',
+                    parent=styles['Heading2'],
+                    fontSize=14,
+                    spaceAfter=15,
+                    alignment=1
+                )
+                
+                # PAGE 1: MAIN AGREEMENT
+                story.append(Paragraph(f"{company_name} Purchase Agreement for {client_company}", title_style))
+                story.append(Spacer(1, 20))
+                
+                # Service description
+                story.append(Paragraph(f"This agreement provides <b>{client_company}</b> with pricing for use of the {company_name}'s X-Change Enterprise Data Migration Solution:", styles['Normal']))
+                story.append(Spacer(1, 15))
+                
+                # Service table
+                service_data = [
+                    ['Job Requirement', 'Description', 'Migration Type', f'Price({currency})'],
+                    [f'{company_name} X-Change Data Migration', 
+                     f'{service_description}<br/><br/><b>Valid for One Month</b>', 
+                     'Managed Migration<br/>One-Time', 
+                     f'${total_price:.2f}']
+                ]
+                
+                service_table = Table(service_data, colWidths=[1.5*inch, 2.5*inch, 1.5*inch, 1*inch])
+                service_table.setStyle(TableStyle([
+                    ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#b8dff0')),
+                    ('TEXTCOLOR', (0, 0), (-1, 0), colors.black),
+                    ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                    ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                    ('FONTSIZE', (0, 0), (-1, 0), 10),
+                    ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+                    ('BACKGROUND', (0, 1), (-1, -1), colors.white),
+                    ('GRID', (0, 0), (-1, -1), 1, colors.black)
+                ]))
+                story.append(service_table)
+                story.append(Spacer(1, 15))
+                
+                # Total price
+                story.append(Paragraph(f"<b>Total Price: ${total_price:.2f}</b>", ParagraphStyle('TotalPrice', parent=styles['Normal'], fontSize=14, alignment=2)))
+                story.append(Spacer(1, 20))
+                
+                # Payment notes
+                story.append(Paragraph("Important Payment Notes:", styles['Heading3']))
+                payment_notes = [
+                    "100% pre-payment before initiating the migration.",
+                    f"All prices are in US dollars ({currency}).",
+                    "Any required sales taxes are not included in the above agreement.",
+                    "Overage Charges: $35 per User | $500 per Additional Month",
+                    f"Initial Service Term: {start_date} till {end_date}"
+                ]
+                for note in payment_notes:
+                    story.append(Paragraph(f"• {note}", styles['Normal']))
+                
+                story.append(Spacer(1, 20))
+                
+                # SaaS Agreement
+                story.append(Paragraph("SAAS SERVICE AGREEMENT:", styles['Heading3']))
+                saas_text = f"""
+                This SaaS Services Agreement ("Agreement") is entered on this <b>{datetime.now().strftime('%m/%d/%Y')}</b> (the "Effective Date") between 
+                <b>{company_name}, Inc.</b> with a place of business at <b>{company_address}</b> ("Company"), and the 
+                Customer listed above ("Customer"). This Agreement includes and incorporates the above Order Form, In Scope 
+                Features list Exhibit ("Exhibit 1"), Out of Scope Features list Exhibit ("Exhibit 2"), all attachments hereto, as well as 
+                the attached Terms and Conditions and contains, among other things, warranty disclaimers, liability limitations and 
+                use limitations. There shall be no force or effect to any different terms of any related purchase order or similar form 
+                even if signed by the parties after the date hereof.
+                """
+                story.append(Paragraph(saas_text, styles['Normal']))
+                
+                # PAGE BREAK
+                story.append(PageBreak())
+                
+                # PAGE 2: SIGNATURE PAGE
+                story.append(Paragraph(f"{company_name} Purchase Agreement for {client_company}", header_style))
+                story.append(Spacer(1, 30))
+                
+                # Signature section
+                signature_data = [
+                    [f"For {company_name}, Inc.", f"For {client_company}"],
+                    ["", ""],  # Signature lines
+                    [f"Name: {ceo_signature.get('name', 'Adi Nandyala')}", f"Name: {client_signature.get('name', client_name)}"],
+                    [f"Title: {ceo_signature.get('title', 'Director of operations')}", f"Title: {client_signature.get('title', 'Client Title')}"],
+                    [f"Date: {ceo_signature.get('date', datetime.now().strftime('%Y-%m-%d'))}", f"Date: {client_signature.get('date', datetime.now().strftime('%Y-%m-%d'))}"]
+                ]
+                
+                signature_table = Table(signature_data, colWidths=[3*inch, 3*inch])
+                signature_table.setStyle(TableStyle([
+                    ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                    ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                    ('FONTSIZE', (0, 0), (-1, -1), 10),
+                    ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+                    ('BOTTOMPADDING', (0, 1), (-1, 1), 30),  # Space for signatures
+                    ('LINEBELOW', (0, 1), (-1, 1), 1, colors.black),  # Signature lines
+                    ('ALIGN', (0, 2), (-1, -1), 'LEFT'),
+                    ('FONTNAME', (0, 2), (-1, -1), 'Helvetica'),
+                ]))
+                story.append(signature_table)
+                story.append(Spacer(1, 30))
+                
+                # Terms and Conditions
+                story.append(Paragraph("TERMS AND CONDITIONS", styles['Heading3']))
+                terms_text = """
+                Subject to the terms of this Agreement, Company will use commercially reasonable efforts to provide Customer the 
+                Migration Services. As part of the registration process, Customer will identify an administrative username and 
+                password for Customer's Company account. Company reserves the right to refuse registration of or cancel 
+                passwords it deems inappropriate.
+                """
+                story.append(Paragraph(terms_text, styles['Normal']))
+                
+                # PAGE BREAK
+                story.append(PageBreak())
+                
+                # PAGE 3: SIGNATURE CERTIFICATE
+                story.append(Paragraph("Signature Certificate", ParagraphStyle('CertificateTitle', parent=styles['Heading1'], fontSize=24, alignment=1, textColor=colors.HexColor('#1a73e8'))))
+                story.append(Paragraph(f"Reference number: {datetime.now().strftime('%Y%m%d%H%M%S')}", ParagraphStyle('Reference', parent=styles['Normal'], fontSize=10, alignment=1)))
+                story.append(Spacer(1, 20))
+                
+                # Document info
+                doc_info = f"""
+                <b>Document:</b> {company_name} Purchase Agreement for {client_company}<br/>
+                <b>Company:</b> {company_name}<br/>
+                <b>Client:</b> {client_company}<br/>
+                <b>Service:</b> {service_type}<br/>
+                <b>Amount:</b> ${total_price:.2f}
+                """
+                story.append(Paragraph(doc_info, styles['Normal']))
+                story.append(Spacer(1, 20))
+                
+                # Certificate table
+                cert_data = [
+                    ['Signer', 'Timestamp', 'Signature'],
+                    [f"<b>{ceo_signature.get('name', 'Adi Nandyala')}</b><br/>{ceo_signature.get('email', 'adi.nandyala@cloudfuze.com')}<br/><br/><b>Sent:</b> {datetime.now().strftime('%d %b %Y %H:%M:%S UTC')}<br/><b>Viewed:</b> {datetime.now().strftime('%d %b %Y %H:%M:%S UTC')}<br/><b>Signed:</b> {ceo_signature.get('date', datetime.now().strftime('%Y-%m-%dT%H:%M:%S UTC'))}<br/><br/><b>Recipient Verification:</b><br/>✓ Email verified<br/>{datetime.now().strftime('%d %b %Y %H:%M:%S UTC')}<br/><br/><b>IP address:</b> 127.0.0.1<br/><b>Location:</b> N/A",
+                     f"<b>Sent:</b> {datetime.now().strftime('%d %b %Y %H:%M:%S UTC')}<br/><b>Viewed:</b> {datetime.now().strftime('%d %b %Y %H:%M:%S UTC')}<br/><b>Signed:</b> {ceo_signature.get('date', datetime.now().strftime('%Y-%m-%dT%H:%M:%S UTC'))}<br/><br/><b>Recipient Verification:</b><br/>✓ Email verified<br/>{datetime.now().strftime('%d %b %Y %H:%M:%S UTC')}<br/><br/><b>IP address:</b> 127.0.0.1<br/><b>Location:</b> N/A",
+                     f"✓ Digital Signature<br/>{ceo_signature.get('data', '')}"],
+                    [f"<b>{client_signature.get('name', client_name)}</b><br/>{client_signature.get('email', 'client@company.com')}<br/><br/><b>Sent:</b> {datetime.now().strftime('%d %b %Y %H:%M:%S UTC')}<br/><b>Viewed:</b> {datetime.now().strftime('%d %b %Y %H:%M:%S UTC')}<br/><b>Signed:</b> {client_signature.get('date', datetime.now().strftime('%Y-%m-%dT%H:%M:%S UTC'))}<br/><br/><b>Recipient Verification:</b><br/>✓ Email verified<br/>{datetime.now().strftime('%d %b %Y %H:%M:%S UTC')}<br/><br/><b>IP address:</b> 127.0.0.1<br/><b>Location:</b> N/A",
+                     f"<b>Sent:</b> {datetime.now().strftime('%d %b %Y %H:%M:%S UTC')}<br/><b>Viewed:</b> {datetime.now().strftime('%d %b %Y %H:%M:%S UTC')}<br/><b>Signed:</b> {client_signature.get('date', datetime.now().strftime('%Y-%m-%dT%H:%M:%S UTC'))}<br/><br/><b>Recipient Verification:</b><br/>✓ Email verified<br/>{datetime.now().strftime('%d %b %Y %H:%M:%S UTC')}<br/><br/><b>IP address:</b> 127.0.0.1<br/><b>Location:</b> N/A",
+                     f"✓ Digital Signature<br/>{client_signature.get('data', '')}"]
+                ]
+                
+                cert_table = Table(cert_data, colWidths=[2.5*inch, 2*inch, 2*inch])
+                cert_table.setStyle(TableStyle([
+                    ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1a73e8')),
+                    ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+                    ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                    ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                    ('FONTSIZE', (0, 0), (-1, 0), 10),
+                    ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+                    ('BACKGROUND', (0, 1), (-1, -1), colors.white),
+                    ('GRID', (0, 0), (-1, -1), 1, colors.black),
+                    ('ALIGN', (0, 1), (-1, -1), 'LEFT'),
+                    ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
+                    ('FONTSIZE', (0, 1), (-1, -1), 8),
+                ]))
+                story.append(cert_table)
+                story.append(Spacer(1, 20))
+                
+                # Completion info
+                completion_text = f"Document completed by all parties on: {datetime.now().strftime('%d %b %Y %H:%M:%S UTC')}<br/>Page 1 of 1"
+                story.append(Paragraph(completion_text, styles['Normal']))
+                
+                # Build PDF
+                doc.build(story)
+                pdf_bytes = buffer.getvalue()
+                buffer.close()
+                
+                print("✅ PDF generated successfully using ReportLab fallback")
+            
+            # Save PDF to documents directory using file handler
+            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+            filename = f"agreement_{client_name.replace(' ', '_')}_{timestamp}.pdf"
+            
+            # Use file handler to get correct path
+            file_handler.ensure_documents_directory()
+            file_path = file_handler.get_document_path(filename)
+            
+            # Save PDF file
+            with open(file_path, 'wb') as f:
+                f.write(pdf_bytes)
+            
+            # Store agreement metadata in MongoDB
+            agreement_metadata = {
+                'quote_id': f'template_{timestamp}',
+                'filename': filename,
+                'file_path': file_path,
+                'client_name': client_name,
+                'company_name': client_company,
+                'service_type': service_type,
+                'file_size': len(pdf_bytes),
+                'template_data': data,  # Store the original template data
+                'signatures': {
+                    'ceo': ceo_signature,
+                    'client': client_signature
+                }
+            }
+            
+            try:
+                generated_agreements.store_agreement_metadata(agreement_metadata)
+                print(f"✅ Agreement metadata stored: {filename}")
+            except Exception as e:
+                print(f"Warning: Failed to store agreement metadata: {e}")
+            
+            # Check if this is a signature workflow request (expects JSON response)
+            # Look for signature workflow parameter in the request data
+            print(f"🔍 DEBUG: signature_workflow = {data.get('signature_workflow')}")
+            print(f"🔍 DEBUG: X-Signature-Workflow header = {request.headers.get('X-Signature-Workflow')}")
+            if data.get('signature_workflow') == True or request.headers.get('X-Signature-Workflow') == 'true':
+                # Return JSON response for signature workflow
+                return jsonify({
+                    'success': True,
+                    'agreement_id': f'template_{timestamp}',
+                    'filename': filename,
+                    'message': 'Agreement generated successfully'
+                })
+            else:
+                # Return the PDF file directly for download
+                buffer = BytesIO(pdf_bytes)
+                buffer.seek(0)
+                
+                return send_file(
+                    buffer,
+                    as_attachment=True,
+                    download_name=filename,
+                    mimetype='application/pdf'
+                )
+            
+        except ImportError as import_error:
+            print(f"Import error: {import_error}")
+            return jsonify({
+                'success': False, 
+                'message': 'PDF generation not available. Neither WeasyPrint nor ReportLab are installed.'
+            }), 500
+        except Exception as e:
+            print(f"PDF generation error: {str(e)}")
+            return jsonify({'success': False, 'message': f'PDF generation error: {str(e)}'}), 500
+        
+    except Exception as e:
+        print(f"Template PDF generation error: {str(e)}")
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+@app.route('/sign-agreement/<agreement_id>')
+def client_signature_page(agreement_id):
+    """Serve the client signature page"""
+    return render_template_string(open('approval_workflow/client-signature.html', 'r', encoding='utf-8').read())
+
+@app.route('/sign-ceo/<agreement_id>')
+def ceo_signature_page(agreement_id):
+    """Serve the CEO signature page"""
+    return render_template_string(open('approval_workflow/ceo-signature.html', 'r', encoding='utf-8').read())
+
+@app.route('/api/agreements/download/<agreement_id>')
+def download_agreement_pdf(agreement_id):
+    """Download agreement PDF by ID"""
+    try:
+        # Find the agreement
+        agreement = generated_agreements.get_agreement_by_id(agreement_id)
+        
+        if not agreement:
+            return jsonify({
+                'success': False,
+                'message': 'Agreement not found'
+            }), 404
+        
+        # Get the file path
+        file_path = agreement.get('file_path')
+        if not file_path or not os.path.exists(file_path):
+            return jsonify({
+                'success': False,
+                'message': 'PDF file not found'
+            }), 404
+        
+        # Return the PDF file
+        return send_file(
+            file_path,
+            as_attachment=True,
+            download_name=agreement.get('filename', f'agreement_{agreement_id}.pdf'),
+            mimetype='application/pdf'
+        )
+        
+    except Exception as e:
+        print(f"Error downloading agreement PDF: {str(e)}")
+        return jsonify({
+            'success': False,
+            'message': f'Error downloading PDF: {str(e)}'
+        }), 500
+
+@app.route('/api/agreements/sign/<agreement_id>', methods=['GET'])
+def get_agreement_for_signing(agreement_id):
+    """Get agreement data for client signing"""
+    try:
+        # Try to find agreement by ID
+        agreement = generated_agreements.get_agreement_by_id(agreement_id)
+        
+        if not agreement:
+            return jsonify({
+                'success': False,
+                'message': 'Agreement not found'
+            }), 404
+        
+        # Check if agreement is in a valid state for signing
+        agreement_status = agreement.get('status', 'draft')
+        if agreement_status in ['completed', 'cancelled']:
+            return jsonify({
+                'success': False,
+                'message': f'Agreement is already {agreement_status} and cannot be signed'
+            }), 400
+        
+        # Return agreement data (without sensitive info)
+        agreement_data = {
+            '_id': str(agreement['_id']),
+            'company_name': agreement.get('company_name', 'CloudFuze'),
+            'client_company': agreement.get('client_company', agreement.get('company_name', 'Client Company')),
+            'client_name': agreement.get('client_name', 'Client'),
+            'client_email': agreement.get('client_email', ''),
+            'service_type': agreement.get('service_type', 'Migration Service'),
+            'service_description': agreement.get('service_description', 'Service description'),
+            'total_price': agreement.get('total_price', 0),
+            'currency': agreement.get('currency', 'USD'),
+            'start_date': agreement.get('start_date', ''),
+            'end_date': agreement.get('end_date', ''),
+            'status': agreement.get('status', 'draft'),
+            'signatures': agreement.get('signatures', {}),
+            'created_at': agreement.get('created_at', '').isoformat() if agreement.get('created_at') else '',
+        }
+        
+        # Add template data if available
+        if agreement.get('template_data'):
+            template_data = agreement['template_data']
+            agreement_data.update({
+                'company_name': template_data.get('companyName', agreement_data['company_name']),
+                'company_address': template_data.get('companyAddress', ''),
+                'client_company': template_data.get('clientCompany', agreement_data['client_company']),
+                'client_name': template_data.get('clientName', agreement_data['client_name']),
+                'service_type': template_data.get('serviceType', agreement_data['service_type']),
+                'service_description': template_data.get('serviceDescription', agreement_data['service_description']),
+                'total_price': template_data.get('totalPrice', agreement_data['total_price']),
+                'currency': template_data.get('currency', agreement_data['currency']),
+                'start_date': template_data.get('startDate', agreement_data['start_date']),
+                'end_date': template_data.get('endDate', agreement_data['end_date']),
+            })
+        
+        return jsonify({
+            'success': True,
+            'agreement': agreement_data
+        }), 200
+        
+    except Exception as e:
+        print(f"Error getting agreement for signing: {str(e)}")
+        return jsonify({
+            'success': False,
+            'message': f'Error loading agreement: {str(e)}'
+        }), 500
+
+@app.route('/api/agreements/submit-signature/<agreement_id>', methods=['POST'])
+def submit_client_signature(agreement_id):
+    """Submit client signature for agreement"""
+    try:
+        data = request.get_json()
+        
+        # Get the agreement
+        agreement = generated_agreements.get_agreement_by_id(agreement_id)
+        if not agreement:
+            return jsonify({
+                'success': False,
+                'message': 'Agreement not found'
+            }), 404
+        
+        # Check if already signed
+        signatures = agreement.get('signatures', {})
+        if signatures.get('client', {}).get('data'):
+            return jsonify({
+                'success': False,
+                'message': 'Agreement has already been signed by client'
+            }), 400
+        
+        # Validate signature data
+        signature_info = data.get('signature', {})
+        if not signature_info.get('data'):
+            return jsonify({
+                'success': False,
+                'message': 'Signature data is required'
+            }), 400
+        
+        # Validate required fields
+        name = data.get('name', '').strip()
+        email = data.get('email', '').strip()
+        date = data.get('date', '').strip()
+        
+        if not name or not email or not date:
+            return jsonify({
+                'success': False,
+                'message': 'Name, email, and date are required'
+            }), 400
+        
+        # Create client signature data
+        client_signature = {
+            'type': signature_info.get('type', 'text'),
+            'data': signature_info.get('data'),
+            'name': name,
+            'title': data.get('title', '').strip(),
+            'email': email,
+            'date': date,
+            'timestamp': datetime.now().isoformat(),
+            'ip_address': request.remote_addr,
+            'user_agent': request.headers.get('User-Agent', '')
+        }
+        
+        # Update signatures in agreement
+        if 'signatures' not in agreement:
+            agreement['signatures'] = {}
+        agreement['signatures']['client'] = client_signature
+        signatures = agreement['signatures']
+        
+        # Update agreement status
+        agreement_status = 'client_signed'
+        if signatures.get('ceo', {}).get('data'):
+            agreement_status = 'completed'
+        
+        # Update the agreement in MongoDB
+        try:
+            from bson import ObjectId
+            
+            update_data = {
+                'signatures': signatures,
+                'status': agreement_status,
+                'client_signed_at': datetime.now(),
+                'updated_at': datetime.now()
+            }
+            
+            # If both signatures are complete, mark as completed and generate certificate
+            if agreement_status == 'completed':
+                update_data['completed_at'] = datetime.now()
+            
+                # Automatically generate signature certificate when both parties sign
+                try:
+                    print(f"🎉 Both parties have signed! Generating signature certificate for agreement: {agreement_id}")
+                    generate_automatic_signature_certificate(agreement_id, agreement, signatures)
+                except Exception as e:
+                    print(f"Warning: Failed to generate automatic signature certificate: {e}")
+            
+            # Update using the same logic as get_agreement_by_id
+            if ObjectId.is_valid(agreement_id):
+                result = generated_agreements.collection.update_one(
+                    {'_id': ObjectId(agreement_id)},
+                    {'$set': update_data}
+                )
+            else:
+                result = generated_agreements.collection.update_one(
+                    {'quote_id': agreement_id},
+                    {'$set': update_data}
+                )
+            
+            if result.modified_count == 0:
+                return jsonify({
+                    'success': False,
+                    'message': 'Failed to update agreement'
+                }), 500
+            
+            print(f"✅ Client signature added to agreement: {agreement_id}")
+            
+            # Send notification emails (optional - implement if needed)
+            try:
+                send_signature_notification(agreement, client_signature)
+            except Exception as e:
+                print(f"Warning: Failed to send notification email: {e}")
+            
+            return jsonify({
+                'success': True,
+                'message': 'Signature submitted successfully',
+                'status': agreement_status
+            }), 200
+            
+        except Exception as e:
+            print(f"Database update error: {str(e)}")
+            return jsonify({
+                'success': False,
+                'message': 'Failed to save signature'
+            }), 500
+        
+    except Exception as e:
+        print(f"Error submitting client signature: {str(e)}")
+        return jsonify({
+            'success': False,
+            'message': f'Error submitting signature: {str(e)}'
+        }), 500
+
+@app.route('/api/agreements/submit-ceo-signature/<agreement_id>', methods=['POST'])
+def submit_ceo_signature(agreement_id):
+    """Submit CEO signature for agreement"""
+    try:
+        data = request.get_json()
+        
+        # Get the agreement
+        agreement = generated_agreements.get_agreement_by_id(agreement_id)
+        if not agreement:
+            return jsonify({
+                'success': False,
+                'message': 'Agreement not found'
+            }), 404
+        
+        # Check if already signed by CEO
+        signatures = agreement.get('signatures', {})
+        if signatures.get('ceo', {}).get('data'):
+            return jsonify({
+                'success': False,
+                'message': 'Agreement has already been signed by CEO'
+            }), 400
+        
+        # Validate signature data
+        signature_info = data.get('signature', {})
+        if not signature_info.get('data'):
+            return jsonify({
+                'success': False,
+                'message': 'Signature data is required'
+            }), 400
+        
+        # Validate required fields
+        name = data.get('name', '').strip()
+        email = data.get('email', '').strip()
+        date = data.get('date', '').strip()
+        
+        if not name or not email or not date:
+            return jsonify({
+                'success': False,
+                'message': 'Name, email, and date are required'
+            }), 400
+        
+        # Create CEO signature data
+        ceo_signature = {
+            'type': signature_info.get('type', 'text'),
+            'data': signature_info.get('data'),
+            'name': name,
+            'title': data.get('title', '').strip(),
+            'email': email,
+            'date': date,
+            'timestamp': datetime.now().isoformat(),
+            'ip_address': request.remote_addr,
+            'user_agent': request.headers.get('User-Agent', '')
+        }
+        
+        # Update signatures in agreement
+        if 'signatures' not in agreement:
+            agreement['signatures'] = {}
+        agreement['signatures']['ceo'] = ceo_signature
+        signatures = agreement['signatures']
+        
+        # Update agreement status
+        agreement_status = 'ceo_signed'
+        if signatures.get('client', {}).get('data'):
+            agreement_status = 'completed'
+        
+        # Update the agreement in MongoDB
+        try:
+            from bson import ObjectId
+            
+            update_data = {
+                'signatures': signatures,
+                'status': agreement_status,
+                'ceo_signed_at': datetime.now(),
+                'updated_at': datetime.now()
+            }
+            
+            # If both signatures are complete, mark as completed and generate certificate
+            if agreement_status == 'completed':
+                update_data['completed_at'] = datetime.now()
+                
+                # Automatically generate signature certificate when both parties sign
+                try:
+                    print(f"🎉 Both parties have signed! Generating signature certificate for agreement: {agreement_id}")
+                    generate_automatic_signature_certificate(agreement_id, agreement, signatures)
+                except Exception as e:
+                    print(f"Warning: Failed to generate automatic signature certificate: {e}")
+            
+            # Update using the same logic as get_agreement_by_id
+            if ObjectId.is_valid(agreement_id):
+                result = generated_agreements.collection.update_one(
+                    {'_id': ObjectId(agreement_id)},
+                    {'$set': update_data}
+                )
+            else:
+                result = generated_agreements.collection.update_one(
+                    {'quote_id': agreement_id},
+                    {'$set': update_data}
+                )
+            
+            if result.modified_count == 0:
+                return jsonify({
+                    'success': False,
+                    'message': 'Failed to update agreement'
+                }), 500
+            
+            print(f"✅ CEO signature added to agreement: {agreement_id}")
+            
+            return jsonify({
+                'success': True,
+                'message': 'CEO signature submitted successfully',
+                'agreement_status': agreement_status
+            })
+            
+        except Exception as e:
+            print(f"Database update error: {str(e)}")
+            return jsonify({
+                'success': False,
+                'message': f'Database error: {str(e)}'
+            }), 500
+        
+    except Exception as e:
+        print(f"Error submitting CEO signature: {str(e)}")
+        return jsonify({
+            'success': False,
+            'message': f'Error submitting signature: {str(e)}'
+        }), 500
+
+@app.route('/api/agreements/send-for-signature', methods=['POST'])
+def send_agreement_for_signature():
+    """Send agreement to client for signature"""
+    try:
+        data = request.get_json()
+        agreement_id = data.get('agreement_id')
+        client_email = data.get('client_email')
+        client_name = data.get('client_name', 'Client')
+        
+        if not agreement_id or not client_email:
+            return jsonify({
+                'success': False,
+                'message': 'Agreement ID and client email are required'
+            }), 400
+        
+        # Get the agreement
+        agreement = generated_agreements.get_agreement_by_id(agreement_id)
+        if not agreement:
+            return jsonify({
+                'success': False,
+                'message': 'Agreement not found'
+            }), 404
+        
+        # Update agreement status to 'pending_client_signature'
+        try:
+            from bson import ObjectId
+            
+            update_data = {
+                'status': 'pending_client_signature',
+                'client_email': client_email,
+                'client_name': client_name,
+                'signature_request_sent_at': datetime.now(),
+                'updated_at': datetime.now()
+            }
+            
+            # Update using the same logic as get_agreement_by_id
+            if ObjectId.is_valid(agreement_id):
+                result = generated_agreements.collection.update_one(
+                    {'_id': ObjectId(agreement_id)},
+                    {'$set': update_data}
+                )
+            else:
+                result = generated_agreements.collection.update_one(
+                    {'quote_id': agreement_id},
+                    {'$set': update_data}
+                )
+            
+            if result.modified_count == 0:
+                print(f"Warning: Failed to update agreement status for {agreement_id}")
+            
+        except Exception as e:
+            print(f"Warning: Failed to update agreement status: {e}")
+        
+        # Send signature request email
+        try:
+            send_signature_request_email(agreement_id, client_email, client_name, agreement)
+            
+            return jsonify({
+                'success': True,
+                'message': f'Signature request sent to {client_email}',
+                'signature_url': f'/sign-agreement/{agreement_id}'
+            }), 200
+            
+        except Exception as e:
+            print(f"Error sending signature request email: {str(e)}")
+            return jsonify({
+                'success': False,
+                'message': f'Failed to send signature request: {str(e)}'
+            }), 500
+        
+    except Exception as e:
+        print(f"Error in send_agreement_for_signature: {str(e)}")
+        return jsonify({
+            'success': False,
+            'message': f'Error sending signature request: {str(e)}'
+        }), 500
+
+def send_signature_request_email(agreement_id, client_email, client_name, agreement):
+    """Send signature request email to client"""
+    try:
+        email_service = EmailService()
+        
+        # Build signature URL
+        base_url = request.host_url.rstrip('/')
+        signature_url = f"{base_url}/sign-agreement/{agreement_id}"
+        
+        # Email subject and body
+        company_name = agreement.get('company_name', 'CloudFuze')
+        service_type = agreement.get('service_type', 'service')
+        
+        subject = f"Signature Required: Agreement from {company_name}"
+        
+        body = f"""
+        <html>
+        <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+            <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
+                <h2 style="color: #1a73e8;">📋 Agreement Signature Request</h2>
+                
+                <p>Dear {client_name},</p>
+                
+                <p>You have received an agreement from <strong>{company_name}</strong> that requires your signature.</p>
+                
+                <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                    <h3 style="margin-top: 0; color: #333;">Agreement Details:</h3>
+                    <ul style="margin: 10px 0;">
+                        <li><strong>Service:</strong> {service_type}</li>
+                        <li><strong>Company:</strong> {company_name}</li>
+                        <li><strong>Total Amount:</strong> ${agreement.get('total_price', 0):.2f}</li>
+                    </ul>
+                </div>
+                
+                <p>To review and sign this agreement, please click the button below:</p>
+                
+                <div style="text-align: center; margin: 30px 0;">
+                    <a href="{signature_url}" 
+                       style="background: #1a73e8; color: white; padding: 15px 30px; text-decoration: none; border-radius: 5px; font-weight: bold; display: inline-block;">
+                        📝 Review & Sign Agreement
+                    </a>
+                </div>
+                
+                <p style="font-size: 14px; color: #666;">
+                    <strong>Note:</strong> This signature request will remain valid for 30 days. 
+                    If you have any questions about this agreement, please contact us directly.
+                </p>
+                
+                <div style="border-top: 1px solid #eee; padding-top: 20px; margin-top: 30px; font-size: 12px; color: #666;">
+                    <p>This email was sent by {company_name}. If you received this email by mistake, please ignore it.</p>
+                    <p>Signature URL: <a href="{signature_url}">{signature_url}</a></p>
+                </div>
+            </div>
+        </body>
+        </html>
+        """
+        
+        # Send email
+        email_service.send_email(
+            recipient_email=client_email,
+            subject=subject,
+            body=body
+        )
+        
+        print(f"✅ Signature request email sent to {client_email}")
+        
+    except Exception as e:
+        print(f"❌ Failed to send signature request email: {str(e)}")
+        raise
+
+def send_signature_notification(agreement, client_signature):
+    """Send notification when client signs agreement"""
+    try:
+        email_service = EmailService()
+        
+        # Get company/CEO email from agreement
+        ceo_signature = agreement.get('signatures', {}).get('ceo', {})
+        company_email = ceo_signature.get('email', 'admin@company.com')
+        
+        client_name = client_signature.get('name', 'Client')
+        company_name = agreement.get('company_name', 'CloudFuze')
+        
+        subject = f"✅ Agreement Signed by {client_name}"
+        
+        body = f"""
+        <html>
+        <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+            <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
+                <h2 style="color: #28a745;">✅ Agreement Successfully Signed</h2>
+                
+                <p>Great news! The agreement has been signed by the client.</p>
+                
+                <div style="background: #d4edda; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #28a745;">
+                    <h3 style="margin-top: 0; color: #155724;">Signature Details:</h3>
+                    <ul style="margin: 10px 0;">
+                        <li><strong>Client Name:</strong> {client_name}</li>
+                        <li><strong>Email:</strong> {client_signature.get('email', 'N/A')}</li>
+                        <li><strong>Title:</strong> {client_signature.get('title', 'N/A')}</li>
+                        <li><strong>Signed Date:</strong> {client_signature.get('date', 'N/A')}</li>
+                        <li><strong>Timestamp:</strong> {client_signature.get('timestamp', 'N/A')}</li>
+                    </ul>
+                </div>
+                
+                <p>The agreement is now fully executed and both parties have provided their signatures.</p>
+                
+                <div style="border-top: 1px solid #eee; padding-top: 20px; margin-top: 30px; font-size: 12px; color: #666;">
+                    <p>This notification was sent automatically by the {company_name} signature system.</p>
+                </div>
+            </div>
+        </body>
+        </html>
+        """
+        
+        # Send notification
+        email_service.send_email(
+            recipient_email=company_email,
+            subject=subject,
+            body=body
+        )
+        
+        print(f"✅ Signature notification sent to {company_email}")
+        
+    except Exception as e:
+        print(f"❌ Failed to send signature notification: {str(e)}")
+        # Don't raise - this is not critical
+
+@app.route('/api/agreements/generate-signature-certificate', methods=['POST'])
+def generate_signature_certificate():
+    """Generate a signature certificate PDF for a completed agreement"""
+    try:
+        data = request.get_json()
+        agreement_id = data.get('agreement_id')
+        
+        if not agreement_id:
+            return jsonify({
+                'success': False,
+                'message': 'Agreement ID is required'
+            }), 400
+        
+        # Get the agreement
+        agreement = generated_agreements.get_agreement_by_id(agreement_id)
+        if not agreement:
+            return jsonify({
+                'success': False,
+                'message': 'Agreement not found'
+            }), 404
+        
+        # Check if agreement is completed (both signatures present)
+        signatures = agreement.get('signatures', {})
+        ceo_signature = signatures.get('ceo', {})
+        client_signature = signatures.get('client', {})
+        
+        if not ceo_signature.get('data') or not client_signature.get('data'):
+            return jsonify({
+                'success': False,
+                'message': 'Agreement must be fully signed by both parties to generate certificate'
+            }), 400
+        
+        # Generate reference number
+        import uuid
+        reference_number = str(uuid.uuid4()).replace('-', '').upper()[:20]
+        
+        # Create certificate data
+        certificate_data = {
+            'agreement_id': agreement_id,
+            'reference_number': reference_number,
+            'document_title': f"{agreement.get('company_name', 'CloudFuze')} Purchase Agreement",
+            'signers': [
+                {
+                    'name': ceo_signature.get('name', 'CEO'),
+                    'email': ceo_signature.get('email', ''),
+                    'role': 'Company Representative',
+                    'signature_data': ceo_signature.get('data', ''),
+                    'signature_type': 'drawn',
+                    'signed_at': ceo_signature.get('timestamp', ''),
+                    'ip_address': ceo_signature.get('ip_address', ''),
+                    'location': ceo_signature.get('location', '')
+                },
+                {
+                    'name': client_signature.get('name', 'Client'),
+                    'email': client_signature.get('email', ''),
+                    'role': 'Client',
+                    'signature_data': client_signature.get('data', ''),
+                    'signature_type': 'drawn',
+                    'signed_at': client_signature.get('timestamp', ''),
+                    'ip_address': client_signature.get('ip_address', ''),
+                    'location': client_signature.get('location', '')
+                }
+            ],
+            'completion_date': agreement.get('completed_at', datetime.now()),
+            'certificate_data': {
+                'company_name': agreement.get('company_name', 'CloudFuze'),
+                'client_company': agreement.get('client_company', 'Client Company'),
+                'service_type': agreement.get('service_type', 'Service'),
+                'total_price': agreement.get('total_price', 0)
+            }
+        }
+        
+        # Generate the certificate PDF
+        certificate_pdf_path = generate_signature_certificate_pdf(certificate_data)
+        
+        # Save certificate record
+        certificate_data['file_path'] = certificate_pdf_path
+        certificate_id = signature_certificate_collection.create_certificate(certificate_data)
+        
+        return jsonify({
+            'success': True,
+            'message': 'Signature certificate generated successfully',
+            'certificate_id': certificate_id,
+            'reference_number': reference_number
+        }), 200
+        
+    except Exception as e:
+        print(f"Error generating signature certificate: {str(e)}")
+        return jsonify({
+            'success': False,
+            'message': f'Error generating certificate: {str(e)}'
+        }), 500
+
+@app.route('/api/agreements/completed', methods=['GET'])
+def get_completed_agreements():
+    """Get all completed agreements (both signatures present)"""
+    try:
+        # Find agreements with both CEO and client signatures
+        completed_agreements = list(generated_agreements.collection.find({
+            "status": "completed",
+            "signatures.ceo.data": {"$exists": True, "$ne": ""},
+            "signatures.client.data": {"$exists": True, "$ne": ""}
+        }).sort("completed_at", -1))
+        
+        # Convert ObjectId to string for JSON serialization
+        for agreement in completed_agreements:
+            agreement['_id'] = str(agreement['_id'])
+        
+        return jsonify({
+            'success': True,
+            'agreements': completed_agreements
+        }), 200
+        
+    except Exception as e:
+        print(f"Error getting completed agreements: {str(e)}")
+        return jsonify({
+            'success': False,
+            'message': f'Error getting completed agreements: {str(e)}'
+        }), 500
+
+@app.route('/api/agreements/certificate-status/<agreement_id>', methods=['GET'])
+def get_certificate_status(agreement_id):
+    """Check if a certificate was generated for an agreement"""
+    try:
+        certificate = signature_certificate_collection.get_certificate_by_agreement(agreement_id)
+        
+        if certificate:
+            return jsonify({
+                'success': True,
+                'has_certificate': True,
+                'certificate_id': certificate['_id'],
+                'reference_number': certificate['reference_number'],
+                'created_at': certificate['created_at']
+            }), 200
+        else:
+            return jsonify({
+                'success': True,
+                'has_certificate': False
+            }), 200
+        
+    except Exception as e:
+        print(f"Error checking certificate status: {str(e)}")
+        return jsonify({
+            'success': False,
+            'message': f'Error checking certificate status: {str(e)}'
+        }), 500
+
+@app.route('/api/agreements/certificates', methods=['GET'])
+def get_all_certificates():
+    """Get all generated signature certificates"""
+    try:
+        certificates = signature_certificate_collection.get_all_certificates()
+        
+        return jsonify({
+            'success': True,
+            'certificates': certificates
+        }), 200
+        
+    except Exception as e:
+        print(f"Error getting certificates: {str(e)}")
+        return jsonify({
+            'success': False,
+            'message': f'Error getting certificates: {str(e)}'
+        }), 500
+
+@app.route('/api/agreements/download-certificate/<certificate_id>')
+def download_signature_certificate(certificate_id):
+    """Download signature certificate PDF"""
+    try:
+        certificate = signature_certificate_collection.get_certificate_by_id(certificate_id)
+        if not certificate:
+            return jsonify({
+                'success': False,
+                'message': 'Certificate not found'
+            }), 404
+        
+        file_path = certificate.get('file_path')
+        if not file_path or not os.path.exists(file_path):
+            return jsonify({
+                'success': False,
+                'message': 'Certificate file not found'
+            }), 404
+        
+        return send_file(file_path, as_attachment=True, download_name=f"signature_certificate_{certificate.get('reference_number', certificate_id)}.pdf")
+        
+    except Exception as e:
+        print(f"Error downloading certificate: {str(e)}")
+        return jsonify({
+            'success': False,
+            'message': f'Error downloading certificate: {str(e)}'
+        }), 500
+
+def generate_automatic_signature_certificate(agreement_id, agreement, signatures):
+    """Automatically generate signature certificate when both parties sign"""
+    try:
+        # Generate reference number
+        import uuid
+        reference_number = str(uuid.uuid4()).replace('-', '').upper()[:20]
+        
+        # Get signature data
+        ceo_signature = signatures.get('ceo', {})
+        client_signature = signatures.get('client', {})
+        
+        # Create certificate data
+        certificate_data = {
+            'agreement_id': agreement_id,
+            'reference_number': reference_number,
+            'document_title': f"{agreement.get('company_name', 'CloudFuze')} Purchase Agreement",
+            'signers': [
+                {
+                    'name': ceo_signature.get('name', 'CEO'),
+                    'email': ceo_signature.get('email', ''),
+                    'role': 'Company Representative',
+                    'signature_data': ceo_signature.get('data', ''),
+                    'signature_type': 'drawn',
+                    'signed_at': ceo_signature.get('timestamp', ''),
+                    'ip_address': ceo_signature.get('ip_address', ''),
+                    'location': ceo_signature.get('location', '')
+                },
+                {
+                    'name': client_signature.get('name', 'Client'),
+                    'email': client_signature.get('email', ''),
+                    'role': 'Client',
+                    'signature_data': client_signature.get('data', ''),
+                    'signature_type': 'drawn',
+                    'signed_at': client_signature.get('timestamp', ''),
+                    'ip_address': client_signature.get('ip_address', ''),
+                    'location': client_signature.get('location', '')
+                }
+            ],
+            'completion_date': datetime.now(),
+            'certificate_data': {
+                'company_name': agreement.get('company_name', 'CloudFuze'),
+                'client_company': agreement.get('client_company', 'Client Company'),
+                'service_type': agreement.get('service_type', 'Service'),
+                'total_price': agreement.get('total_price', 0)
+            }
+        }
+        
+        # Generate the certificate PDF
+        certificate_pdf_path = generate_signature_certificate_pdf(certificate_data)
+        
+        # Save certificate record
+        certificate_data['file_path'] = certificate_pdf_path
+        certificate_id = signature_certificate_collection.create_certificate(certificate_data)
+        
+        print(f"✅ Automatic signature certificate generated: {certificate_id}")
+        print(f"📄 Certificate file: {certificate_pdf_path}")
+        
+        return certificate_id
+        
+    except Exception as e:
+        print(f"❌ Error generating automatic signature certificate: {str(e)}")
+        raise
+
+def generate_signature_certificate_pdf(certificate_data):
+    """Generate signature certificate PDF using ReportLab"""
+    try:
+        from reportlab.lib.pagesizes import letter
+        from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image
+        from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+        from reportlab.lib.units import inch
+        from reportlab.lib import colors
+        from reportlab.lib.enums import TA_CENTER, TA_LEFT
+        import base64
+        import io
+        
+        # Create PDF file path
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        filename = f"signature_certificate_{certificate_data['reference_number']}_{timestamp}.pdf"
+        file_path = os.path.join('documents', filename)
+        
+        # Ensure documents directory exists
+        os.makedirs('documents', exist_ok=True)
+        
+        # Create PDF document with custom styling
+        doc = SimpleDocTemplate(file_path, pagesize=letter, 
+                              topMargin=72, bottomMargin=72, 
+                              leftMargin=72, rightMargin=72)
+        story = []
+        
+        # Get styles
+        styles = getSampleStyleSheet()
+        
+        # Title style - matches your image
+        title_style = ParagraphStyle(
+            'SignatureCertificateTitle',
+            parent=styles['Heading1'],
+            fontSize=28,
+            spaceAfter=20,
+            alignment=TA_CENTER,
+            textColor=colors.darkblue,
+            fontName='Helvetica-Bold'
+        )
+        
+        # Reference number style
+        ref_style = ParagraphStyle(
+            'ReferenceNumber',
+            parent=styles['Normal'],
+            fontSize=14,
+            spaceAfter=30,
+            alignment=TA_CENTER,
+            textColor=colors.black,
+            fontName='Helvetica'
+        )
+        
+        # Document info style
+        doc_info_style = ParagraphStyle(
+            'DocumentInfo',
+            parent=styles['Normal'],
+            fontSize=12,
+            spaceAfter=20,
+            alignment=TA_LEFT,
+            textColor=colors.black,
+            fontName='Helvetica'
+        )
+        
+        # Add title - matches your image format
+        story.append(Paragraph("Signature Certificate", title_style))
+        story.append(Spacer(1, 15))
+        
+        # Add reference number - matches your image format
+        story.append(Paragraph(f"Reference number: {certificate_data['reference_number']}", ref_style))
+        story.append(Spacer(1, 25))
+        
+        # Create signers table - matches your image format exactly
+        table_data = [['Signer', 'Timestamp', 'Signature']]
+        
+        for signer in certificate_data['signers']:
+            # Format timestamps to match your image
+            current_time = datetime.now().strftime('%d %b %Y %H:%M:%S UTC')
+            sent_time = current_time
+            viewed_time = current_time
+            signed_time = signer['signed_at'] if signer['signed_at'] else current_time
+            
+            # Create signer info - matches your image format
+            signer_info = f"""
+            <b>{signer['name']}</b><br/>
+            {signer['email']}<br/><br/>
+            <b>Sent:</b> {sent_time}<br/>
+            <b>Viewed:</b> {viewed_time}<br/>
+            <b>Signed:</b> {signed_time}<br/><br/>
+            <b>Recipient Verification:</b><br/>
+            ✓ Email verified
+            """
+            
+            # Create timestamp info - matches your image format
+            timestamp_info = f"""
+            <b>Sent:</b> {sent_time}<br/>
+            <b>Viewed:</b> {viewed_time}<br/>
+            <b>Signed:</b> {signed_time}<br/><br/>
+            <b>Recipient Verification:</b><br/>
+            ✓ Email verified<br/>
+            {viewed_time}<br/><br/>
+            <b>IP address:</b> {signer['ip_address'] or 'N/A'}<br/>
+            <b>Location:</b> {signer['location'] or 'N/A'}
+            """
+            
+            # Create signature display - matches your image format
+            signature_display = f"""
+            ✓ Digital Signature<br/>
+            {signer['signature_data'] or signer['name']}
+            """
+            
+            table_data.append([
+                signer_info,
+                timestamp_info,
+                signature_display
+            ])
+        
+        # Create table with 3 columns to match your image
+        # Convert HTML content to Paragraph objects for proper rendering
+        formatted_table_data = []
+        for row_idx, row in enumerate(table_data):
+            formatted_row = []
+            for col_idx, cell_content in enumerate(row):
+                if row_idx == 0:  # Header row
+                    formatted_row.append(cell_content)
+                else:  # Data rows
+                    if isinstance(cell_content, str) and '<' in cell_content:
+                        # Convert HTML to Paragraph
+                        formatted_row.append(Paragraph(cell_content, styles['Normal']))
+                    else:
+                        formatted_row.append(cell_content)
+            formatted_table_data.append(formatted_row)
+        
+        table = Table(formatted_table_data, colWidths=[2.5*inch, 2.0*inch, 2.0*inch])
+        table.setStyle(TableStyle([
+            # Header styling - matches your image
+            ('BACKGROUND', (0, 0), (-1, 0), colors.lightgrey),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.black),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, 0), 12),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+            ('TOPPADDING', (0, 0), (-1, 0), 12),
+            
+            # Data row styling - matches your image
+            ('BACKGROUND', (0, 1), (-1, -1), colors.white),
+            ('FONTSIZE', (0, 1), (-1, -1), 9),
+            ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
+            
+            # Alignment and spacing - matches your image
+            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+            ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+            ('LEFTPADDING', (0, 0), (-1, -1), 6),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 6),
+            ('TOPPADDING', (0, 1), (-1, -1), 6),
+            ('BOTTOMPADDING', (0, 1), (-1, -1), 6),
+            
+            # Borders - matches your image
+            ('GRID', (0, 0), (-1, -1), 1, colors.black),
+        ]))
+        
+        story.append(table)
+        story.append(Spacer(1, 30))
+        
+        # Add completion info - matches your image format
+        completion_date = certificate_data.get('completion_date', datetime.now())
+        if isinstance(completion_date, str):
+            try:
+                completion_date = datetime.fromisoformat(completion_date.replace('Z', '+00:00'))
+            except:
+                completion_date = datetime.now()
+        
+        # Create completion section - matches your image format
+        completion_style = ParagraphStyle(
+            'Completion',
+            parent=styles['Normal'],
+            fontSize=12,
+            spaceAfter=20,
+            alignment=TA_LEFT,
+            textColor=colors.black,
+            fontName='Helvetica'
+        )
+        
+        completion_text = f"""
+        <b>Document completed by all parties on:</b> {completion_date.strftime('%d %b %Y %H:%M:%S UTC')}<br/>
+        Page 1 of 1
+        """
+        story.append(Paragraph(completion_text, completion_style))
+        
+        # Build PDF
+        doc.build(story)
+        
+        print(f"✅ Signature certificate generated: {file_path}")
+        return file_path
+        
+    except Exception as e:
+        print(f"Error generating signature certificate PDF: {str(e)}")
+        raise
 
 @app.route('/api/templates/available-fields', methods=['GET'])
 def get_available_template_fields():
@@ -3902,7 +5773,7 @@ def get_client_workflow(workflow_id):
 def client_feedback_form():
     """Serve the client feedback form HTML page"""
     try:
-        return send_from_directory('cpq', 'client-feedback.html')
+        return send_from_directory('approval_workflow', 'client-feedback.html')
     except Exception as e:
         print(f"❌ Error serving client feedback form: {str(e)}")
         return jsonify({

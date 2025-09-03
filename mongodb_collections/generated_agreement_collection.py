@@ -20,10 +20,22 @@ class GeneratedAgreementCollection:
         return self.collection.insert_one(agreement_data)
     
     def get_agreement_by_id(self, agreement_id):
-        """Get agreement metadata by MongoDB ObjectId"""
+        """Get agreement metadata by MongoDB ObjectId or quote_id"""
         try:
-            return self.collection.find_one({"_id": ObjectId(agreement_id)})
-        except:
+            # First try to find by MongoDB ObjectId
+            if ObjectId.is_valid(agreement_id):
+                agreement = self.collection.find_one({"_id": ObjectId(agreement_id)})
+                if agreement:
+                    return agreement
+            
+            # If not found by ObjectId, try to find by quote_id
+            agreement = self.collection.find_one({"quote_id": agreement_id})
+            if agreement:
+                return agreement
+            
+            return None
+        except Exception as e:
+            print(f"Error looking up agreement {agreement_id}: {e}")
             return None
     
     def get_agreements_by_quote_id(self, quote_id, limit=50):
@@ -31,6 +43,13 @@ class GeneratedAgreementCollection:
         return list(self.collection.find(
             {"quote_id": quote_id}
         ).sort("generated_at", -1).limit(limit))
+    
+    def get_agreement_by_quote_id(self, quote_id):
+        """Get the most recent agreement for a specific quote"""
+        return self.collection.find_one(
+            {"quote_id": quote_id},
+            sort=[("generated_at", -1)]
+        )
     
     def get_agreements_by_client(self, client_name, limit=50):
         """Get all agreements for a specific client"""
