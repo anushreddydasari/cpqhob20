@@ -591,9 +591,17 @@
             padding: 60px;
             position: relative;
             min-height: 800px;
-            max-width: 900px;
+            max-width: 100%;
             margin: 24px auto;
             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        /* Paper page look (Letter 8.5x11in with 1in margins) */
+        .editor-canvas.paper-page {
+            width: 8.5in;
+            min-height: 11in;
+            padding: 1in;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.12);
         }
 
         .canvas-content {
@@ -601,7 +609,7 @@
         }
 
         .content-block {
-            border: 2px dashed #e5e7eb;
+            border: none;
             border-radius: 8px;
             padding: 20px;
             margin: 16px 0;
@@ -631,8 +639,7 @@
         }
 
         .content-block:hover {
-            border-color: #10b981;
-            background: #f0fdf4;
+            background: #f8fafc;
         }
 
         .content-block.dragover {
@@ -942,7 +949,10 @@
         .preview-document {
             background: white;
             min-height: 100%;
-            padding: 40px;
+            width: 8.5in;
+            padding: 1in;
+            margin: 0 auto;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.08);
         }
 
         .preview-header {
@@ -968,9 +978,14 @@
         }
 
         .preview-content-area {
-            max-width: 800px;
-            margin: 0 auto;
+            max-width: none;
+            margin: 0;
         }
+
+        /* Hide any editor-only controls in preview */
+        .preview-document .image-controls { display: none !important; }
+        .preview-document .table-controls { display: none !important; }
+        .preview-document .block-toolbar { display: none !important; }
 
         .preview-content-area .editable-block {
             margin: 30px 0;
@@ -1040,6 +1055,7 @@
             .preview-document {
                 padding: 0 !important;
             }
+            .image-controls { display: none !important; }
         }
 
         [contenteditable="true"]:focus {
@@ -1068,10 +1084,14 @@
         }
 
         .image-upload-area:hover {
-            border-color: #059669;
             background-color: #f0fdf4;
             transform: scale(1.02);
         }
+
+        /* Image overlay controls (show on hover) */
+        .image-upload-area { position: relative; border: none; }
+        .image-controls { display: none; position: absolute; bottom: 12px; left: 12px; gap: 8px; }
+        .image-upload-area:hover .image-controls { display: flex; }
 
         .block-toolbar button {
             background: none;
@@ -1596,7 +1616,7 @@
                             </div>
                             
                 <!-- Template Content -->
-                <div class="content-area" style="padding: 24px; max-width: 1200px; width: 100%; align-items: flex-start;">
+                <div class="content-area" style="padding: 24px; max-width: 1400px; width: 100%; align-items: flex-start;">
                     <!-- Search Section -->
                     <div class="search-section">
                         <div class="search-bar">
@@ -1735,9 +1755,27 @@
                         <div class="document-status">Draft • $0.00 • All documents • ✓ Updated less than a minute ago</div>
                     </div>
                     <div class="editor-toolbar-right">
+                        <div class="toolbar-btn" style="position: relative;" title="Insert placeholder field" id="insertFieldBtn">
+                            🧩 Insert Field ▼
+                            <div id="fieldDropdown" style="display:none; position:absolute; right:0; top:38px; background:#fff; border:1px solid #e5e7eb; border-radius:8px; box-shadow:0 10px 20px rgba(0,0,0,0.08); min-width:240px; z-index:1000; padding:6px 0;">
+                                <div style="padding:8px 12px; border-bottom:1px solid #f1f5f9; font-weight:600; color:#374151;">Client</div>
+                                <button class="dropdown-item" onclick="insertPlaceholder('[client_name]')">[client_name]</button>
+                                <button class="dropdown-item" onclick="insertPlaceholder('[client_email]')">[client_email]</button>
+                                <button class="dropdown-item" onclick="insertPlaceholder('[client_company]')">[client_company]</button>
+                                <div style="padding:8px 12px; border-bottom:1px solid #f1f5f9; font-weight:600; color:#374151; margin-top:6px;">Quote</div>
+                                <button class="dropdown-item" onclick="insertPlaceholder('[quote_total]')">[quote_total]</button>
+                                <button class="dropdown-item" onclick="insertPlaceholder('[standard_total]')">[standard_total]</button>
+                                <button class="dropdown-item" onclick="insertPlaceholder('[advanced_total]')">[advanced_total]</button>
+                                <div style="padding:8px 12px; border-bottom:1px solid #f1f5f9; font-weight:600; color:#374151; margin-top:6px;">Project</div>
+                                <button class="dropdown-item" onclick="insertPlaceholder('[service_type]')">[service_type]</button>
+                                <button class="dropdown-item" onclick="insertPlaceholder('[duration_months]')">[duration_months]</button>
+                                <button class="dropdown-item" onclick="insertPlaceholder('[data_size_gb]')">[data_size_gb]</button>
+                            </div>
+                        </div>
                         <button class="toolbar-btn" onclick="saveTemplate()" title="Save document (Ctrl+S)">💾 Save</button>
                         <button class="toolbar-btn" onclick="showPreviewModal()" title="Preview document (Ctrl+P)">👁️ Preview</button>
                         <button class="toolbar-btn" onclick="exportTemplate()" title="Export as HTML (Ctrl+E)">📄 Export</button>
+                        <button class="toolbar-btn" onclick="exportDocxFlow()" title="Export as DOCX using placeholders">🧾 DOCX</button>
                         <button class="toolbar-btn" onclick="viewAllSavedDocuments()" title="View all saved documents">📁</button>
                         <button class="toolbar-btn" onclick="exportAllDocuments()" title="Export all documents">📦</button>
                         <button class="toolbar-btn" onclick="showHelpModal()" title="Show help and shortcuts">❓ Help</button>
@@ -2026,25 +2064,85 @@
 
         // Enhanced block interaction setup
         function setupBlockInteractions(block) {
-            // Hover effects for toolbar
-            block.addEventListener('mouseenter', function() {
-                const toolbar = this.querySelector('.block-toolbar');
+            // Show toolbar only when selected (click), not on mere hover
+            const toolbar = block.querySelector('.block-toolbar');
                 if (toolbar) {
-                    toolbar.style.display = 'block';
-                }
-                this.style.transform = 'translateY(-2px)';
-                this.style.boxShadow = '0 8px 25px rgba(0, 0, 0, 0.15)';
-                this.style.transition = 'all 0.3s ease';
+                toolbar.style.display = 'none';
+                toolbar.addEventListener('click', function(e) { e.stopPropagation(); });
+            }
+
+            block.addEventListener('click', function(e) {
+                e.stopPropagation();
+                // Deselect others
+                document.querySelectorAll('.content-block.selected-block').forEach(function(other) {
+                    if (other !== block) {
+                        other.classList.remove('selected-block');
+                        const otherEditable = other.querySelector('.editable-block');
+                        if (otherEditable) otherEditable.classList.remove('selected');
+                        const otb = other.querySelector('.block-toolbar');
+                        if (otb) otb.style.display = 'none';
+                    }
+                });
+                // Select this
+                this.classList.add('selected-block');
+                const editable = this.querySelector('.editable-block');
+                if (editable) editable.classList.add('selected');
+                const tb = this.querySelector('.block-toolbar');
+                if (tb) tb.style.display = 'block';
             });
-            
-            block.addEventListener('mouseleave', function() {
-                const toolbar = this.querySelector('.block-toolbar');
-                if (toolbar) {
-                    toolbar.style.display = 'none';
-                }
-                this.style.transform = 'translateY(0)';
-                this.style.boxShadow = '0 4px 15px rgba(0, 0, 0, 0.1)';
-            });
+
+            if (!window.__tbOutsideHandlerAdded) {
+                document.addEventListener('click', function() {
+                    document.querySelectorAll('.content-block.selected-block').forEach(function(el) {
+                        el.classList.remove('selected-block');
+                        const inner = el.querySelector('.editable-block');
+                        if (inner) inner.classList.remove('selected');
+                        const tb = el.querySelector('.block-toolbar');
+                        if (tb) tb.style.display = 'none';
+                    });
+                });
+                window.__tbOutsideHandlerAdded = true;
+            }
+
+            // Keyboard delete for selected block
+            if (!window.__tbDeleteKeyHandlerAdded) {
+                document.addEventListener('keydown', function(e) {
+                    const activeEl = document.activeElement;
+                    const activeTag = (activeEl && activeEl.tagName) || '';
+                    // Detect if caret is inside a contenteditable region
+                    let inContentEditable = false;
+                    if (activeEl) {
+                        if (activeEl.isContentEditable) {
+                            inContentEditable = true;
+                        } else if (activeEl.closest) {
+                            inContentEditable = !!activeEl.closest('[contenteditable="true"]');
+                        }
+                    }
+                    if (!inContentEditable) {
+                        const sel = window.getSelection && window.getSelection();
+                        const node = sel && sel.anchorNode;
+                        if (node) {
+                            let el = node.nodeType === 1 ? node : node.parentElement;
+                            while (el && !inContentEditable) {
+                                if (el.isContentEditable) { inContentEditable = true; break; }
+                                el = el.parentElement;
+                            }
+                        }
+                    }
+
+                    const isDeleteKey = (e.key === 'Delete' || e.key === 'Backspace');
+                    const isFormInput = (activeTag === 'INPUT' || activeTag === 'TEXTAREA');
+
+                    if (isDeleteKey && !isFormInput && !inContentEditable) {
+                        const selected = document.querySelector('.content-block.selected-block');
+                        if (selected) {
+                            e.preventDefault();
+                            selected.remove();
+                        }
+                    }
+                });
+                window.__tbDeleteKeyHandlerAdded = true;
+            }
 
             // Make block draggable for reordering
             const editableBlock = block.querySelector('.editable-block');
@@ -2613,10 +2711,10 @@
 
         function getBlockContent(blockType) {
             const blockContents = {
-                text: '<div class="editable-block" style="padding: 40px; border: 1px solid #e5e7eb; border-radius: 8px; background: #f9fafb; position: relative; min-height: 200px;" data-block-type="text"><div class="block-toolbar" style="position: absolute; top: 10px; right: 10px; display: none; background: white; border: 1px solid #e5e7eb; border-radius: 4px; padding: 6px;"><button onclick="deleteBlock(this)" title="Delete">🗑️</button><button onclick="duplicateBlock(this)" title="Duplicate">📋</button><button onclick="lockBlock(this)" title="Lock">🔒</button></div><h3 contenteditable="true" style="outline: none; border: none; background: transparent; font-size: 28px; font-weight: 600; margin: 0 0 20px 0; color: #1f2937;">Text Block</h3><p contenteditable="true" style="outline: none; border: none; background: transparent; margin: 0; line-height: 1.8; font-size: 16px; color: #374151;">Click to edit this text block. You can type anything here and it will expand as you add more content...</p></div>',
+                text: '<div class="editable-block" style="padding: 16px; border-radius: 8px; background: #ffffff; position: relative; min-height: 40px;" data-block-type="text"><div class="block-toolbar" style="position: absolute; top: 10px; right: 10px; display: none; background: white; border: 1px solid #e5e7eb; border-radius: 4px; padding: 6px;"><button onclick="deleteBlock(this)" title="Delete">🗑️</button><button onclick="duplicateBlock(this)" title="Duplicate">📋</button><button onclick="lockBlock(this)" title="Lock">🔒</button></div><div contenteditable="true" style="outline: none; border: none; background: transparent; line-height: 1.8; font-size: 16px; color: #111827; min-height: 24px;" data-placeholder="Type your text here..."></div></div>',
                 image: '<div class="editable-block image-block" style="padding: 40px; border: 1px solid #e5e7eb; border-radius: 8px; background: #f9fafb; text-align: center; position: relative; min-height: 300px;" data-block-type="image"><div class="block-toolbar" style="position: absolute; top: 10px; right: 10px; display: none; background: white; border: 1px solid #e5e7eb; border-radius: 4px; padding: 6px;"><button onclick="deleteBlock(this)" title="Delete">🗑️</button><button onclick="duplicateBlock(this)" title="Duplicate">📋</button><button onclick="lockBlock(this)" title="Lock">🔒</button></div><h3 contenteditable="true" style="outline: none; border: none; background: transparent; font-size: 28px; font-weight: 600; margin: 0 0 25px 0; color: #1f2937;">Image Block</h3><div class="image-upload-area" style="border: 2px dashed #10b981; border-radius: 8px; padding: 40px 20px; background: white; cursor: pointer; transition: all 0.3s ease; min-height: 180px; display: flex; flex-direction: column; align-items: center; justify-content: center;" onclick="uploadImage(this)" ondrop="handleImageDrop(event)" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)"><div style="display: flex; align-items: center; gap: 12px; color: #10b981; font-size: 16px; font-weight: 500;"><span style="font-size: 24px;">🏔️</span><span>Click to upload or drag & drop image</span></div><input type="file" accept="image/*" style="display: none;" onchange="handleImageUpload(this)"></div></div>',
                 video: '<div style="padding: 20px; border: 1px solid #e5e7eb; border-radius: 8px; background: #f9fafb; text-align: center; cursor: pointer;" onclick="uploadVideo(this)"><h3 contenteditable="true" style="outline: none; border: none; background: transparent;">Video Block</h3><p contenteditable="true" style="outline: none; border: none; background: transparent; margin-top: 10px;">🎥 Click to add a video</p><input type="file" accept="video/*" style="display: none;" onchange="handleVideoUpload(this)"></div>',
-                table: '<div class="editable-block" style="padding: 40px; border: 1px solid #e5e7eb; border-radius: 8px; background: #f9fafb; position: relative; min-height: 250px;" data-block-type="table"><div class="block-toolbar" style="position: absolute; top: 10px; right: 10px; display: none; background: white; border: 1px solid #e5e7eb; border-radius: 4px; padding: 6px;"><button onclick="deleteBlock(this)" title="Delete">🗑️</button><button onclick="duplicateBlock(this)" title="Duplicate">📋</button><button onclick="lockBlock(this)" title="Lock">🔒</button></div><h3 contenteditable="true" style="outline: none; border: none; background: transparent; font-size: 28px; font-weight: 600; margin: 0 0 25px 0; color: #1f2937;">Table Block</h3><table style="width: 100%; border-collapse: collapse; font-size: 16px;"><tr><th contenteditable="true" style="border: 1px solid #e5e7eb; padding: 15px; outline: none; background: #f3f4f6; font-weight: 600;">Header 1</th><th contenteditable="true" style="border: 1px solid #e5e7eb; padding: 15px; outline: none; background: #f3f4f6; font-weight: 600;">Header 2</th><th contenteditable="true" style="border: 1px solid #e5e7eb; padding: 15px; outline: none; background: #f3f4f6; font-weight: 600;">Header 3</th></tr><tr><td contenteditable="true" style="border: 1px solid #e5e7eb; padding: 15px; outline: none; min-height: 40px;">Cell 1</td><td contenteditable="true" style="border: 1px solid #e5e7eb; padding: 15px; outline: none; min-height: 40px;">Cell 2</td><td contenteditable="true" style="border: 1px solid #e5e7eb; padding: 15px; outline: none; min-height: 40px;">Cell 3</td></tr><tr><td contenteditable="true" style="border: 1px solid #e5e7eb; padding: 15px; outline: none; min-height: 40px;">Cell 4</td><td contenteditable="true" style="border: 1px solid #e5e7eb; padding: 15px; outline: none; min-height: 40px;">Cell 5</td><td contenteditable="true" style="border: 1px solid #e5e7eb; padding: 15px; outline: none; min-height: 40px;">Cell 6</td></tr></table></div>',
+                table: '<div class="editable-block" style="padding: 40px; border: 1px solid #e5e7eb; border-radius: 8px; background: #f9fafb; position: relative; min-height: 250px;" data-block-type="table"><div class="block-toolbar" style="position: absolute; top: 10px; right: 10px; display: none; background: white; border: 1px solid #e5e7eb; border-radius: 4px; padding: 6px;"><button onclick="deleteBlock(this)" title="Delete">🗑️</button><button onclick="duplicateBlock(this)" title="Duplicate">📋</button><button onclick="lockBlock(this)" title="Lock">🔒</button></div><h3 contenteditable="true" style="outline: none; border: none; background: transparent; font-size: 28px; font-weight: 600; margin: 0 0 25px 0; color: #1f2937;">Table Block</h3><table style="width: 100%; border-collapse: collapse; font-size: 16px;"><thead><tr><th contenteditable="true" style="border: 1px solid #e5e7eb; padding: 15px; outline: none; background: #f3f4f6; font-weight: 600;">Header 1</th><th contenteditable="true" style="border: 1px solid #e5e7eb; padding: 15px; outline: none; background: #f3f4f6; font-weight: 600;">Header 2</th><th contenteditable="true" style="border: 1px solid #e5e7eb; padding: 15px; outline: none; background: #f3f4f6; font-weight: 600;">Header 3</th></tr></thead><tbody><tr><td contenteditable="true" style="border: 1px solid #e5e7eb; padding: 15px; outline: none; min-height: 40px;">Cell 1</td><td contenteditable="true" style="border: 1px solid #e5e7eb; padding: 15px; outline: none; min-height: 40px;">Cell 2</td><td contenteditable="true" style="border: 1px solid #e5e7eb; padding: 15px; outline: none; min-height: 40px;">Cell 3</td></tr><tr><td contenteditable="true" style="border: 1px solid #e5e7eb; padding: 15px; outline: none; min-height: 40px;">Cell 4</td><td contenteditable="true" style="border: 1px solid #e5e7eb; padding: 15px; outline: none; min-height: 40px;">Cell 5</td><td contenteditable="true" style="border: 1px solid #e5e7eb; padding: 15px; outline: none; min-height: 40px;">Cell 6</td></tr></tbody></table><div style="margin-top: 12px; text-align: right;"><button class=\"table-controls\" onclick=\"addTableRow(this)\" style=\"background: #10b981; color: white; border: none; padding: 8px 12px; border-radius: 6px; cursor: pointer; margin-right: 6px; font-size: 14px;\">+ Row</button><button class=\"table-controls\" onclick=\"addTableColumn(this)\" style=\"background: #3b82f6; color: white; border: none; padding: 8px 12px; border-radius: 6px; cursor: pointer; margin-right: 6px; font-size: 14px;\">+ Col</button><button class=\"table-controls\" onclick=\"deleteTableRow(this)\" style=\"background: #f59e0b; color: white; border: none; padding: 8px 12px; border-radius: 6px; cursor: pointer; margin-right: 6px; font-size: 14px;\">- Row</button><button class=\"table-controls\" onclick=\"deleteTableColumn(this)\" style=\"background: #ef4444; color: white; border: none; padding: 8px 12px; border-radius: 6px; cursor: pointer; font-size: 14px;\">- Col</button></div></div>',
                 pricing: '<div class="editable-block pricing-table" style="padding: 40px; border: 1px solid #e5e7eb; border-radius: 8px; background: #f9fafb; position: relative; min-height: 400px;" data-block-type="pricing"><div class="block-toolbar" style="position: absolute; top: 10px; right: 10px; display: none; background: white; border: 1px solid #e5e7eb; border-radius: 4px; padding: 6px;"><button onclick="deleteBlock(this)" title="Delete">🗑️</button><button onclick="duplicateBlock(this)" title="Duplicate">📋</button><button onclick="lockBlock(this)" title="Lock">🔒</button></div><h3 contenteditable="true" style="outline: none; border: none; background: transparent; font-size: 28px; font-weight: 600; margin: 0 0 25px 0; color: #1f2937;">Pricing Table</h3><table style="width: 100%; border-collapse: collapse; margin-bottom: 25px; font-size: 16px;"><thead><tr style="background: #f3f4f6;"><th style="border: 1px solid #e5e7eb; padding: 15px; text-align: left; font-weight: 600;">Job Requirement</th><th style="border: 1px solid #e5e7eb; padding: 15px; text-align: left; font-weight: 600;">Description</th><th style="border: 1px solid #e5e7eb; padding: 15px; text-align: left; font-weight: 600;">Migration Type</th><th style="border: 1px solid #e5e7eb; padding: 15px; text-align: left; font-weight: 600;">Price (USD)</th></tr></thead><tbody><tr><td style="border: 1px solid #e5e7eb; padding: 15px;"><input type="text" value="CloudFuze X-Change Data Migration" style="width: 100%; border: none; outline: none; background: transparent; font-size: 16px; padding: 8px;" onchange="calculateRow(this)"></td><td style="border: 1px solid #e5e7eb; padding: 15px;"><input type="text" value="Slack to Teams" style="width: 100%; border: none; outline: none; background: transparent; font-size: 16px; padding: 8px;" onchange="calculateRow(this)"></td><td style="border: 1px solid #e5e7eb; padding: 15px;"><input type="text" value="Managed Migration One-Time" style="width: 100%; border: none; outline: none; background: transparent; font-size: 16px; padding: 8px;" onchange="calculateRow(this)"></td><td style="border: 1px solid #e5e7eb; padding: 15px;"><input type="number" value="1500" style="width: 100%; border: none; outline: none; background: transparent; text-align: right; font-size: 16px; padding: 8px;" onchange="calculateRow(this)"></td></tr><tr><td style="border: 1px solid #e5e7eb; padding: 15px;"><input type="text" value="Managed Migration Service" style="width: 100%; border: none; outline: none; background: transparent; font-size: 16px; padding: 8px;" onchange="calculateRow(this)"></td><td style="border: 1px solid #e5e7eb; padding: 15px;"><textarea style="width: 100%; border: none; outline: none; background: transparent; font-size: 16px; padding: 8px; resize: vertical; min-height: 60px;" onchange="calculateRow(this)">Up to 45 Users | All Channels and DMs\nFully Managed Migration | Dedicated Project Manager\nPre-Migration Analysis | During Migration Consulting\nPost-Migration Support and Data Reconciliation Support\nEnd-to End Migration Assistance with 24*7 Premium Support\nValid for One Month</textarea></td><td style="border: 1px solid #e5e7eb; padding: 15px;"><input type="text" value="Managed Migration One-Time" style="width: 100%; border: none; outline: none; background: transparent; font-size: 16px; padding: 8px;" onchange="calculateRow(this)"></td><td style="border: 1px solid #e5e7eb; padding: 15px;"><input type="number" value="500" style="width: 100%; border: none; outline: none; background: transparent; text-align: right; font-size: 16px; padding: 8px;" onchange="calculateRow(this)"></td></tr></tbody></table><div style="margin-top: 20px; text-align: right;"><div style="font-size: 20px; font-weight: bold; border-top: 2px solid #e5e7eb; padding-top: 10px; color: #1f2937;">Total Price: <span class="total">$2,000.00</span></div></div><div style="margin-top: 20px;"><button onclick="addPricingRow(this)" style="background: #10b981; color: white; border: none; padding: 12px 24px; border-radius: 6px; cursor: pointer; font-size: 16px; font-weight: 600;">+ Add Service</button></div></div>',
                 quote: '<div style="padding: 20px; border: 1px solid #e5e7eb; border-radius: 8px; background: #f9fafb;"><h3 contenteditable="true" style="outline: none; border: none; background: transparent;">Quote Builder</h3><p contenteditable="true" style="outline: none; border: none; background: transparent; margin-top: 10px;">🛒 Build your quote</p></div>',
                 toc: '<div style="padding: 20px; border: 1px solid #e5e7eb; border-radius: 8px; background: #f9fafb;"><h3 contenteditable="true" style="outline: none; border: none; background: transparent;">Table of Contents</h3><p contenteditable="true" style="outline: none; border: none; background: transparent; margin-top: 10px;">📋 Auto-generated TOC</p></div>',
@@ -2646,6 +2744,25 @@
             // Focus on the first editable element
             const editableElement = element.querySelector('[contenteditable="true"]');
             if (editableElement) {
+                // Apply placeholder behavior
+                if (editableElement.dataset && editableElement.dataset.placeholder) {
+                    if (editableElement.textContent.trim() === '') {
+                        editableElement.textContent = editableElement.dataset.placeholder;
+                        editableElement.style.color = '#9ca3af';
+                    }
+                    editableElement.addEventListener('focus', function() {
+                        if (this.style.color === 'rgb(156, 163, 175)') {
+                            this.textContent = '';
+                            this.style.color = '#111827';
+                        }
+                    });
+                    editableElement.addEventListener('blur', function() {
+                        if (this.textContent.trim() === '') {
+                            this.textContent = this.dataset.placeholder;
+                            this.style.color = '#9ca3af';
+                        }
+                    });
+                }
                 editableElement.focus();
             }
         }
@@ -2735,6 +2852,62 @@
             
             subtotalCell.textContent = `₹ ${subtotal.toFixed(2)}`;
             calculateTotal();
+        }
+
+        // Table helpers
+        function addTableRow(button) {
+            const table = button.closest('.editable-block').querySelector('table tbody');
+            if (!table) return;
+            const firstRow = table.querySelector('tr');
+            const cols = firstRow ? firstRow.children.length : 1;
+            const tr = document.createElement('tr');
+            for (let i = 0; i < cols; i++) {
+                const td = document.createElement('td');
+                td.contentEditable = 'true';
+                td.style.cssText = 'border:1px solid #e5e7eb; padding:15px; outline:none; min-height:40px;';
+                td.textContent = 'New cell';
+                tr.appendChild(td);
+            }
+            table.appendChild(tr);
+        }
+
+        function addTableColumn(button) {
+            const block = button.closest('.editable-block');
+            const thead = block.querySelector('table thead tr');
+            const tbodyRows = block.querySelectorAll('table tbody tr');
+            if (thead) {
+                const th = document.createElement('th');
+                th.contentEditable = 'true';
+                th.style.cssText = 'border:1px solid #e5e7eb; padding:15px; outline:none; background:#f3f4f6; font-weight:600;';
+                th.textContent = 'New Header';
+                thead.appendChild(th);
+            }
+            tbodyRows.forEach(row => {
+                const td = document.createElement('td');
+                td.contentEditable = 'true';
+                td.style.cssText = 'border:1px solid #e5e7eb; padding:15px; outline:none; min-height:40px;';
+                td.textContent = 'New cell';
+                row.appendChild(td);
+            });
+        }
+
+        function deleteTableRow(button) {
+            const tbody = button.closest('.editable-block').querySelector('table tbody');
+            if (!tbody) return;
+            if (tbody.rows.length > 1) {
+                tbody.deleteRow(tbody.rows.length - 1);
+            }
+        }
+
+        function deleteTableColumn(button) {
+            const block = button.closest('.editable-block');
+            const table = block.querySelector('table');
+            const headerRow = table.querySelector('thead tr');
+            const colCount = headerRow ? headerRow.children.length : 0;
+            if (colCount <= 1) return;
+            headerRow.deleteCell(colCount - 1);
+            const rows = table.querySelectorAll('tbody tr');
+            rows.forEach(r => r.deleteCell(r.children.length - 1));
         }
 
         function addPricingRow(button) {
@@ -2874,6 +3047,28 @@
             }
         }
 
+        // Paste image from clipboard into an image upload area
+        function handleImagePaste(e, uploadArea) {
+            try {
+                const items = (e.clipboardData || window.clipboardData).items || [];
+                for (let i = 0; i < items.length; i++) {
+                    const item = items[i];
+                    if (item && item.type && item.type.indexOf('image') === 0) {
+                        e.preventDefault();
+                        const file = item.getAsFile();
+                        if (file) {
+                            handleImageFile(file, uploadArea);
+                            return true;
+                        }
+                    }
+                }
+                return false;
+            } catch (err) {
+                console.error('Paste image failed:', err);
+                return false;
+            }
+        }
+
         function handleImageFile(file, uploadArea) {
             const reader = new FileReader();
             reader.onload = function(e) {
@@ -2889,12 +3084,12 @@
                 uploadArea.innerHTML = '';
                 uploadArea.appendChild(imageElement);
                 
-                // Add image controls (only for image blocks, not pricing tables)
+                // Add image controls (hover overlay)
                 if (uploadArea.closest('.image-block')) {
                     const controls = document.createElement('div');
-                    controls.style.marginTop = '10px';
+                    controls.className = 'image-controls';
                     controls.innerHTML = `
-                        <button onclick="replaceImage(this)" style="background: #3b82f6; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; margin-right: 8px;">Replace</button>
+                        <button onclick="replaceImage(this)" style="background: #3b82f6; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer;">Replace</button>
                         <button onclick="removeImage(this)" style="background: #ef4444; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer;">Remove</button>
                     `;
                     uploadArea.appendChild(controls);
@@ -2935,7 +3130,52 @@
                     }
                 }
             });
+
+            // Global paste listener: paste screenshots anywhere (auto-inserts Image block if needed)
+            document.addEventListener('paste', function(e) {
+                const items = (e.clipboardData || window.clipboardData || {}).items || [];
+                let imageFile = null;
+                for (let i = 0; i < items.length; i++) {
+                    const it = items[i];
+                    if (it && it.type && it.type.indexOf('image') === 0) {
+                        imageFile = it.getAsFile();
+                        break;
+                    }
+                }
+                if (!imageFile) return; // not an image paste
+                e.preventDefault();
+
+                // If pasting inside an existing upload area, use it
+                const insideArea = e.target && e.target.closest && e.target.closest('.image-upload-area');
+                if (insideArea) {
+                    handleImageFile(imageFile, insideArea);
+                    return;
+                }
+
+                // Otherwise, create a new Image block and insert the image there
+                const canvasContent = document.querySelector('#editorCanvas .canvas-content');
+                if (!canvasContent) return;
+                addBlock('image');
+                setTimeout(function() {
+                    const lastBlock = canvasContent.lastElementChild;
+                    if (!lastBlock) return;
+                    const area = lastBlock.querySelector('.image-upload-area');
+                    if (area) handleImageFile(imageFile, area);
+                }, 0);
+            });
         });
+
+        // Generate unique ID for templates using template name
+        function generateTemplateId(templateName) {
+            // Clean the template name for use in ID
+            const cleanName = templateName
+                .toLowerCase()
+                .replace(/[^a-z0-9\s]/g, '') // Remove special characters
+                .replace(/\s+/g, '_')        // Replace spaces with underscores
+                .substring(0, 20);           // Limit to 20 characters
+            
+            return cleanName + '_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6);
+        }
 
         // Save and Export Functions
         function saveTemplate() {
@@ -2957,9 +3197,10 @@
                 blocks.push(blockData);
             });
             
-            // Create template data
+            // Create template data with proper unique ID using template name
+            const templateId = generateTemplateId(documentTitle);
             const templateData = {
-                id: Date.now().toString(),
+                id: templateId,
                 title: documentTitle,
                 created: new Date().toISOString(),
                 updated: new Date().toISOString(),
@@ -2971,6 +3212,8 @@
                     hasPricing: blocks.some(b => b.type === 'pricing')
                 }
             };
+            
+            console.log('Saving template with ID:', templateId);
             
             // CHOOSE YOUR STORAGE METHOD:
             
@@ -3020,6 +3263,7 @@
                     updateStatus('Saved to MongoDB!', 'success');
                     console.log('Template saved to MongoDB:', result);
                     alert(`Template "${templateData.title}" saved to MongoDB!`);
+                    try { displaySavedTemplates(); } catch (e) { /* ignore */ }
                 } else {
                     const errorData = await response.json();
                     throw new Error(errorData.message || 'Failed to save to MongoDB');
@@ -3032,6 +3276,7 @@
                 // Fallback to localStorage if MongoDB fails
                 console.log('Falling back to localStorage...');
                 saveToLocalStorage(templateData);
+                try { displaySavedTemplates(); } catch (e) { /* ignore */ }
             }
         }
 
@@ -3184,16 +3429,23 @@
             }
         }
 
-        // Auto-save functionality
+        // Auto-save functionality (disabled by default; enable via toggle)
+        let autoSaveEnabled = false;
         let autoSaveTimeout;
         function scheduleAutoSave() {
+            if (!autoSaveEnabled) return;
             clearTimeout(autoSaveTimeout);
             autoSaveTimeout = setTimeout(() => {
                 saveTemplate();
-            }, 30000); // Auto-save every 30 seconds
+            }, 30000); // Auto-save every 30 seconds when enabled
         }
 
-        // Listen for changes to schedule auto-save
+        // Optional: expose a toggle in window for future UI control
+        window.setTemplateAutoSave = function(enabled) {
+            autoSaveEnabled = !!enabled;
+        };
+
+        // Listen for changes (will only act if enabled)
         document.addEventListener('input', scheduleAutoSave);
         document.addEventListener('change', scheduleAutoSave);
 
@@ -3379,15 +3631,37 @@
             }
         }
 
-        function deleteSavedTemplate(templateId) {
+        async function deleteSavedTemplate(templateId) {
             if (confirm('Are you sure you want to delete this template?')) {
-                const savedTemplates = loadSavedTemplates();
-                const filteredTemplates = savedTemplates.filter(t => t.id !== templateId);
-                localStorage.setItem('savedTemplates', JSON.stringify(filteredTemplates));
+                try {
+                    // Try to delete from MongoDB first
+                    const response = await fetch(`/api/template-builder/delete/${templateId}`, {
+                        method: 'DELETE'
+                    });
+                    
+                    if (response.ok) {
+                        console.log('Template deleted from MongoDB:', templateId);
+                    } else {
+                        console.warn('MongoDB delete failed, continuing with local cleanup');
+                    }
+                } catch (error) {
+                    console.error('Error deleting from MongoDB:', error);
+                }
                 
-                // Refresh template list if on template page
-                if (document.getElementById('template-page').style.display !== 'none') {
-                    displaySavedTemplates();
+                // Also remove from localStorage as fallback
+                try {
+                    const savedTemplates = await loadSavedTemplates();
+                    const filteredTemplates = savedTemplates.filter(t => t.id !== templateId);
+                    localStorage.setItem('savedTemplates', JSON.stringify(filteredTemplates));
+                } catch (error) {
+                    console.error('Error updating localStorage:', error);
+                }
+                
+                // Refresh template list
+                try {
+                    await displaySavedTemplates();
+                } catch (error) {
+                    console.error('Error refreshing template list:', error);
                 }
                 
                 alert('Template deleted successfully!');
@@ -3412,6 +3686,9 @@
                             <div class="template-meta">
                                 ${template.metadata.totalBlocks} blocks • 
                                 ${new Date(template.updated).toLocaleDateString()}
+                            </div>
+                            <div class="template-id" style="font-size: 10px; color: #6b7280; margin-top: 4px;">
+                                ID: ${template.id}
                             </div>
                         </div>
                     `).join('');
@@ -3593,7 +3870,19 @@ Valid for One Month</textarea></td>
             loadDocumentCounts();
             
             console.log('Template Builder initialized successfully!');
+            // Default to paper page view like Word/PandaDoc
+            try {
+                const canvas = document.getElementById('editorCanvas');
+                if (canvas) canvas.classList.add('paper-page');
+            } catch (e) { /* no-op */ }
         }
+
+        // Lightweight styles for dropdown items
+        (function addDropdownStyles(){
+            const style = document.createElement('style');
+            style.textContent = `.dropdown-item{display:block;width:100%;text-align:left;padding:10px 12px;border:0;background:#fff;cursor:pointer;color:#374151} .dropdown-item:hover{background:#f9fafb}`;
+            document.head.appendChild(style);
+        })();
 
                 // Setup event listeners
         function setupEventListeners() {
@@ -3652,6 +3941,19 @@ Valid for One Month</textarea></td>
 
             // Drag and drop for content blocks
             setupDragAndDrop();
+
+            // Toggle Insert Field dropdown
+            const insertBtn = document.getElementById('insertFieldBtn');
+            const dropdown = document.getElementById('fieldDropdown');
+            if (insertBtn && dropdown) {
+                insertBtn.addEventListener('click', function(e) {
+                    dropdown.style.display = (dropdown.style.display === 'none' || dropdown.style.display === '') ? 'block' : 'none';
+                    e.stopPropagation();
+                });
+                document.addEventListener('click', function() {
+                    dropdown.style.display = 'none';
+                });
+            }
         }
 
         // Setup drag and drop for content blocks
@@ -3702,6 +4004,59 @@ Valid for One Month</textarea></td>
                     }
                 });
             }
+        }
+
+        // Insert placeholder at caret
+        function insertPlaceholder(token) {
+            try {
+                const sel = window.getSelection();
+                if (sel && sel.rangeCount > 0) {
+                    const range = sel.getRangeAt(0);
+                    range.deleteContents();
+                    const span = document.createElement('span');
+                    span.textContent = token;
+                    span.style.background = '#fff7ed';
+                    span.style.border = '1px dashed #fdba74';
+                    span.style.padding = '0 2px';
+                    span.style.borderRadius = '3px';
+                    range.insertNode(span);
+                    range.setStartAfter(span);
+                    range.setEndAfter(span);
+                    sel.removeAllRanges();
+                    sel.addRange(range);
+                } else {
+                    const editable = document.querySelector('[contenteditable="true"]') || document.getElementById('editorCanvas');
+                    if (editable) {
+                        const span = document.createElement('span');
+                        span.textContent = token;
+                        editable.appendChild(span);
+                    }
+                }
+            } catch (err) {
+                console.error('Insert placeholder failed:', err);
+            }
+        }
+
+        // Export DOCX using existing backend endpoints
+        async function exportDocxFlow() {
+            try {
+                const currentId = window.currentTemplateId;
+                const quoteId = prompt('Enter Quote ID to merge data (optional). Leave empty to export with placeholders.');
+                if (currentId) {
+                    const resp = await fetch(`/api/templates/${currentId}/export-docx`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ quote_id: quoteId || undefined }) });
+                    if (!resp.ok) { const j = await resp.json().catch(() => ({ message: 'Export failed' })); alert(j.message || 'Export failed'); return; }
+                    const blob = await resp.blob();
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url; a.download = (document.querySelector('.document-title')?.textContent || 'Template') + '.docx';
+                    document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url); return;
+                }
+                const html = document.getElementById('editorCanvas')?.innerHTML || '';
+                const resp = await fetch('/api/templates/export-docx', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ template_content: html, template_name: document.querySelector('.document-title')?.textContent || 'Template', quote_id: quoteId || undefined }) });
+                if (!resp.ok) { const j = await resp.json().catch(() => ({ message: 'Export failed' })); alert(j.message || 'Export failed'); return; }
+                const blob = await resp.blob(); const url = URL.createObjectURL(blob);
+                const a = document.createElement('a'); a.href = url; a.download = (document.querySelector('.document-title')?.textContent || 'Template') + '.docx'; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+            } catch (e) { console.error(e); alert('Export failed. Check console for details.'); }
         }
 
         // Initialize

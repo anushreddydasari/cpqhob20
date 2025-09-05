@@ -177,7 +177,7 @@ if __name__ == "__main__":
         print("\n✅ MongoDB integration is ready to use!")
         print("\n📝 Next steps:")
         print("1. Start your Flask app: python app.py")
-        print("2. Open template builder: http://localhost:5000/cpq/template-builder.html")
+        print("2. Open template builder: http://localhost:5000/template-builder")
         print("3. Create and save templates - they will be stored in MongoDB!")
     else:
         print("\n❌ MongoDB integration has issues. Check the errors above.")

@@ -41,7 +41,15 @@ The `cpq/` folder now contains only the core CPQ functionality:
 - `quote-calculator.html` - Quote calculation interface
 - `quote-management.html` - Quote management interface
 - `quote-template.html` - Quote template interface
-- `template-builder.html` - Template builder interface
+- (moved) `template-builder.html` → now in `template_builder/`
+
+### 📁 New: Template Builder
+
+```
+template_builder/
+├── template-builder.html        # Template Builder UI
+└── __init__.py                  # Blueprint with Template Builder APIs
+```
 - `client-management.html` - Client management interface
 - `purchase_agreement_*.html` - Purchase agreement templates
 - `db.py` - Database utilities

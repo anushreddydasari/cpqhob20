@@ -318,6 +318,72 @@
             background: #4caf50;
         }
 
+        /* Templates table styles */
+        .templates-table-container {
+            overflow-x: auto;
+            margin-top: 15px;
+        }
+
+        .templates-table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .templates-table th {
+            background: #667eea;
+            color: white;
+            padding: 12px;
+            text-align: left;
+            font-weight: 600;
+        }
+
+        .templates-table td {
+            padding: 12px;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .templates-table tr:hover {
+            background: #f5f5f5;
+        }
+
+        .template-action-btn {
+            background: #2196f3;
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-right: 5px;
+            font-size: 12px;
+            transition: all 0.3s ease;
+        }
+
+        .template-action-btn:hover {
+            background: #1976d2;
+            transform: translateY(-1px);
+        }
+
+        .template-action-btn.preview {
+            background: #ff9800;
+            margin-right: 8px;
+        }
+
+        .template-action-btn.preview:hover {
+            background: #f57c00;
+        }
+
+        .template-action-btn.use {
+            background: #4caf50;
+        }
+
+        .template-action-btn.use:hover {
+            background: #45a049;
+        }
+
         /* Status badges */
         .status-badge {
             padding: 4px 8px;
@@ -349,6 +415,210 @@
             background: #d1ecf1;
             color: #0c5460;
             border: 1px solid #bee5eb;
+        }
+
+        /* Modal Styles */
+        .modal {
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal-content {
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+            max-width: 90%;
+            max-height: 90%;
+            width: 800px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .modal-header {
+            padding: 20px;
+            border-bottom: 1px solid #e0e0e0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-header h2 {
+            margin: 0;
+            color: #333;
+        }
+
+        .close {
+            color: #aaa;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+            line-height: 1;
+        }
+
+        .close:hover {
+            color: #000;
+        }
+
+        .modal-body {
+            padding: 20px;
+            overflow-y: auto;
+            flex: 1;
+        }
+
+        .modal-footer {
+            padding: 20px;
+            border-top: 1px solid #e0e0e0;
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background: #5a6268;
+        }
+
+        .btn-primary {
+            background: #007bff;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #0056b3;
+        }
+
+        .btn-success {
+            background: #28a745;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #1e7e34;
+        }
+
+        /* Template Preview Styles */
+        .template-preview {
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 20px;
+            background: #f9f9f9;
+            min-height: 400px;
+        }
+
+        .template-preview h1, .template-preview h2, .template-preview h3 {
+            color: #333;
+            margin-top: 0;
+        }
+
+        .template-preview p {
+            line-height: 1.6;
+            color: #555;
+        }
+
+        .template-preview img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 4px;
+        }
+
+        .template-preview table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 10px 0;
+        }
+
+        .template-preview table th,
+        .template-preview table td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+
+        .template-preview table th {
+            background-color: #f2f2f2;
+        }
+
+        /* Agreement Preview Styles */
+        .agreement-section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            background: #fafafa;
+        }
+
+        .agreement-section h3 {
+            margin-top: 0;
+            color: #333;
+            border-bottom: 2px solid #007bff;
+            padding-bottom: 5px;
+        }
+
+        .agreement-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 10px 0;
+        }
+
+        .agreement-table td {
+            padding: 8px 12px;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .agreement-table td:first-child {
+            font-weight: 600;
+            color: #555;
+            width: 30%;
+        }
+
+        .pricing-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 10px 0;
+        }
+
+        .pricing-table th,
+        .pricing-table td {
+            padding: 10px;
+            text-align: left;
+            border: 1px solid #ddd;
+        }
+
+        .pricing-table th {
+            background-color: #007bff;
+            color: white;
+            font-weight: 600;
+        }
+
+        .pricing-table tfoot {
+            background-color: #f8f9fa;
+            font-weight: bold;
+        }
+
+        .pricing-table tfoot td {
+            border-top: 2px solid #007bff;
         }
 
         /* Document Loader Styles */
@@ -537,6 +807,32 @@
                             <select id="quoteSelector" class="form-select" onchange="onQuoteSelected()">
                                 <option value="">Choose a quote from the list above</option>
                             </select>
+                        </div>
+                    </div>
+
+                    <!-- Load Available Templates Section -->
+                    <div class="form-group" style="margin-bottom: 20px;">
+                        <button class="btn btn-success" onclick="loadAvailableTemplates()">📋 Load Available Templates</button>
+                        <span id="templatesLoadingStatus" style="margin-left: 10px;"></span>
+                    </div>
+                    
+                    <!-- Available Templates Display -->
+                    <div id="availableTemplatesSection" style="display: none; margin-bottom: 20px;">
+                        <h4>📊 Available Templates</h4>
+                        <div class="templates-table-container">
+                            <table class="templates-table" id="availableTemplatesTable">
+                                <thead>
+                                    <tr>
+                                        <th>Template ID</th>
+                                        <th>Template Name</th>
+                                        <th>Blocks</th>
+                                        <th>Created</th>
+                                        <th>Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="templatesTableBody">
+                                </tbody>
+                            </table>
                         </div>
                     </div>
 
@@ -964,6 +1260,79 @@
             });
         }
 
+        // Load available templates function
+        async function loadAvailableTemplates() {
+            const statusElement = document.getElementById('templatesLoadingStatus');
+            statusElement.textContent = '🔄 Loading templates...';
+            statusElement.style.color = '#2196f3';
+
+            try {
+                const response = await fetch('/api/template-builder/documents');
+                const result = await response.json();
+
+                if (result.success) {
+                    displayAvailableTemplates(result.documents);
+                    statusElement.textContent = `✅ Loaded ${result.documents.length} templates`;
+                    statusElement.style.color = '#4caf50';
+                } else {
+                    statusElement.textContent = `❌ Failed to load templates: ${result.message}`;
+                    statusElement.style.color = '#f44336';
+                }
+            } catch (error) {
+                statusElement.textContent = `❌ Error: ${error.message}`;
+                statusElement.style.color = '#f44336';
+            }
+        }
+
+        // Display available templates in table
+        function displayAvailableTemplates(templates) {
+            const tableBody = document.getElementById('templatesTableBody');
+            const section = document.getElementById('availableTemplatesSection');
+            
+            if (templates.length === 0) {
+                tableBody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 20px;">No templates available</td></tr>';
+            } else {
+                tableBody.innerHTML = templates.map(template => `
+                    <tr>
+                        <td><strong>${template.id || 'N/A'}</strong></td>
+                        <td>${template.title || 'Untitled Template'}</td>
+                        <td>${template.metadata?.totalBlocks || 0} blocks</td>
+                        <td>${new Date(template.created).toLocaleDateString()}</td>
+                        <td>
+                            <button class="template-action-btn preview" onclick="previewTemplate('${template.id}')" title="Preview template">👁️ Preview</button>
+                            <button class="template-action-btn use" onclick="useTemplateForAgreement('${template.id}')" title="Use this template">📋 Use Template</button>
+                        </td>
+                    </tr>
+                `).join('');
+            }
+            
+            section.style.display = 'block';
+        }
+
+        // Use template for agreement generation
+        async function useTemplateForAgreement(templateId) {
+            try {
+                // Store the selected template ID for use in agreement generation
+                window.selectedTemplateId = templateId;
+                
+                // Show success message
+                showStatus('agreementStatus', `✅ Template selected: ${templateId}. You can now generate agreement with this template.`, 'success');
+                
+                // Optionally, you can also load the template details to show what will be used
+                const response = await fetch(`/api/template-builder/load/${templateId}`);
+                const result = await response.json();
+                
+                if (result.success) {
+                    console.log('Template loaded for agreement:', result.document);
+                    // You can store the template data for use in agreement generation
+                    window.selectedTemplateData = result.document;
+                }
+                
+            } catch (error) {
+                showStatus('agreementStatus', `❌ Error loading template: ${error.message}`, 'error');
+            }
+        }
+
         // Handle quote selection
         function onQuoteSelected() {
             const selectedQuoteId = document.getElementById('quoteSelector').value;
@@ -973,6 +1342,274 @@
                 // Switch to quote ID lookup type
                 document.getElementById('lookupType').value = 'quoteId';
                 toggleLookupFields();
+            }
+        }
+
+        // Template Preview Functions
+        let previewedTemplateId = null;
+
+        async function previewTemplate(templateId) {
+            try {
+                const response = await fetch(`/api/template-builder/load/${templateId}`);
+                const result = await response.json();
+                
+                if (result.success) {
+                    previewedTemplateId = templateId;
+                    displayTemplatePreview(result.document);
+                    document.getElementById('templatePreviewModal').style.display = 'flex';
+                } else {
+                    showStatus('agreementStatus', `❌ Error loading template: ${result.message}`, 'error');
+                }
+            } catch (error) {
+                showStatus('agreementStatus', `❌ Error loading template: ${error.message}`, 'error');
+            }
+        }
+
+        function displayTemplatePreview(template) {
+            const previewContent = document.getElementById('templatePreviewContent');
+            
+            let html = `
+                <div class="template-preview">
+                    <h2>${template.title || 'Untitled Template'}</h2>
+                    <p><strong>Template ID:</strong> ${template.id}</p>
+                    <p><strong>Created:</strong> ${new Date(template.created).toLocaleString()}</p>
+                    <p><strong>Blocks:</strong> ${template.metadata?.totalBlocks || 0}</p>
+                    <hr>
+                    <div class="template-content">
+            `;
+            
+            if (template.blocks && template.blocks.length > 0) {
+                template.blocks.forEach((block, index) => {
+                    html += `<div class="block-preview">${block.content}</div>`;
+                });
+            } else {
+                html += '<p>No content blocks found in this template.</p>';
+            }
+            
+            html += `
+                    </div>
+                </div>
+            `;
+            
+            previewContent.innerHTML = html;
+        }
+
+        function closeTemplatePreview() {
+            document.getElementById('templatePreviewModal').style.display = 'none';
+            previewedTemplateId = null;
+        }
+
+        function usePreviewedTemplate() {
+            if (previewedTemplateId) {
+                useTemplateForAgreement(previewedTemplateId);
+                closeTemplatePreview();
+            }
+        }
+
+        // Agreement Preview Functions
+        let generatedAgreementData = null;
+
+        function showAgreementPreview(agreementData) {
+            generatedAgreementData = agreementData;
+            displayAgreementPreview(agreementData);
+            document.getElementById('agreementPreviewModal').style.display = 'flex';
+        }
+
+        function displayAgreementPreview(agreementData) {
+            const previewContent = document.getElementById('agreementPreviewContent');
+            
+            let html = `
+                <div class="template-preview">
+                    <h2>Generated Agreement</h2>
+                    <p><strong>Agreement ID:</strong> ${agreementData.id || 'N/A'}</p>
+                    <p><strong>Generated:</strong> ${new Date().toLocaleString()}</p>
+                    <p><strong>Quote ID:</strong> ${agreementData.quote_id || 'N/A'}</p>
+                    <hr>
+                    <div class="agreement-content">
+            `;
+            
+            // Display personalized content
+            if (agreementData.personalized_content) {
+                html += `<div class="agreement-section">
+                    <h3>Agreement Summary</h3>
+                    <p>${agreementData.personalized_content}</p>
+                </div>`;
+            }
+            
+            // Display agreement data
+            if (agreementData.agreement_data) {
+                const data = agreementData.agreement_data;
+                html += `<div class="agreement-section">
+                    <h3>Agreement Details</h3>
+                    <table class="agreement-table">
+                        <tr><td><strong>Client Name:</strong></td><td>${data.client_name || 'N/A'}</td></tr>
+                        <tr><td><strong>Company:</strong></td><td>${data.client_company || 'N/A'}</td></tr>
+                        <tr><td><strong>Service Type:</strong></td><td>${data.service_type || 'N/A'}</td></tr>
+                        <tr><td><strong>Total Amount:</strong></td><td>$${data.standard_plan_total || '0.00'}</td></tr>
+                        <tr><td><strong>Agreement ID:</strong></td><td>${data.agreement_id || 'N/A'}</td></tr>
+                        <tr><td><strong>Effective Date:</strong></td><td>${data.effective_date || 'N/A'}</td></tr>
+                        <tr><td><strong>Validity Period:</strong></td><td>${data.agreement_validity_period || 'N/A'}</td></tr>
+                    </table>
+                </div>`;
+            }
+            
+            // Display pricing table if available
+            if (agreementData.pricing_table) {
+                const pricing = agreementData.pricing_table;
+                html += `<div class="agreement-section">
+                    <h3>Pricing Breakdown</h3>
+                    <table class="pricing-table">
+                        <thead>
+                            <tr>
+                                <th>Item</th>
+                                <th>Description</th>
+                                <th>Price</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                `;
+                
+                if (pricing.rows && pricing.rows.length > 0) {
+                    pricing.rows.forEach(row => {
+                        html += `<tr>
+                            <td>${row.item || 'N/A'}</td>
+                            <td>${row.description || 'N/A'}</td>
+                            <td>$${row.price || '0.00'}</td>
+                        </tr>`;
+                    });
+                }
+                
+                html += `
+                        </tbody>
+                        <tfoot>
+                            <tr>
+                                <td colspan="2"><strong>Total</strong></td>
+                                <td><strong>$${pricing.total_price || '0.00'}</strong></td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>`;
+            }
+            
+            html += `
+                    </div>
+                </div>
+            `;
+            
+            previewContent.innerHTML = html;
+        }
+
+        function closeAgreementPreview() {
+            document.getElementById('agreementPreviewModal').style.display = 'none';
+            generatedAgreementData = null;
+        }
+
+        function downloadAgreement() {
+            if (generatedAgreementData) {
+                // Create a comprehensive agreement document
+                let content = `
+                    <!DOCTYPE html>
+                    <html>
+                    <head>
+                        <title>Agreement - ${generatedAgreementData.id || 'Generated'}</title>
+                        <style>
+                            body { font-family: Arial, sans-serif; margin: 40px; line-height: 1.6; }
+                            h1, h2, h3 { color: #333; }
+                            .agreement-header { border-bottom: 2px solid #007bff; padding-bottom: 10px; margin-bottom: 30px; }
+                            .agreement-section { margin: 20px 0; padding: 15px; border: 1px solid #e0e0e0; border-radius: 8px; }
+                            table { width: 100%; border-collapse: collapse; margin: 10px 0; }
+                            th, td { padding: 10px; text-align: left; border: 1px solid #ddd; }
+                            th { background-color: #007bff; color: white; }
+                            .pricing-total { font-weight: bold; background-color: #f8f9fa; }
+                        </style>
+                    </head>
+                    <body>
+                        <div class="agreement-header">
+                            <h1>Service Agreement</h1>
+                            <p><strong>Agreement ID:</strong> ${generatedAgreementData.id || 'N/A'}</p>
+                            <p><strong>Generated:</strong> ${new Date().toLocaleString()}</p>
+                            <p><strong>Quote ID:</strong> ${generatedAgreementData.quote_id || 'N/A'}</p>
+                        </div>
+                `;
+                
+                // Add personalized content
+                if (generatedAgreementData.personalized_content) {
+                    content += `<div class="agreement-section">
+                        <h2>Agreement Summary</h2>
+                        <p>${generatedAgreementData.personalized_content}</p>
+                    </div>`;
+                }
+                
+                // Add agreement details
+                if (generatedAgreementData.agreement_data) {
+                    const data = generatedAgreementData.agreement_data;
+                    content += `<div class="agreement-section">
+                        <h2>Agreement Details</h2>
+                        <table>
+                            <tr><td><strong>Client Name:</strong></td><td>${data.client_name || 'N/A'}</td></tr>
+                            <tr><td><strong>Company:</strong></td><td>${data.client_company || 'N/A'}</td></tr>
+                            <tr><td><strong>Service Type:</strong></td><td>${data.service_type || 'N/A'}</td></tr>
+                            <tr><td><strong>Total Amount:</strong></td><td>$${data.standard_plan_total || '0.00'}</td></tr>
+                            <tr><td><strong>Agreement ID:</strong></td><td>${data.agreement_id || 'N/A'}</td></tr>
+                            <tr><td><strong>Effective Date:</strong></td><td>${data.effective_date || 'N/A'}</td></tr>
+                            <tr><td><strong>Validity Period:</strong></td><td>${data.agreement_validity_period || 'N/A'}</td></tr>
+                        </table>
+                    </div>`;
+                }
+                
+                // Add pricing table
+                if (generatedAgreementData.pricing_table) {
+                    const pricing = generatedAgreementData.pricing_table;
+                    content += `<div class="agreement-section">
+                        <h2>Pricing Breakdown</h2>
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Item</th>
+                                    <th>Description</th>
+                                    <th>Price</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                    `;
+                    
+                    if (pricing.rows && pricing.rows.length > 0) {
+                        pricing.rows.forEach(row => {
+                            content += `<tr>
+                                <td>${row.item || 'N/A'}</td>
+                                <td>${row.description || 'N/A'}</td>
+                                <td>$${row.price || '0.00'}</td>
+                            </tr>`;
+                        });
+                    }
+                    
+                    content += `
+                            </tbody>
+                            <tfoot>
+                                <tr class="pricing-total">
+                                    <td colspan="2"><strong>Total</strong></td>
+                                    <td><strong>$${pricing.total_price || '0.00'}</strong></td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>`;
+                }
+                
+                content += `
+                    </body>
+                    </html>
+                `;
+                
+                // Create and download the file
+                const blob = new Blob([content], { type: 'text/html' });
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `agreement_${generatedAgreementData.id || Date.now()}.html`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                window.URL.revokeObjectURL(url);
             }
         }
 
@@ -1016,20 +1653,32 @@
             showStatus('agreementStatus', '📋 Generating Agreement...', 'info');
             
             try {
+                const requestBody = {
+                    quote_id: quoteId
+                };
+                
+                // Add template ID if one is selected
+                if (window.selectedTemplateId) {
+                    requestBody.template_id = window.selectedTemplateId;
+                    console.log('Using template for agreement:', window.selectedTemplateId);
+                }
+                
                 const response = await fetch('/api/agreements/generate-from-quote', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
                     },
-                    body: JSON.stringify({
-                        quote_id: quoteId
-                    })
+                    body: JSON.stringify(requestBody)
                 });
                 
                 const result = await response.json();
                 
                 if (result.success) {
                     showStatus('agreementStatus', '✅ Agreement generated successfully!', 'success');
+                    // Show agreement preview
+                    if (result.agreement) {
+                        showAgreementPreview(result.agreement);
+                    }
                 } else {
                     showStatus('agreementStatus', `❌ Error: ${result.message}`, 'error');
                 }
@@ -1147,20 +1796,32 @@
                     }
                 }
                 
+                const requestBody = {
+                    quote_id: targetQuoteId
+                };
+                
+                // Add template ID if one is selected
+                if (window.selectedTemplateId) {
+                    requestBody.template_id = window.selectedTemplateId;
+                    console.log('Using template for agreement:', window.selectedTemplateId);
+                }
+                
                 const response = await fetch('/api/agreements/generate-from-quote', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
                     },
-                    body: JSON.stringify({
-                        quote_id: targetQuoteId
-                    })
+                    body: JSON.stringify(requestBody)
                 });
                 
                 const result = await response.json();
                 
                 if (result.success) {
                     showStatus('agreementStatus', '✅ Agreement generated successfully!', 'success');
+                    // Show agreement preview
+                    if (result.agreement) {
+                        showAgreementPreview(result.agreement);
+                    }
                 } else {
                     showStatus('agreementStatus', `❌ Error: ${result.message}`, 'error');
                 }
@@ -1308,6 +1969,40 @@
             selectedRow.style.backgroundColor = '#e8f5e8';
         }
     </script>
+
+    <!-- Template Preview Modal -->
+    <div id="templatePreviewModal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Template Preview</h2>
+                <span class="close" onclick="closeTemplatePreview()">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div id="templatePreviewContent"></div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeTemplatePreview()">Close</button>
+                <button class="btn btn-primary" onclick="usePreviewedTemplate()">Use This Template</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Agreement Preview Modal -->
+    <div id="agreementPreviewModal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Generated Agreement Preview</h2>
+                <span class="close" onclick="closeAgreementPreview()">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div id="agreementPreviewContent"></div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeAgreementPreview()">Close</button>
+                <button class="btn btn-success" onclick="downloadAgreement()">Download PDF</button>
+            </div>
+        </div>
+    </div>
 </body>
 </html>
 

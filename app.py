@@ -32,6 +32,12 @@ load_dotenv()
 if not os.getenv('OAUTHLIB_INSECURE_TRANSPORT'):
     os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'
 app = Flask(__name__)
+try:
+    from template_builder import template_builder_bp
+    app.register_blueprint(template_builder_bp)
+except Exception:
+    # Blueprint is optional during partial environments/tests
+    pass
 # OAuth endpoints for Google
 @app.route('/oauth/login')
 def oauth_login():
@@ -284,7 +290,7 @@ def serve_quote_template():
 
 @app.route('/template-builder')
 def serve_template_builder():
-    return send_from_directory('cpq', 'template-builder.html')
+    return send_from_directory('template_builder', 'template-builder.html')
 
 @app.route('/client-management')
 def serve_client_management():
@@ -1299,6 +1305,7 @@ def serve_quote_management():
 @app.route('/debug-documents')
 def serve_debug_documents():
     return send_from_directory('.', 'debug_document_loading.html')
+
 
 @app.route('/approval-dashboard')
 def serve_approval_dashboard():
@@ -5851,153 +5858,4 @@ if __name__ == '__main__':
         threaded=True
     )
 
-# =============================================================================
-# TEMPLATE BUILDER API ENDPOINTS
-# =============================================================================
-
-@app.route('/api/template-builder/save', methods=['POST'])
-def save_template_builder_document():
-    """Save a template builder document to MongoDB"""
-    try:
-        data = request.json
-        if not data:
-            return jsonify({'success': False, 'message': 'No data provided'}), 400
-        
-        # Initialize template builder collection
-        template_builder = TemplateBuilderCollection()
-        
-        # Save the document
-        result = template_builder.save_document(data)
-        
-        if result['success']:
-            return jsonify(result), 200
-        else:
-            return jsonify(result), 500
-            
-    except Exception as e:
-        print(f"Error in save_template_builder_document: {str(e)}")
-        return jsonify({
-            'success': False,
-            'message': f'Server error: {str(e)}'
-        }), 500
-
-@app.route('/api/template-builder/load/<document_id>', methods=['GET'])
-def load_template_builder_document(document_id):
-    """Load a template builder document from MongoDB"""
-    try:
-        template_builder = TemplateBuilderCollection()
-        document = template_builder.get_document_by_id(document_id)
-        
-        if document:
-            return jsonify({
-                'success': True,
-                'document': document
-            }), 200
-        else:
-            return jsonify({
-                'success': False,
-                'message': 'Document not found'
-            }), 404
-            
-    except Exception as e:
-        print(f"Error in load_template_builder_document: {str(e)}")
-        return jsonify({
-            'success': False,
-            'message': f'Server error: {str(e)}'
-        }), 500
-
-@app.route('/api/template-builder/documents', methods=['GET'])
-def get_all_template_builder_documents():
-    """Get all template builder documents"""
-    try:
-        template_builder = TemplateBuilderCollection()
-        documents = template_builder.get_all_documents()
-        
-        return jsonify({
-            'success': True,
-            'documents': documents,
-            'count': len(documents)
-        }), 200
-        
-    except Exception as e:
-        print(f"Error in get_all_template_builder_documents: {str(e)}")
-        return jsonify({
-            'success': False,
-            'message': f'Server error: {str(e)}'
-        }), 500
-
-@app.route('/api/template-builder/delete/<document_id>', methods=['DELETE'])
-def delete_template_builder_document(document_id):
-    """Delete a template builder document"""
-    try:
-        template_builder = TemplateBuilderCollection()
-        success = template_builder.delete_document(document_id)
-        
-        if success:
-            return jsonify({
-                'success': True,
-                'message': 'Document deleted successfully'
-            }), 200
-        else:
-            return jsonify({
-                'success': False,
-                'message': 'Document not found or already deleted'
-            }), 404
-            
-    except Exception as e:
-        print(f"Error in delete_template_builder_document: {str(e)}")
-        return jsonify({
-            'success': False,
-            'message': f'Server error: {str(e)}'
-        }), 500
-
-@app.route('/api/template-builder/search', methods=['GET'])
-def search_template_builder_documents():
-    """Search template builder documents"""
-    try:
-        search_term = request.args.get('q', '')
-        if not search_term:
-            return jsonify({
-                'success': False,
-                'message': 'Search term required'
-            }), 400
-        
-        template_builder = TemplateBuilderCollection()
-        documents = template_builder.search_documents(search_term)
-        
-        return jsonify({
-            'success': True,
-            'documents': documents,
-            'count': len(documents),
-            'search_term': search_term
-        }), 200
-        
-    except Exception as e:
-        print(f"Error in search_template_builder_documents: {str(e)}")
-        return jsonify({
-            'success': False,
-            'message': f'Server error: {str(e)}'
-        }), 500
-
-@app.route('/api/template-builder/stats', methods=['GET'])
-def get_template_builder_stats():
-    """Get template builder statistics"""
-    try:
-        template_builder = TemplateBuilderCollection()
-        stats = template_builder.get_document_stats()
-        
-        return jsonify({
-            'success': True,
-            'stats': stats
-        }), 200
-        
-    except Exception as e:
-        print(f"Error in get_template_builder_stats: {str(e)}")
-        return jsonify({
-            'success': False,
-            'message': f'Server error: {str(e)}'
-        }), 500
-
-# =============================================================================
-# END TEMPLATE BUILDER API ENDPOINTS
-# =============================================================================
+# Template Builder API endpoints moved to blueprint in template_builder/__init__.py
