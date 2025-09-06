@@ -4895,7 +4895,9 @@ def get_approval_stats():
 def get_pending_approvals():
     """Get all pending approval workflows"""
     try:
-        workflows = approval_workflows.get_pending_workflows(limit=100)
+        # Temporarily use the more inclusive method to debug
+        # Ensure we are not serving a cached cursor
+        workflows = approval_workflows.get_all_active_workflows(limit=100)
         
         # Format workflows for frontend
         formatted_workflows = []
@@ -4909,6 +4911,12 @@ def get_pending_approvals():
                 'document_type': workflow.get('document_type', 'N/A'),
                 'current_stage': workflow.get('current_stage', 'N/A'),
                 'status': workflow.get('workflow_status', 'pending'),
+                'manager_status': workflow.get('manager_status', 'pending'),
+                'manager_comments': workflow.get('manager_comments', ''),
+                'ceo_status': workflow.get('ceo_status', 'pending'),
+                'ceo_comments': workflow.get('ceo_comments', ''),
+                'client_status': workflow.get('client_status', 'pending'),
+                'client_comments': workflow.get('client_comments', ''),
                 'created_at': workflow.get('created_at'),
                 'can_approve': True  # This would be determined by user role
             }
@@ -4965,11 +4973,17 @@ def get_my_approval_queue():
 def get_workflow_status():
     """Get all active workflow statuses"""
     try:
-        workflows = approval_workflows.get_workflow_status(limit=100)
+        # Temporarily use the more inclusive method to debug
+        # Ensure we are not serving a cached cursor
+        workflows = approval_workflows.get_all_active_workflows(limit=100)
         
         # Format workflows for frontend
         formatted_workflows = []
         for workflow in workflows:
+            # Debug: Print manager comments from database
+            manager_comments = workflow.get('manager_comments', '')
+            print(f"🔍 Workflow {workflow.get('_id')} - Manager comments from DB: '{manager_comments}'")
+            
             formatted_workflow = {
                 '_id': str(workflow['_id']),
                 'document_id': workflow.get('document_id'),
@@ -4977,9 +4991,14 @@ def get_workflow_status():
                 'document_type': workflow.get('document_type', 'N/A'),
                 'client_name': workflow.get('client_name', 'N/A'),
                 'company_name': workflow.get('company_name', 'N/A'),
+                'current_stage': workflow.get('current_stage', 'manager'),
+                'workflow_status': workflow.get('workflow_status', 'active'),
                 'manager_status': workflow.get('manager_status', 'pending'),
+                'manager_comments': manager_comments,
                 'ceo_status': workflow.get('ceo_status', 'pending'),
+                'ceo_comments': workflow.get('ceo_comments', ''),
                 'client_status': workflow.get('client_status', 'pending'),
+                'client_comments': workflow.get('client_comments', ''),
                 'created_at': workflow.get('created_at')
             }
             formatted_workflows.append(formatted_workflow)
@@ -5015,6 +5034,9 @@ def get_approval_history():
                 'ceo_decision': item.get('ceo_status', 'N/A'),
                 'manager_comments': item.get('manager_comments', ''),
                 'ceo_comments': item.get('ceo_comments', ''),
+                # Include client feedback for history view
+                'client_decision': item.get('client_decision') or item.get('client_status', 'N/A'),
+                'client_comments': item.get('client_comments', ''),
                 'completed_at': item.get('completed_at') or item.get('updated_at')
             }
             formatted_history.append(formatted_item)
@@ -5266,16 +5288,37 @@ def get_denied_workflows():
             # Format the data for frontend display
             formatted_workflows = []
             for workflow in denied_workflows:
+                # Determine who denied it and when
+                denied_by_role = 'Unknown'
+                denied_at = None
+                
+                if workflow.get('client_status') == 'rejected':
+                    denied_by_role = 'Client'
+                    denied_at = workflow.get('client_updated_at')
+                elif workflow.get('ceo_status') == 'denied':
+                    denied_by_role = 'CEO'
+                    denied_at = workflow.get('ceo_updated_at')
+                elif workflow.get('manager_status') == 'denied':
+                    denied_by_role = 'Manager'
+                    denied_at = workflow.get('manager_updated_at')
+                
                 formatted_workflow = {
                     '_id': str(workflow.get('_id')),
                     'document_name': workflow.get('document_name', 'N/A'),
                     'document_type': workflow.get('document_type', 'Document'),
                     'client_name': workflow.get('client_name', 'N/A'),
-                    'denied_by_role': workflow.get('denied_by_role', 'Unknown'),
+                    'denied_by_role': denied_by_role,
                     'denied_by_email': workflow.get('denied_by_email', 'Unknown'),
-                    'denied_at': workflow.get('denied_at'),
+                    'denied_at': denied_at,
                     'comments': workflow.get('comments', 'No comments provided'),
-                    'workflow_id': str(workflow.get('_id'))
+                    'workflow_id': str(workflow.get('_id')),
+                    # Include all comments for proper display
+                    'manager_comments': workflow.get('manager_comments', ''),
+                    'ceo_comments': workflow.get('ceo_comments', ''),
+                    'client_comments': workflow.get('client_comments', ''),
+                    'manager_status': workflow.get('manager_status', 'pending'),
+                    'ceo_status': workflow.get('ceo_status', 'pending'),
+                    'client_status': workflow.get('client_status', 'pending')
                 }
                 formatted_workflows.append(formatted_workflow)
             
@@ -5877,6 +5920,96 @@ def get_client_feedback_workflows():
         return jsonify({
             'success': False,
             'message': f'Error getting client feedback workflows: {str(e)}'
+        }), 500
+
+@app.route('/api/approval/resubmit/<workflow_id>', methods=['POST'])
+def resubmit_workflow(workflow_id):
+    """Resubmit a denied workflow for re-approval"""
+    try:
+        # Get the workflow
+        workflow = approval_workflows.get_workflow_by_id(workflow_id)
+        
+        if not workflow:
+            return jsonify({
+                'success': False,
+                'message': 'Workflow not found'
+            }), 404
+        
+        # Check if workflow is actually denied/cancelled
+        if workflow.get('workflow_status') not in ['cancelled', 'client_rejected']:
+            return jsonify({
+                'success': False,
+                'message': 'Only denied or cancelled workflows can be resubmitted'
+            }), 400
+        
+        # Reset the workflow to initial state
+        reset_data = {
+            'workflow_status': 'active',
+            'current_stage': 'manager',
+            'manager_status': 'pending',
+            'ceo_status': 'pending', 
+            'client_status': 'pending',
+            'manager_comments': '',
+            'ceo_comments': '',
+            'client_comments': '',
+            'client_decision': '',
+            'resubmitted_at': datetime.now(),
+            'resubmit_count': (workflow.get('resubmit_count', 0) + 1),
+            'updated_at': datetime.now()
+        }
+        
+        # Update the workflow
+        success = approval_workflows.update_workflow_custom(workflow_id, reset_data)
+        
+        if success:
+            # Send notification emails about resubmission
+            try:
+                email_service = EmailService()
+                
+                # Notify manager
+                manager_email = workflow.get('manager_email')
+                if manager_email:
+                    email_service.send_workflow_notification(
+                        recipient_email=manager_email,
+                        recipient_role='manager',
+                        workflow_data=workflow,
+                        action='resubmitted',
+                        document_type=workflow.get('document_type'),
+                        document_id=workflow.get('document_id')
+                    )
+                
+                # Notify CEO
+                ceo_email = workflow.get('ceo_email')
+                if ceo_email:
+                    email_service.send_workflow_notification(
+                        recipient_email=ceo_email,
+                        recipient_role='ceo',
+                        workflow_data=workflow,
+                        action='resubmitted',
+                        document_type=workflow.get('document_type'),
+                        document_id=workflow.get('document_id')
+                    )
+                
+            except Exception as e:
+                print(f"⚠️ Warning: Could not send resubmission notification emails: {e}")
+            
+            return jsonify({
+                'success': True,
+                'message': 'Workflow resubmitted successfully',
+                'workflow_id': workflow_id,
+                'resubmit_count': reset_data['resubmit_count']
+            }), 200
+        else:
+            return jsonify({
+                'success': False,
+                'message': 'Failed to resubmit workflow'
+            }), 500
+            
+    except Exception as e:
+        print(f"❌ Error resubmitting workflow: {str(e)}")
+        return jsonify({
+            'success': False,
+            'message': f'Error resubmitting workflow: {str(e)}'
         }), 500
 
 if __name__ == '__main__':

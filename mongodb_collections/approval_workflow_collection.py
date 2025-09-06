@@ -34,13 +34,46 @@ class ApprovalWorkflowCollection:
     
     def get_pending_workflows(self, limit=100):
         """Get all pending workflows"""
-        return list(self.collection.find({
-            "workflow_status": "active",
+        # First, let's see ALL workflows to understand what's in the database
+        all_workflows = list(self.collection.find({}).sort("created_at", -1).limit(10))
+        print(f"🔍 All workflows in database (last 10):")
+        for workflow in all_workflows:
+            print(f"  - Workflow {workflow.get('_id')}: status={workflow.get('workflow_status')}, manager={workflow.get('manager_status')}, ceo={workflow.get('ceo_status')}, client={workflow.get('client_status')}")
+        
+        query = {
+            "workflow_status": {"$in": ["active", "client_review"]},
             "$or": [
                 {"manager_status": "pending"},
-                {"ceo_status": "pending"}
+                {"ceo_status": "pending"},
+                {"client_status": {"$in": ["pending", "pending_feedback"]}}
             ]
-        }).sort("created_at", -1).limit(limit))
+        }
+        
+        print(f"🔍 Pending workflows query: {query}")
+        
+        workflows = list(self.collection.find(query).sort("created_at", -1).limit(limit))
+        
+        print(f"🔍 Found {len(workflows)} pending workflows")
+        for workflow in workflows:
+            print(f"  - Workflow {workflow.get('_id')}: status={workflow.get('workflow_status')}, manager={workflow.get('manager_status')}, ceo={workflow.get('ceo_status')}, client={workflow.get('client_status')}")
+        
+        return workflows
+    
+    def get_all_active_workflows(self, limit=100):
+        """Get all workflows that are not completed or cancelled - for debugging"""
+        query = {
+            "workflow_status": {"$nin": ["completed", "cancelled"]}
+        }
+        
+        print(f"🔍 All active workflows query: {query}")
+        
+        workflows = list(self.collection.find(query).sort("created_at", -1).limit(limit))
+        
+        print(f"🔍 Found {len(workflows)} all active workflows")
+        for workflow in workflows:
+            print(f"  - Workflow {workflow.get('_id')}: status={workflow.get('workflow_status')}, manager={workflow.get('manager_status')}, ceo={workflow.get('ceo_status')}, client={workflow.get('client_status')}")
+        
+        return workflows
     
     def get_my_approval_queue(self, user_role, user_email, limit=100):
         """Get approval queue for specific user role"""
@@ -60,14 +93,24 @@ class ApprovalWorkflowCollection:
     
     def get_workflow_status(self, limit=100):
         """Get all active workflows with status"""
-        return list(self.collection.find({
-            "workflow_status": "active"
-        }).sort("created_at", -1).limit(limit))
+        query = {
+            "workflow_status": {"$in": ["active", "client_review"]}
+        }
+        
+        print(f"🔍 Workflow status query: {query}")
+        
+        workflows = list(self.collection.find(query).sort("created_at", -1).limit(limit))
+        
+        print(f"🔍 Found {len(workflows)} workflow status workflows")
+        for workflow in workflows:
+            print(f"  - Workflow {workflow.get('_id')}: status={workflow.get('workflow_status')}, manager={workflow.get('manager_status')}, ceo={workflow.get('ceo_status')}, client={workflow.get('client_status')}")
+        
+        return workflows
     
     def get_approval_history(self, limit=100):
         """Get completed approval history"""
         return list(self.collection.find({
-            "workflow_status": {"$in": ["completed", "cancelled"]}
+            "workflow_status": {"$in": ["completed", "cancelled", "client_rejected"]}
         }).sort("updated_at", -1).limit(limit))
     
     def update_workflow_status(self, workflow_id, role, action, comments):
@@ -89,6 +132,7 @@ class ApprovalWorkflowCollection:
                 update_data["manager_status"] = normalized_action
                 update_data["manager_comments"] = comments
                 update_data["manager_approval_date"] = datetime.now()
+                print(f"🔍 Manager approval - Comments being saved: '{comments}'")
                 
                 if normalized_action == "denied":
                     update_data["workflow_status"] = "cancelled"
@@ -101,6 +145,7 @@ class ApprovalWorkflowCollection:
                 update_data["ceo_status"] = normalized_action
                 update_data["ceo_comments"] = comments
                 update_data["ceo_approval_date"] = datetime.now()
+                print(f"🔍 CEO approval - Comments being saved: '{comments}'")
                 
                 if normalized_action == "approved":
                     update_data["workflow_status"] = "client_review"
@@ -341,3 +386,26 @@ class ApprovalWorkflowCollection:
         except Exception as e:
             print(f"Error getting approval comments: {e}")
             return []
+    
+    def get_denied_workflows(self, limit=100):
+        """Get all denied workflows (manager denied, CEO denied, or client rejected)"""
+        return list(self.collection.find({
+            "workflow_status": {"$in": ["cancelled", "client_rejected"]},
+            "$or": [
+                {"manager_status": "denied"},
+                {"ceo_status": "denied"},
+                {"client_status": "rejected"}
+            ]
+        }).sort("updated_at", -1).limit(limit))
+
+    def update_workflow_custom(self, workflow_id, update_data):
+        """Update workflow with custom data"""
+        try:
+            result = self.collection.update_one(
+                {"_id": ObjectId(workflow_id)},
+                {"$set": update_data}
+            )
+            return result.modified_count > 0
+        except Exception as e:
+            print(f"Error updating workflow status: {e}")
+            return False

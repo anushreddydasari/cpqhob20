@@ -178,6 +178,38 @@
             font-weight: 500;
         }
 
+        .comments-cell {
+            max-width: 200px;
+            word-wrap: break-word;
+        }
+
+        .comment-text {
+            background: #e3f2fd;
+            padding: 4px 8px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            color: #1976d2;
+            display: inline-block;
+            max-width: 100%;
+            cursor: help;
+        }
+
+        .comment-text.ceo-comment {
+            background: #f3e5f5;
+            color: #7b1fa2;
+        }
+
+        .comment-text.client-comment {
+            background: #e8f5e8;
+            color: #2e7d32;
+        }
+
+        .no-comment {
+            color: #6c757d;
+            font-style: italic;
+            font-size: 0.85rem;
+        }
+
         .status-pending {
             background: #fff3cd;
             color: #856404;
@@ -818,7 +850,8 @@
         async function loadPendingApprovals() {
             try {
                 console.log('🔄 Loading pending approvals...');
-                const response = await fetch('/api/approval/pending');
+                // Bust caches to reflect latest approval state immediately
+                const response = await fetch(`/api/approval/pending?t=${Date.now()}`, { cache: 'no-store' });
                 const result = await response.json();
                 
                 console.log('📊 Pending approvals API response:', result);
@@ -867,8 +900,12 @@
                             <th>Document</th>
                             <th>Client</th>
                             <th>Type</th>
-                            <th>Current Stage</th>
-                            <th>Status</th>
+                            <th>Manager Status</th>
+                            <th>Manager Comments</th>
+                            <th>CEO Status</th>
+                            <th>CEO Comments</th>
+                            <th>Client Status</th>
+                            <th>Client Comments</th>
                             <th>Created</th>
                             <th>Actions</th>
                         </tr>
@@ -891,29 +928,50 @@
                                     <td>${workflow.client_name || 'N/A'}</td>
                                     <td>${workflow.document_type || 'N/A'}</td>
                                     <td>
-                                        <span class="status-badge status-${workflow.current_stage || 'pending'}">
-                                            ${workflow.current_stage ? workflow.current_stage.charAt(0).toUpperCase() + workflow.current_stage.slice(1) : 'Pending'}
+                                        <span class="status-badge status-${workflow.manager_status || 'pending'}">
+                                            ${workflow.manager_status || 'Pending'}
                                         </span>
                                     </td>
                                     <td>
-                                        <span class="status-badge status-${workflow.status || 'pending'}">
-                                            ${workflow.status ? workflow.status.charAt(0).toUpperCase() + workflow.status.slice(1) : 'Pending'}
+                                        <div class="comments-cell">
+                                            ${workflow.manager_comments ? 
+                                                `<span class="comment-text" title="${workflow.manager_comments}">${workflow.manager_comments.length > 50 ? workflow.manager_comments.substring(0, 50) + '...' : workflow.manager_comments}</span>` : 
+                                                '<span class="no-comment">No comments</span>'
+                                            }
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <span class="status-badge status-${workflow.ceo_status || 'pending'}">
+                                            ${workflow.ceo_status || 'Pending'}
                                         </span>
+                                    </td>
+                                    <td>
+                                        <div class="comments-cell">
+                                            ${workflow.ceo_comments ? 
+                                                `<span class="comment-text ceo-comment" title="${workflow.ceo_comments}">${workflow.ceo_comments.length > 50 ? workflow.ceo_comments.substring(0, 50) + '...' : workflow.ceo_comments}</span>` : 
+                                                '<span class="no-comment">No comments</span>'
+                                            }
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <span class="status-badge status-${workflow.client_status || 'pending'}">
+                                            ${workflow.client_status || 'Pending'}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <div class="comments-cell">
+                                            ${workflow.client_comments ? 
+                                                `<span class="comment-text client-comment" title="${workflow.client_comments}">${workflow.client_comments.length > 50 ? workflow.client_comments.substring(0, 50) + '...' : workflow.client_comments}</span>` : 
+                                                '<span class="no-comment">No comments</span>'
+                                            }
+                                        </div>
                                     </td>
                                     <td>${formatDate(workflow.created_at)}</td>
                                     <td>
                                         <div class="action-buttons">
-                                            <button class="btn-view" onclick="viewDocument('${workflow._id}')">
+                                            <button class="btn-view" onclick="viewDocument('${workflow._id}', 'pending')">
                                                 👁️ View
                                             </button>
-                                            ${canApprove ? `
-                                                <button class="btn-approve" onclick="approveWorkflow('${workflow._id}')">
-                                                    ✅ Approve
-                                                </button>
-                                                <button class="btn-deny" onclick="denyWorkflow('${workflow._id}')">
-                                                    ❌ Deny
-                                                </button>
-                                            ` : ''}
                                         </div>
                                     </td>
                                 </tr>
@@ -987,7 +1045,7 @@
                                 </td>
                                 <td>
                                     <div class="action-buttons">
-                                        <button class="btn-view" onclick="viewDocument('${workflow._id}')">
+                                        <button class="btn-view" onclick="viewDocument('${workflow._id}', 'my-queue')">
                                             👁️ View
                                         </button>
                                         <button class="btn-approve" onclick="approveWorkflow('${workflow._id}')">
@@ -1010,7 +1068,7 @@
         // Load workflow status
         async function loadWorkflowStatus() {
             try {
-                const response = await fetch('/api/approval/workflow-status');
+                const response = await fetch(`/api/approval/workflow-status?t=${Date.now()}`, { cache: 'no-store' });
                 const result = await response.json();
                 
                 if (result.success) {
@@ -1042,8 +1100,11 @@
                             <th>Document</th>
                             <th>Client</th>
                             <th>Manager Status</th>
+                            <th>Manager Comments</th>
                             <th>CEO Status</th>
+                            <th>CEO Comments</th>
                             <th>Client Status</th>
+                            <th>Client Comments</th>
                             <th>Created</th>
                             <th>Actions</th>
                         </tr>
@@ -1059,19 +1120,43 @@
                                     </span>
                                 </td>
                                 <td>
+                                    <div class="comments-cell">
+                                        ${workflow.manager_comments ? 
+                                            `<span class="comment-text" title="${workflow.manager_comments}">${workflow.manager_comments.length > 50 ? workflow.manager_comments.substring(0, 50) + '...' : workflow.manager_comments}</span>` : 
+                                            '<span class="no-comment">No comments</span>'
+                                        }
+                                    </div>
+                                </td>
+                                <td>
                                     <span class="status-badge status-${workflow.ceo_status || 'pending'}">
                                         ${workflow.ceo_status || 'Pending'}
                                     </span>
+                                </td>
+                                <td>
+                                    <div class="comments-cell">
+                                        ${workflow.ceo_comments ? 
+                                            `<span class="comment-text ceo-comment" title="${workflow.ceo_comments}">${workflow.ceo_comments.length > 50 ? workflow.ceo_comments.substring(0, 50) + '...' : workflow.ceo_comments}</span>` : 
+                                            '<span class="no-comment">No comments</span>'
+                                        }
+                                    </div>
                                 </td>
                                 <td>
                                     <span class="status-badge status-${workflow.client_status || 'pending'}">
                                         ${workflow.client_status || 'Pending'}
                                     </span>
                                 </td>
+                                <td>
+                                    <div class="comments-cell">
+                                        ${workflow.client_comments ? 
+                                            `<span class="comment-text client-comment" title="${workflow.client_comments}">${workflow.client_comments.length > 50 ? workflow.client_comments.substring(0, 50) + '...' : workflow.client_comments}</span>` : 
+                                            '<span class="no-comment">No comments</span>'
+                                        }
+                                    </div>
+                                </td>
                                 <td>${formatDate(workflow.created_at)}</td>
                                 <td>
                                     <div class="action-buttons">
-                                        <button class="btn-view" onclick="viewDocument('${workflow._id}')">
+                                        <button class="btn-view" onclick="viewDocument('${workflow._id}', 'workflow-status')">
                                             👁️ View
                                         </button>
                                     </div>
@@ -1124,6 +1209,8 @@
                             <th>CEO Decision</th>
                             <th>Manager Comments</th>
                             <th>CEO Comments</th>
+                            <th>Client Decision</th>
+                            <th>Client Comments</th>
                             <th>Completed</th>
                             <th>Actions</th>
                         </tr>
@@ -1162,10 +1249,22 @@
                                         </div>
                                     </div>
                                 </td>
+                                <td>
+                                    <span class="status-badge status-${item.client_decision || 'pending'}">
+                                        ${item.client_decision || 'Pending'}
+                                    </span>
+                                </td>
+                                <td>
+                                    <div class="comments-section">
+                                        <div class="comment-text" style="border-left-color: #ffc107;">
+                                            ${item.client_comments || 'No comments'}
+                                        </div>
+                                    </div>
+                                </td>
                                 <td>${formatDate(item.completed_at)}</td>
                                 <td>
                                     <div class="action-buttons">
-                                        <button class="btn-view" onclick="viewDocument('${item._id}')">
+                                        <button class="btn-view" onclick="viewDocument('${item._id}', 'history')">
                                             👁️ View
                                         </button>
                                     </div>
@@ -1259,7 +1358,7 @@
                                 <td>${formatDate(item.ceo_approval_date)}</td>
                                 <td>
                                     <div class="action-buttons">
-                                        <button class="btn-view" onclick="viewDocument('${item._id}')">
+                                        <button class="btn-view" onclick="viewDocument('${item._id}', 'approval-comments')">
                                             👁️ View
                                         </button>
                                     </div>
@@ -1338,7 +1437,7 @@
                                 <td>${formatDate(workflow.ceo_approval_date)}</td>
                                 <td>
                                     <div class="action-buttons">
-                                        <button class="btn-view" onclick="viewDocument('${workflow.document_id}')">
+                                        <button class="btn-view" onclick="viewDocument('${workflow.document_id}', 'client-feedback')">
                                             👁️ View
                                         </button>
                                     </div>
@@ -1388,7 +1487,9 @@
                             <th>Client</th>
                             <th>Denied By</th>
                             <th>Denial Date</th>
-                            <th>Comments/Feedback</th>
+                            <th>Manager Comments</th>
+                            <th>CEO Comments</th>
+                            <th>Client Comments</th>
                             <th>Actions</th>
                         </tr>
                     </thead>
@@ -1408,18 +1509,28 @@
                                 <td>${formatDate(request.denied_at)}</td>
                                 <td>
                                     <div class="comments-section">
-                                        <strong>Feedback:</strong><br>
-                                        <div class="comment-text">
-                                            ${request.comments || 'No comments provided'}
+                                        <div class="comment-text" style="border-left-color: #28a745;">
+                                            ${request.manager_comments || 'No comments'}
                                         </div>
-                                        <small style="color: #666;">
-                                            Denied by: ${request.denied_by_email || 'Unknown'}
-                                        </small>
+                                    </div>
+                                </td>
+                                <td>
+                                    <div class="comments-section">
+                                        <div class="comment-text" style="border-left-color: #17a2b8;">
+                                            ${request.ceo_comments || 'No comments'}
+                                        </div>
+                                    </div>
+                                </td>
+                                <td>
+                                    <div class="comments-section">
+                                        <div class="comment-text" style="border-left-color: #ffc107;">
+                                            ${request.client_comments || 'No comments'}
+                                        </div>
                                     </div>
                                 </td>
                                 <td>
                                     <div class="action-buttons">
-                                        <button class="btn-view" onclick="viewDocument('${request._id}')">
+                                        <button class="btn-view" onclick="viewDocument('${request._id}', 'denied')">
                                             👁️ View
                                         </button>
                                         <button class="btn-resubmit" onclick="resubmitRequest('${request._id}')" title="Resubmit with changes">
@@ -1438,21 +1549,44 @@
 
         // Resubmit denied request
         async function resubmitRequest(workflowId) {
-            if (confirm('Would you like to resubmit this request? You can make changes before resubmitting.')) {
-                // Redirect to quote management to make changes
-                window.location.href = '/quote-management';
+            if (confirm('Would you like to resubmit this request? This will reset the workflow and allow you to make changes.')) {
+                try {
+                    const response = await fetch(`/api/approval/resubmit/${workflowId}`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        }
+                    });
+                    
+                    const result = await response.json();
+                    
+                    if (result.success) {
+                        alert('Request resubmitted successfully! You can now make changes to the document.');
+                        // Refresh the denied requests list
+                        loadDeniedRequests();
+                        // Optionally redirect to quote management for editing
+                        if (confirm('Would you like to edit the document now?')) {
+                            window.location.href = '/quote-management';
+                        }
+                    } else {
+                        alert('Error resubmitting request: ' + result.message);
+                    }
+                } catch (error) {
+                    console.error('Error resubmitting request:', error);
+                    alert('Error resubmitting request. Please try again.');
+                }
             }
         }
 
         // View document
-        async function viewDocument(workflowId) {
+        async function viewDocument(workflowId, section = '') {
             try {
                 const response = await fetch(`/api/approval/workflow/${workflowId}`);
                 const result = await response.json();
                 
                 if (result.success) {
                     currentDocument = result.workflow;
-                    showPdfViewer(result.workflow);
+                    showPdfViewer(result.workflow, section);
                 } else {
                     alert('Error loading document: ' + result.message);
                 }
@@ -1463,8 +1597,8 @@
         }
 
         // Show PDF viewer
-        function showPdfViewer(workflow) {
-            console.log('🔍 showPdfViewer called with workflow:', workflow);
+        function showPdfViewer(workflow, section = '') {
+            console.log('🔍 showPdfViewer called with workflow:', workflow, 'section:', section);
             
             document.getElementById('pdf-document-title').textContent = 
                 `${workflow.document_name} - ${workflow.client_name}`;
@@ -1510,6 +1644,16 @@
             
             // Set current document for approval actions
             currentDocument = workflow;
+            
+            // Hide approval form if viewing from sections where users can only view
+            const approvalForm = document.querySelector('.approval-form');
+            const viewOnlySections = ['pending', 'workflow-status', 'history', 'approval-comments', 'client-feedback', 'denied'];
+            
+            if (viewOnlySections.includes(section)) {
+                approvalForm.style.display = 'none';
+            } else {
+                approvalForm.style.display = 'block';
+            }
             
             // Add timeout to detect if PDF takes too long to load or fails
             setTimeout(() => {
