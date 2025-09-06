@@ -1572,6 +1572,7 @@ def generate_agreement_from_quote():
     try:
         data = request.get_json()
         quote_id = data.get('quote_id')
+        template_id = data.get('template_id')
         
         if not quote_id:
             return jsonify({'success': False, 'message': 'Quote ID is required'}), 400
@@ -1713,6 +1714,46 @@ def generate_agreement_from_quote():
             f"Agreement for {agreement_data.get('client_name')} at {agreement_data.get('client_company')} "
             f"for {agreement_data.get('service_type')} services. Total: ${agreement_data.get('standard_plan_total', '0')}"
         )
+        
+        # If template_id is provided, use the template structure
+        template_content = None
+        if template_id:
+            try:
+                from mongodb_collections.template_builder_collection import TemplateBuilderCollection
+                template_collection = TemplateBuilderCollection()
+                template = template_collection.get_template_by_id(template_id)
+                
+                if template and template.get('blocks'):
+                    # Build template content from blocks
+                    template_content = ""
+                    for block in template.get('blocks', []):
+                        if block.get('type') == 'text':
+                            template_content += f"<div class='text-block'>{block.get('content', '')}</div>"
+                        elif block.get('type') == 'image':
+                            template_content += f"<div class='image-block'>{block.get('content', '')}</div>"
+                        elif block.get('type') == 'table':
+                            template_content += f"<div class='table-block'>{block.get('content', '')}</div>"
+                        elif block.get('type') == 'toc':
+                            template_content += f"<div class='toc-block'>{block.get('content', '')}</div>"
+                        else:
+                            template_content += f"<div class='block'>{block.get('content', '')}</div>"
+                    
+                    # Replace placeholders in template content
+                    for key, value in agreement_data.items():
+                        placeholder = f'[{key}]'
+                        template_content = template_content.replace(placeholder, str(value))
+                        
+                    # Replace common placeholders
+                    template_content = template_content.replace('[client_name]', agreement_data.get('client_name', 'N/A'))
+                    template_content = template_content.replace('[client_company]', agreement_data.get('client_company', 'N/A'))
+                    template_content = template_content.replace('[service_type]', agreement_data.get('service_type', 'N/A'))
+                    template_content = template_content.replace('[quote_total]', f"${agreement_data.get('standard_plan_total', '0')}")
+                    template_content = template_content.replace('[agreement_id]', agreement_data.get('agreement_id', 'N/A'))
+                    template_content = template_content.replace('[effective_date]', agreement_data.get('effective_date', 'N/A'))
+                    
+            except Exception as e:
+                print(f"Warning: Failed to load template {template_id}: {e}")
+                template_content = None
 
         # Build structured pricing table from quote data (Standard plan)
         standard_plan = quote_data.get('standard', {}) if isinstance(quote_data, dict) else {}
@@ -1835,8 +1876,10 @@ def generate_agreement_from_quote():
                 'name': 'Auto Generated',
                 'type': 'agreement',
                 'personalized_content': personalized_content,
+                'template_content': template_content,  # Include template content if used
                 'agreement_data': agreement_data,
                 'quote_id': quote_id,
+                'template_id': template_id,  # Include template ID if used
                 'generated_at': datetime.now().isoformat()
             },
             'pricing_table': {

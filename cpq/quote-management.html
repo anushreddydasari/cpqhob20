@@ -621,6 +621,70 @@
             border-top: 2px solid #007bff;
         }
 
+        /* Template Structure Styles */
+        .template-structure {
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 20px;
+            background: #ffffff;
+            margin: 10px 0;
+        }
+
+        .template-structure .text-block,
+        .template-structure .image-block,
+        .template-structure .table-block,
+        .template-structure .toc-block,
+        .template-structure .block {
+            margin: 15px 0;
+            padding: 10px;
+            border: 1px solid #f0f0f0;
+            border-radius: 4px;
+            background: #fafafa;
+        }
+
+        .template-structure .text-block {
+            background: #f8f9fa;
+            border-left: 4px solid #007bff;
+        }
+
+        .template-structure .image-block {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+        }
+
+        .template-structure .table-block {
+            background: #d1ecf1;
+            border-left: 4px solid #17a2b8;
+        }
+
+        .template-structure .toc-block {
+            background: #d4edda;
+            border-left: 4px solid #28a745;
+        }
+
+        .template-structure img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 4px;
+        }
+
+        .template-structure table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 10px 0;
+        }
+
+        .template-structure table th,
+        .template-structure table td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+
+        .template-structure table th {
+            background-color: #f2f2f2;
+        }
+
         /* Document Loader Styles */
         .document-loader {
             background: #f0f4ff;
@@ -1424,12 +1488,21 @@
                     <p><strong>Agreement ID:</strong> ${agreementData.id || 'N/A'}</p>
                     <p><strong>Generated:</strong> ${new Date().toLocaleString()}</p>
                     <p><strong>Quote ID:</strong> ${agreementData.quote_id || 'N/A'}</p>
+                    ${agreementData.template_id ? `<p><strong>Template ID:</strong> ${agreementData.template_id}</p>` : ''}
                     <hr>
                     <div class="agreement-content">
             `;
             
-            // Display personalized content
-            if (agreementData.personalized_content) {
+            // Display template content if available (this shows the template structure)
+            if (agreementData.template_content) {
+                html += `<div class="agreement-section">
+                    <h3>Agreement Document</h3>
+                    <div class="template-structure">${agreementData.template_content}</div>
+                </div>`;
+            }
+            
+            // Display personalized content (fallback if no template)
+            if (agreementData.personalized_content && !agreementData.template_content) {
                 html += `<div class="agreement-section">
                     <h3>Agreement Summary</h3>
                     <p>${agreementData.personalized_content}</p>
@@ -1532,8 +1605,16 @@
                         </div>
                 `;
                 
-                // Add personalized content
-                if (generatedAgreementData.personalized_content) {
+                // Add template content if available (shows template structure)
+                if (generatedAgreementData.template_content) {
+                    content += `<div class="agreement-section">
+                        <h2>Agreement Document</h2>
+                        <div class="template-structure">${generatedAgreementData.template_content}</div>
+                    </div>`;
+                }
+                
+                // Add personalized content (fallback if no template)
+                if (generatedAgreementData.personalized_content && !generatedAgreementData.template_content) {
                     content += `<div class="agreement-section">
                         <h2>Agreement Summary</h2>
                         <p>${generatedAgreementData.personalized_content}</p>
