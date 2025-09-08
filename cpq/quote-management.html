@@ -887,11 +887,12 @@
                             <table class="templates-table" id="availableTemplatesTable">
                                 <thead>
                                     <tr>
-                                        <th>Template ID</th>
-                                        <th>Template Name</th>
-                                        <th>Blocks</th>
-                                        <th>Created</th>
-                                        <th>Action</th>
+                        <th>Template ID</th>
+                        <th>Template Name</th>
+                        <th>Blocks</th>
+                        <th>Created</th>
+                        <th>Action</th>
+                        <th>Debug Logs</th>
                                     </tr>
                                 </thead>
                                 <tbody id="templatesTableBody">
@@ -903,7 +904,10 @@
                     <div style="margin-top: 15px;">
                         <button class="btn btn-info" onclick="generatePDF()">📄 Generate PDF</button>
                         <button class="btn btn-info" onclick="generateAgreement()">📋 Generate Agreement</button>
+                        <button class="btn btn-secondary" onclick="debugTemplateSelection()">🔍 Debug Template</button>
                     </div>
+                    
+                    <!-- Plan Selection for PDF Generation -->
 
                     <div id="pdfStatus"></div>
                     <div id="agreementStatus"></div>
@@ -1354,7 +1358,7 @@
             const section = document.getElementById('availableTemplatesSection');
             
             if (templates.length === 0) {
-                tableBody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 20px;">No templates available</td></tr>';
+                tableBody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 20px;">No templates available</td></tr>';
             } else {
                 tableBody.innerHTML = templates.map(template => `
                     <tr>
@@ -1365,6 +1369,11 @@
                         <td>
                             <button class="template-action-btn preview" onclick="previewTemplate('${template.id}')" title="Preview template">👁️ Preview</button>
                             <button class="template-action-btn use" onclick="useTemplateForAgreement('${template.id}')" title="Use this template">📋 Use Template</button>
+                        </td>
+                        <td>
+                            <div id="debug-logs-${template.id}" class="debug-logs" style="max-width: 200px; max-height: 100px; overflow-y: auto; font-size: 10px; background: #f0f0f0; padding: 5px; border-radius: 3px; border: 1px solid #ddd;">
+                                <div style="color: #666;">No logs yet</div>
+                            </div>
                         </td>
                     </tr>
                 `).join('');
@@ -1379,8 +1388,15 @@
                 // Store the selected template ID for use in agreement generation
                 window.selectedTemplateId = templateId;
                 
+                console.log('Template selected for use:', templateId);
+                console.log('window.selectedTemplateId set to:', window.selectedTemplateId);
+                
                 // Show success message
                 showStatus('agreementStatus', `✅ Template selected: ${templateId}. You can now generate agreement with this template.`, 'success');
+                showStatus('pdfStatus', `✅ Template selected: ${templateId}. You can now generate PDF with this template.`, 'success');
+                
+                // Update debug logs
+                updateDebugLogs(templateId, '✅ Template selected for use');
                 
                 // Optionally, you can also load the template details to show what will be used
                 const response = await fetch(`/api/template-builder/load/${templateId}`);
@@ -1696,18 +1712,33 @@
 
         // Generate PDF directly from quote
         async function generatePDFFromQuote(quoteId) {
+            console.log('🚀 generatePDFFromQuote called with quoteId:', quoteId);
+            console.log('🔍 Current selectedTemplateId:', window.selectedTemplateId);
+            
+            // Check if template is selected
+            if (!window.selectedTemplateId) {
+                showStatus('pdfStatus', '❌ Please select a template first', 'error');
+                return;
+            }
+            
             showStatus('pdfStatus', '📄 Generating PDF...', 'info');
             
             try {
+                const requestBody = {
+                    lookup_type: 'quoteId',
+                    lookup_value: quoteId,
+                    template_id: window.selectedTemplateId,
+                    selected_plan: 'standard'  // Default to standard plan
+                };
+                
+                console.log('📤 Sending request body:', requestBody);
+                
                 const response = await fetch('/api/generate-pdf-by-lookup', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
                     },
-                    body: JSON.stringify({
-                        lookup_type: 'quoteId',
-                        lookup_value: quoteId
-                    })
+                    body: JSON.stringify(requestBody)
                 });
 
                 if (response.ok) {
@@ -1721,11 +1752,21 @@
                     window.URL.revokeObjectURL(url);
                     document.body.removeChild(a);
                     showStatus('pdfStatus', '✅ PDF generated and downloaded successfully!', 'success');
+                    
+                    // Update debug logs
+                    updateDebugLogs(window.selectedTemplateId, '✅ PDF generated successfully!');
                 } else {
-                    showStatus('pdfStatus', '❌ PDF generation failed.', 'error');
+                    const data = await response.json();
+                    showStatus('pdfStatus', `❌ Error: ${data.error}`, 'error');
+                    
+                    // Update debug logs with error
+                    updateDebugLogs(window.selectedTemplateId, '❌ PDF generation failed');
                 }
             } catch (error) {
                 showStatus('pdfStatus', `❌ Error: ${error.message}`, 'error');
+                
+                // Update debug logs with error
+                updateDebugLogs(window.selectedTemplateId, `❌ Error: ${error.message}`);
             }
         }
 
@@ -1768,6 +1809,54 @@
             }
         }
 
+        // Debug template selection
+        function debugTemplateSelection() {
+            console.log('=== DEBUG TEMPLATE SELECTION ===');
+            console.log('window.selectedTemplateId:', window.selectedTemplateId);
+            console.log('Type of selectedTemplateId:', typeof window.selectedTemplateId);
+            console.log('Available templates:', window.availableTemplates);
+            
+            if (window.selectedTemplateId) {
+                showStatus('pdfStatus', `✅ Template selected: ${window.selectedTemplateId}`, 'success');
+            } else {
+                showStatus('pdfStatus', '❌ No template selected. Please click "Use Template" first.', 'error');
+            }
+        }
+
+        // Update debug logs in template table
+        function updateDebugLogs(templateId, logMessage) {
+            if (templateId) {
+                const debugElement = document.getElementById(`debug-logs-${templateId}`);
+                if (debugElement) {
+                    const timestamp = new Date().toLocaleTimeString();
+                    const logEntry = `[${timestamp}] ${logMessage}`;
+                    
+                    // Add new log entry
+                    const logDiv = document.createElement('div');
+                    logDiv.style.color = logMessage.includes('✅') ? '#28a745' : logMessage.includes('❌') ? '#dc3545' : '#666';
+                    logDiv.style.marginBottom = '2px';
+                    logDiv.textContent = logEntry;
+                    
+                    // Remove "No logs yet" if present
+                    const noLogsDiv = debugElement.querySelector('div[style*="color: #666"]');
+                    if (noLogsDiv && noLogsDiv.textContent === 'No logs yet') {
+                        noLogsDiv.remove();
+                    }
+                    
+                    debugElement.appendChild(logDiv);
+                    
+                    // Keep only last 5 log entries
+                    const logs = debugElement.querySelectorAll('div');
+                    if (logs.length > 5) {
+                        logs[0].remove();
+                    }
+                    
+                    // Scroll to bottom
+                    debugElement.scrollTop = debugElement.scrollHeight;
+                }
+            }
+        }
+
         // Generate PDF function
         async function generatePDF() {
             const lookupType = document.getElementById('lookupType').value;
@@ -1790,20 +1879,35 @@
                 return;
             }
 
+            // Check if template is selected
+            if (!window.selectedTemplateId) {
+                showStatus('pdfStatus', '❌ Please select a template first', 'error');
+                return;
+            }
+
+            // Debug: Check if template is selected
+            console.log('Selected template ID:', window.selectedTemplateId);
+            console.log('Lookup type:', lookupType);
+            console.log('Lookup value:', lookupValue);
+
             showStatus('pdfStatus', '📄 Generating PDF...', 'info');
-
+            
             try {
-                const pdfData = {
+                const requestBody = {
                     lookup_type: lookupType,
-                    lookup_value: lookupValue
+                    lookup_value: lookupValue,
+                    template_id: window.selectedTemplateId,
+                    selected_plan: 'standard'  // Default to standard plan
                 };
-
+                
+                console.log('📤 Sending request body:', requestBody);
+                
                 const response = await fetch('/api/generate-pdf-by-lookup', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
                     },
-                    body: JSON.stringify(pdfData)
+                    body: JSON.stringify(requestBody)
                 });
 
                 if (response.ok) {
@@ -1817,13 +1921,24 @@
                     window.URL.revokeObjectURL(url);
                     document.body.removeChild(a);
                     showStatus('pdfStatus', '✅ PDF generated and downloaded successfully!', 'success');
+                    
+                    // Update debug logs
+                    updateDebugLogs(window.selectedTemplateId, '✅ PDF generated successfully!');
                 } else {
-                    showStatus('pdfStatus', '❌ PDF generation failed.', 'error');
+                    const data = await response.json();
+                    showStatus('pdfStatus', `❌ Error: ${data.error}`, 'error');
+                    
+                    // Update debug logs with error
+                    updateDebugLogs(window.selectedTemplateId, '❌ PDF generation failed');
                 }
             } catch (error) {
                 showStatus('pdfStatus', `❌ Error: ${error.message}`, 'error');
+                
+                // Update debug logs with error
+                updateDebugLogs(window.selectedTemplateId, `❌ Error: ${error.message}`);
             }
         }
+
 
         // Generate agreement function
         async function generateAgreement() {

@@ -614,35 +614,70 @@
         window.currentQuoteData = quoteData;
         window.currentFormData = data;
 
-        // Build HTML table showing detailed costs per plan
-        let html = `<table>
+        // Build HTML table showing only Standard plan by default
+        let html = `<table style="width: 100%; border-collapse: collapse; margin: 20px 0; background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
           <thead>
-            <tr>
-              <th>Details</th>
-              <th>Basic Plan</th>
-              <th>Standard Plan</th>
-              <th>Advanced Plan</th>
+            <tr style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+              <th style="padding: 15px; text-align: left; font-weight: 600;">Service Details</th>
+              <th style="padding: 15px; text-align: right; font-weight: 600;">Standard Plan</th>
             </tr>
           </thead>
           <tbody>
-            <tr><td>Per User Cost</td><td>$${quoteData.basic.perUserCost.toFixed(2)}</td><td>$${quoteData.standard.perUserCost.toFixed(2)}</td><td>$${quoteData.advanced.perUserCost.toFixed(2)}</td></tr>
-            <tr><td>Per GB Cost</td><td>$${quoteData.basic.perGBCost.toFixed(2)}</td><td>$${quoteData.standard.perGBCost.toFixed(2)}</td><td>$${quoteData.advanced.perGBCost.toFixed(2)}</td></tr>
-            <tr><td>Total User Cost</td><td>$${quoteData.basic.totalUserCost.toFixed(2)}</td><td>$${quoteData.standard.totalUserCost.toFixed(2)}</td><td>$${quoteData.advanced.totalUserCost.toFixed(2)}</td></tr>
-            <tr><td>Data Cost</td><td>$${quoteData.basic.dataCost.toFixed(2)}</td><td>$${quoteData.standard.dataCost.toFixed(2)}</td><td>$${quoteData.advanced.dataCost.toFixed(2)}</td></tr>
-            <tr><td>Migration Cost</td><td>$${quoteData.basic.migrationCost.toFixed(2)}</td><td>$${quoteData.standard.migrationCost.toFixed(2)}</td><td>$${quoteData.advanced.migrationCost.toFixed(2)}</td></tr>
-            <tr><td>Instance Cost</td><td>$${quoteData.basic.instanceCost.toFixed(2)}</td><td>$${quoteData.standard.instanceCost.toFixed(2)}</td><td>$${quoteData.advanced.instanceCost.toFixed(2)}</td></tr>
-            <tr style="font-weight:bold; background:#f0f0f0;">
-              <td>Total Cost</td>
-              <td>$${quoteData.basic.totalCost.toFixed(2)}</td>
-              <td>$${quoteData.standard.totalCost.toFixed(2)}</td>
-              <td>$${quoteData.advanced.totalCost.toFixed(2)}</td></tr>
+            <tr style="border-bottom: 1px solid #eee;">
+              <td style="padding: 12px; font-weight: 500;">Per User Cost</td>
+              <td style="padding: 12px; text-align: right; font-weight: 600;">$${quoteData.standard.perUserCost.toFixed(2)}</td>
+            </tr>
+            <tr style="border-bottom: 1px solid #eee; background: #f8f9fa;">
+              <td style="padding: 12px; font-weight: 500;">Per GB Cost</td>
+              <td style="padding: 12px; text-align: right; font-weight: 600;">$${quoteData.standard.perGBCost.toFixed(2)}</td>
+            </tr>
+            <tr style="border-bottom: 1px solid #eee;">
+              <td style="padding: 12px; font-weight: 500;">Total User Cost</td>
+              <td style="padding: 12px; text-align: right; font-weight: 600;">$${quoteData.standard.totalUserCost.toFixed(2)}</td>
+            </tr>
+            <tr style="border-bottom: 1px solid #eee; background: #f8f9fa;">
+              <td style="padding: 12px; font-weight: 500;">Data Cost</td>
+              <td style="padding: 12px; text-align: right; font-weight: 600;">$${quoteData.standard.dataCost.toFixed(2)}</td>
+            </tr>
+            <tr style="border-bottom: 1px solid #eee;">
+              <td style="padding: 12px; font-weight: 500;">Migration Cost</td>
+              <td style="padding: 12px; text-align: right; font-weight: 600;">$${quoteData.standard.migrationCost.toFixed(2)}</td>
+            </tr>
+            <tr style="border-bottom: 1px solid #eee; background: #f8f9fa;">
+              <td style="padding: 12px; font-weight: 500;">Instance Cost</td>
+              <td style="padding: 12px; text-align: right; font-weight: 600;">$${quoteData.standard.instanceCost.toFixed(2)}</td>
+            </tr>
+            <tr style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); color: white; font-weight: bold;">
+              <td style="padding: 15px; font-size: 1.1em;">TOTAL COST</td>
+              <td style="padding: 15px; text-align: right; font-size: 1.2em;">$${quoteData.standard.totalCost.toFixed(2)}</td>
+            </tr>
           </tbody>
         </table>`;
+
+        // Add plan selection section
+        html += `
+          <div style="margin-top: 30px; padding: 20px; background: #f8f9fa; border-radius: 10px; border: 2px solid #e9ecef;">
+            <h3 style="text-align: center; margin-bottom: 20px; color: #495057;">📋 Select Plan for PDF Generation</h3>
+            <div style="display: flex; justify-content: center; gap: 30px; margin-bottom: 20px;">
+              <label style="display: flex; align-items: center; cursor: pointer; padding: 10px 20px; background: white; border-radius: 8px; border: 2px solid #dee2e6; transition: all 0.3s ease;" onclick="updatePlanDisplay('basic')">
+                <input type="radio" name="selectedPlan" value="basic" style="margin-right: 8px; transform: scale(1.2);">
+                <span style="font-weight: 600; color: #495057;">Basic Plan</span>
+              </label>
+              <label style="display: flex; align-items: center; cursor: pointer; padding: 10px 20px; background: white; border-radius: 8px; border: 2px solid #007bff; transition: all 0.3s ease;" onclick="updatePlanDisplay('standard')">
+                <input type="radio" name="selectedPlan" value="standard" checked style="margin-right: 8px; transform: scale(1.2);">
+                <span style="font-weight: 600; color: #007bff;">Standard Plan</span>
+              </label>
+              <label style="display: flex; align-items: center; cursor: pointer; padding: 10px 20px; background: white; border-radius: 8px; border: 2px solid #dee2e6; transition: all 0.3s ease;" onclick="updatePlanDisplay('advanced')">
+                <input type="radio" name="selectedPlan" value="advanced" style="margin-right: 8px; transform: scale(1.2);">
+                <span style="font-weight: 600; color: #495057;">Advanced Plan</span>
+              </label>
+            </div>
+          </div>`;
 
         // Add view quote template button
         html += `
           <div style="text-align: center; margin-top: 30px;">
-            <button onclick="generatePDF()" style="background-color: #28a745; color: white; border: none; padding: 15px 30px; font-size: 16px; border-radius: 6px; cursor: pointer; margin-right: 10px;">
+            <button onclick="generatePDFWithPlan()" style="background-color: #28a745; color: white; border: none; padding: 15px 30px; font-size: 16px; border-radius: 6px; cursor: pointer; margin-right: 10px;">
               📄 Generate PDF Quote
             </button>
             <button onclick="viewQuoteTemplate()" style="background-color: #007BFF; color: white; border: none; padding: 15px 30px; font-size: 16px; border-radius: 6px; cursor: pointer;">
@@ -664,6 +699,9 @@
           quote: quoteData
         };
         localStorage.setItem('quoteData', JSON.stringify(templateData));
+        
+        // Store quote data globally for plan display updates
+        window.currentQuoteData = quoteData;
         
         // Debug logging
         console.log('Stored template data:', templateData);
@@ -759,6 +797,148 @@
       } finally {
         // Reset button
         const pdfBtn = document.querySelector('button[onclick="generatePDF()"]');
+        pdfBtn.textContent = '📄 Generate PDF Quote';
+        pdfBtn.disabled = false;
+      }
+    }
+
+    // Function to update plan display
+    function updatePlanDisplay(selectedPlan) {
+      if (!window.currentQuoteData) return;
+      
+      const quoteData = window.currentQuoteData;
+      const planData = quoteData[selectedPlan];
+      
+      if (!planData) return;
+      
+      // Update the pricing table to show only selected plan
+      const tableHtml = `
+        <table style="width: 100%; border-collapse: collapse; margin: 20px 0; background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+          <thead>
+            <tr style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+              <th style="padding: 15px; text-align: left; font-weight: 600;">Service Details</th>
+              <th style="padding: 15px; text-align: right; font-weight: 600;">${selectedPlan.charAt(0).toUpperCase() + selectedPlan.slice(1)} Plan</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr style="border-bottom: 1px solid #eee;">
+              <td style="padding: 12px; font-weight: 500;">Per User Cost</td>
+              <td style="padding: 12px; text-align: right; font-weight: 600;">$${planData.perUserCost.toFixed(2)}</td>
+            </tr>
+            <tr style="border-bottom: 1px solid #eee; background: #f8f9fa;">
+              <td style="padding: 12px; font-weight: 500;">Per GB Cost</td>
+              <td style="padding: 12px; text-align: right; font-weight: 600;">$${planData.perGBCost.toFixed(2)}</td>
+            </tr>
+            <tr style="border-bottom: 1px solid #eee;">
+              <td style="padding: 12px; font-weight: 500;">Total User Cost</td>
+              <td style="padding: 12px; text-align: right; font-weight: 600;">$${planData.totalUserCost.toFixed(2)}</td>
+            </tr>
+            <tr style="border-bottom: 1px solid #eee; background: #f8f9fa;">
+              <td style="padding: 12px; font-weight: 500;">Data Cost</td>
+              <td style="padding: 12px; text-align: right; font-weight: 600;">$${planData.dataCost.toFixed(2)}</td>
+            </tr>
+            <tr style="border-bottom: 1px solid #eee;">
+              <td style="padding: 12px; font-weight: 500;">Migration Cost</td>
+              <td style="padding: 12px; text-align: right; font-weight: 600;">$${planData.migrationCost.toFixed(2)}</td>
+            </tr>
+            <tr style="border-bottom: 1px solid #eee; background: #f8f9fa;">
+              <td style="padding: 12px; font-weight: 500;">Instance Cost</td>
+              <td style="padding: 12px; text-align: right; font-weight: 600;">$${planData.instanceCost.toFixed(2)}</td>
+            </tr>
+            <tr style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); color: white; font-weight: bold;">
+              <td style="padding: 15px; font-size: 1.1em;">TOTAL COST</td>
+              <td style="padding: 15px; text-align: right; font-size: 1.2em;">$${planData.totalCost.toFixed(2)}</td>
+            </tr>
+          </tbody>
+        </table>`;
+      
+      // Find and update the table in the result content
+      const resultContent = document.getElementById('resultContent');
+      const existingTable = resultContent.querySelector('table');
+      if (existingTable) {
+        existingTable.outerHTML = tableHtml;
+      }
+    }
+
+    // Function to generate PDF with selected plan
+    async function generatePDFWithPlan() {
+      try {
+        // Check if client is selected
+        if (!window.selectedClientData) {
+          alert('⚠️ Please select a client first before generating a PDF.');
+          return;
+        }
+
+        // Get selected plan
+        const selectedPlan = document.querySelector('input[name="selectedPlan"]:checked');
+        if (!selectedPlan) {
+          alert('⚠️ Please select a plan first.');
+          return;
+        }
+
+        // Get client data from selected client
+        const clientData = window.selectedClientData;
+        
+        // Prepare data for PDF generation with selected plan
+        const pdfData = {
+          client: {
+            name: clientData.clientName || 'N/A',
+            company: clientData.companyName || 'N/A',
+            email: clientData.email || 'N/A',
+            phone: clientData.phoneNumber || 'N/A',
+            serviceType: clientData.serviceType || 'N/A'
+          },
+          quote: window.currentQuoteData,
+          configuration: {
+            users: window.currentFormData.users,
+            instanceType: window.currentFormData.instanceType,
+            instances: window.currentFormData.instances,
+            duration: window.currentFormData.duration,
+            migrationType: window.currentFormData.migrationType,
+            dataSize: window.currentFormData.dataSize
+          },
+          selectedPlan: selectedPlan.value
+        };
+
+        // Show loading message
+        const pdfBtn = document.querySelector('button[onclick="generatePDFWithPlan()"]');
+        const originalText = pdfBtn.textContent;
+        pdfBtn.textContent = '🔄 Generating PDF...';
+        pdfBtn.disabled = true;
+
+        // Call PDF generation endpoint with plan
+        const response = await fetch('/api/generate-pdf', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(pdfData)
+        });
+
+        if (!response.ok) {
+          throw new Error('PDF generation failed');
+        }
+
+        // Get the PDF blob
+        const pdfBlob = await response.blob();
+        
+        // Create download link
+        const url = window.URL.createObjectURL(pdfBlob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `quote_${clientData.clientName || 'client'}_${selectedPlan.value}_${new Date().toISOString().split('T')[0]}.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+
+        // Show success message
+        alert(`✅ PDF generated successfully with ${selectedPlan.value} plan!`);
+        
+      } catch (error) {
+        console.error('Error generating PDF:', error);
+        alert('❌ PDF generation failed: ' + error.message);
+      } finally {
+        // Reset button
+        const pdfBtn = document.querySelector('button[onclick="generatePDFWithPlan()"]');
         pdfBtn.textContent = '📄 Generate PDF Quote';
         pdfBtn.disabled = false;
       }

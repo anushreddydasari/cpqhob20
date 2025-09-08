@@ -618,15 +618,21 @@ def generate_pdf():
         client_data = data.get('client', {})
         quote_data = data.get('quote', {})
         configuration = data.get('configuration', {})
+        selected_plan = data.get('selectedPlan', 'standard')  # NEW: Get selected plan
         
-        # Create PDF using template
-        pdf_buffer = pdf_generator.create_quote_pdf(client_data, quote_data, configuration)
+        print(f"📊 PDF Generation Request:")
+        print(f"  Client: {client_data.get('name', 'N/A')}")
+        print(f"  Selected Plan: {selected_plan}")
+        print(f"  Configuration: {configuration}")
+        
+        # Create PDF using template with selected plan
+        pdf_buffer = pdf_generator.create_quote_pdf(client_data, quote_data, configuration, selected_plan)
         pdf_buffer.seek(0)
         
         return send_file(
             pdf_buffer,
             as_attachment=True,
-            download_name=f"quote_{client_data.get('name', 'client')}_{datetime.now().strftime('%Y%m%d')}.pdf",
+            download_name=f"quote_{client_data.get('name', 'client')}_{selected_plan}_{datetime.now().strftime('%Y%m%d')}.pdf",
             mimetype='application/pdf'
         )
         
@@ -1350,15 +1356,754 @@ def send_quote_email_new():
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)})
 
+def generate_pdf_from_template(quote_data, template_id, selected_plan='standard'):
+    """Generate PDF from template with placeholder replacement - SIMPLIFIED VERSION"""
+    try:
+        print(f"=== GENERATE_PDF_FROM_TEMPLATE CALLED ===")
+        print(f"Template ID: {template_id}")
+        
+        from mongodb_collections.template_builder_collection import TemplateBuilderCollection
+        from reportlab.lib.pagesizes import letter
+        from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image
+        from reportlab.lib.styles import getSampleStyleSheet
+        from reportlab.lib import colors
+        from reportlab.lib.units import inch
+        from io import BytesIO
+        import re
+        import base64
+        import tempfile
+        
+        # Get template data
+        template_collection = TemplateBuilderCollection()
+        template = template_collection.get_document_by_id(template_id)
+        
+        if not template or not template.get('blocks'):
+            return jsonify({'success': False, 'message': 'Template not found or has no blocks'}), 404
+        
+        # Build template data from quote
+        template_data = _build_template_data_from_quote(quote_data)
+        
+        # Ensure we have the right client company
+        client_company = quote_data.get('client', {}).get('company', 'Client Company')
+        template_data['client_company'] = client_company
+        template_data['Client.Company'] = client_company  # Add alternative format
+        
+        print(f"Client company: {client_company}")
+        print(f"Template data: {template_data}")
+        
+        # Create PDF buffer
+        buffer = BytesIO()
+        doc = SimpleDocTemplate(
+            buffer,
+            pagesize=letter,
+            leftMargin=0.75*inch,
+            rightMargin=0.75*inch,
+            topMargin=0.6*inch,
+            bottomMargin=0.75*inch
+        )
+        styles = getSampleStyleSheet()
+        story = []
+        
+        # Try to render real logos from image block if present
+        def extract_base64_images(html: str):
+            try:
+                # Support common raster formats
+                pattern = r"data:image/(png|jpeg|jpg|webp|gif);base64,([A-Za-z0-9+/=]+)"
+                matches = re.findall(pattern, html)
+                return [m[1] for m in matches]
+            except Exception:
+                return []
+
+        logo_images_added = False
+        extracted_logo_paths = []
+        debug_info = []
+        
+        for block in template.get('blocks', []):
+            if block.get('type') == 'image':
+                print(f"🔍 Processing image block: {block.get('type')}")
+                print(f"📏 Content length: {len(block.get('content', ''))}")
+                
+                b64_list = extract_base64_images(block.get('content', ''))
+                print(f"🖼️ Found {len(b64_list)} base64 images")
+                debug_info.append(f"Image block: {len(b64_list)} base64 images found")
+                
+                if b64_list:
+                    # Collect up to two images and place them side-by-side
+                    for i, b64 in enumerate(b64_list[:2]):
+                        try:
+                            print(f"🔄 Processing image {i+1}, base64 length: {len(b64)}")
+                            img_bytes = base64.b64decode(b64)
+                            tmp = tempfile.NamedTemporaryFile(delete=False, suffix='.png')
+                            tmp.write(img_bytes)
+                            tmp.flush()
+                            extracted_logo_paths.append(tmp.name)
+                            logo_images_added = True
+                            debug_info.append(f"Image {i+1}: Successfully decoded and saved")
+                            print(f"✅ Image {i+1} saved to: {tmp.name}")
+                        except Exception as e:
+                            debug_info.append(f"Image {i+1}: Error - {str(e)}")
+                            print(f"❌ Error processing image {i+1}: {str(e)}")
+                else:
+                    debug_info.append("No base64 images found in content")
+                    print("⚠️ No base64 images found in image block content")
+                break
+        
+        # Build a table with the logos if we have at least one
+        if extracted_logo_paths:
+            imgs = []
+            if len(extracted_logo_paths) == 1:
+                # Single centered logo, larger size with preserved aspect ratio
+                img = Image(extracted_logo_paths[0])
+                target_h = 1.4*inch  # Increased height
+                aspect = img.imageWidth / float(img.imageHeight)
+                img.drawHeight = target_h
+                img.drawWidth = min(4.5*inch, target_h * aspect)  # Increased max width
+                img.hAlign = 'CENTER'
+                imgs = [[img]]
+                tbl_col_widths = [6.5*inch]  # Wider table
+                tbl_style = [('ALIGN', (0,0), (-1,-1), 'CENTER'),
+                             ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+                             ('LEFTPADDING', (0,0), (-1,-1), 0),
+                             ('RIGHTPADDING', (0,0), (-1,-1), 0),
+                             ('TOPPADDING', (0,0), (-1,-1), 0),
+                             ('BOTTOMPADDING', (0,0), (-1,-1), 0)]
+            else:
+                # Two logos: left (CloudFuze), right (Microsoft Partner) - bigger with preserved aspect
+                img_left = Image(extracted_logo_paths[0])
+                img_right = Image(extracted_logo_paths[1])
+                target_h_left = 1.5*inch   # Increased height
+                target_h_right = 1.4*inch  # Increased height
+                aspect_left = img_left.imageWidth / float(img_left.imageHeight)
+                aspect_right = img_right.imageWidth / float(img_right.imageHeight)
+                img_left.drawHeight = target_h_left
+                img_left.drawWidth = min(4.0*inch, target_h_left * aspect_left)  # Increased max width
+                img_right.drawHeight = target_h_right
+                img_right.drawWidth = min(3.8*inch, target_h_right * aspect_right)  # Increased max width
+                img_left.hAlign = 'LEFT'
+                img_right.hAlign = 'RIGHT'
+                imgs = [[img_left, img_right]]
+                tbl_col_widths = [4.0*inch, 4.0*inch]  # Wider columns
+                tbl_style = [
+                    ('ALIGN', (0,0), (0,0), 'LEFT'),
+                    ('ALIGN', (1,0), (1,0), 'RIGHT'),
+                    ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+                    ('LEFTPADDING', (0,0), (-1,-1), 0),
+                    ('RIGHTPADDING', (0,0), (-1,-1), 0),
+                    ('TOPPADDING', (0,0), (-1,-1), 0),
+                    ('BOTTOMPADDING', (0,0), (-1,-1), 0),
+                    ('INNERGRID', (0,0), (-1,-1), 0, colors.white),
+                    ('BOX', (0,0), (-1,-1), 0, colors.white),
+                ]
+            logo_table = Table(imgs, colWidths=tbl_col_widths, hAlign='CENTER')
+            logo_table.setStyle(TableStyle(tbl_style))
+            story.append(logo_table)
+            story.append(Spacer(1, 15))
+
+        if not logo_images_added:
+            # Show debug information instead of logos
+            debug_section = f"""
+            <para align="center" fontSize="12" spaceAfter="20" textColor="red">
+            <b>DEBUG LOGS - Logo Processing:</b><br/>
+            {chr(10).join(debug_info) if debug_info else 'No debug info available'}<br/>
+            <br/>
+            <b>Fallback:</b> CloudFuze - Microsoft Partner<br/>
+            <font color="gold">Gold Cloud Productivity</font>
+            </para>
+            """
+            story.append(Paragraph(debug_section, styles['Normal']))
+            story.append(Spacer(1, 30))
+        
+        # Add main title
+        title_text = f"CloudFuze Purchase Agreement for {client_company}"
+        story.append(Paragraph(title_text, styles['Title']))
+        story.append(Spacer(1, 30))
+        
+        # Process each template block and convert to PDF
+        for block in template.get('blocks', []):
+            block_type = block.get('type', 'text')
+            content = block.get('content', '')
+            
+            print(f"Processing block type: {block_type}")
+            print(f"Original content length: {len(content)}")
+            print(f"Original content preview: {content[:200]}...")
+            
+            # Extract actual content from HTML wrapper
+            # Look for the actual template content within the HTML
+            actual_content = content
+            
+            # Try to extract content from common HTML patterns
+            import re
+            
+            # Look for content within the main block structure
+            # The template content is usually within a div that contains the actual content
+            patterns = [
+                r'<div[^>]*class="[^"]*content[^"]*"[^>]*>(.*?)</div>',  # div with content class
+                r'<div[^>]*class="[^"]*block[^"]*"[^>]*>(.*?)</div>',   # div with block class
+                r'<p[^>]*>(.*?)</p>',                                   # paragraph tags
+                r'<h[1-6][^>]*>(.*?)</h[1-6]>',                        # heading tags
+                r'<span[^>]*>(.*?)</span>',                             # span tags
+                r'<div[^>]*>(.*?)</div>'                                # any div (fallback)
+            ]
+            
+            for pattern in patterns:
+                matches = re.findall(pattern, content, re.DOTALL)
+                if matches:
+                    # Take the longest match (most likely to be the actual content)
+                    actual_content = max(matches, key=len)
+                    break
+            
+            # If we still have HTML wrapper, try to extract text content
+            if '<div class="block-toolbar"' in actual_content:
+                # This is still a wrapper, look deeper
+                inner_patterns = [
+                    r'<div[^>]*class="[^"]*editor[^"]*"[^>]*>(.*?)</div>',
+                    r'<div[^>]*class="[^"]*prose[^"]*"[^>]*>(.*?)</div>',
+                    r'<div[^>]*class="[^"]*document[^"]*"[^>]*>(.*?)</div>',
+                    r'<div[^>]*>(.*?)</div>'
+                ]
+                
+                for pattern in inner_patterns:
+                    matches = re.findall(pattern, actual_content, re.DOTALL)
+                    if matches:
+                        actual_content = max(matches, key=len)
+                        break
+            
+            # If we still can't extract meaningful content, create default content based on block type
+            if not actual_content or len(actual_content.strip()) < 10 or '<div class="block-toolbar"' in actual_content:
+                print(f"Could not extract meaningful content for {block_type} block, using default")
+                if block_type == 'text':
+                    actual_content = f"CloudFuze Purchase Agreement for {client_company}"
+                elif block_type == 'table':
+                    actual_content = "table_content"  # Will be handled by create_purchase_agreement_table
+                elif block_type == 'image':
+                    actual_content = "logo_content"  # Will be handled by image block logic
+            
+            print(f"Extracted content: {actual_content[:100]}...")
+            
+            # Replace ALL placeholders in content
+            processed_content = actual_content
+            for key, value in template_data.items():
+                # Replace [key] format
+                processed_content = processed_content.replace(f'[{key}]', str(value))
+                # Replace {{key}} format
+                processed_content = processed_content.replace(f'{{{{{key}}}}}', str(value))
+                # Replace {key} format
+                processed_content = processed_content.replace(f'{{{key}}}', str(value))
+            
+            # Special replacements
+            processed_content = processed_content.replace('[Client.Company]', client_company)
+            processed_content = processed_content.replace('[Client Company]', client_company)
+            processed_content = processed_content.replace('[client_company]', client_company)
+            
+            # Replace specific template placeholders with actual data
+            processed_content = processed_content.replace('{Up to i want to keep here no of users}', str(template_data.get('config_users', 1)))
+            processed_content = processed_content.replace('{i want to mention here cost of migration only}', template_data.get('basic_migration_cost_formatted', '$300.00'))
+            processed_content = processed_content.replace('{i want to mention here cost of service here}', 'Included')
+            processed_content = processed_content.replace('{i want to mention here total amount}', template_data.get('total_cost_formatted', '$0.00'))
+            
+            print(f"Processed content: {processed_content[:100]}...")
+            
+            if block_type == 'image':
+                # Handle image block - this contains the logos
+                print("Processing image block - adding logos")
+                
+                # Try to extract logo content from the image block
+                if 'CloudFuze' in actual_content or 'Microsoft' in actual_content:
+                    # This block contains logo information, add it to PDF
+                    logo_text = """
+                    <para align="center">
+                    <b>CloudFuze</b> - Microsoft Partner<br/>
+                    Gold Cloud Productivity
+                    </para>
+                    """
+                    story.append(Paragraph(logo_text, styles['Normal']))
+                    story.append(Spacer(1, 20))
+                    print("Added logo content from image block")
+                else:
+                    print("Image block doesn't contain logo content, skipping")
+                continue
+                
+            elif block_type == 'text':
+                # Skip duplicate titles
+                if 'CloudFuze Purchase Agreement for' in processed_content and processed_content != title_text:
+                    print("Skipping duplicate title")
+                    continue
+                
+                # Convert HTML to plain text and add to PDF
+                plain_text = re.sub(r'<[^>]+>', '', processed_content)
+                if plain_text.strip():
+                    story.append(Paragraph(plain_text, styles['Normal']))
+                    story.append(Spacer(1, 12))
+            
+            elif block_type == 'table':
+                # Try to parse the actual table content from template first
+                table_data = None
+                
+                # Look for table content in the processed content
+                if '<table' in processed_content or '<tr>' in processed_content:
+                    print("Found HTML table in template content, parsing...")
+                    table_data = parse_html_table(processed_content)
+                elif 'job' in processed_content.lower() and 'description' in processed_content.lower():
+                    print("Found structured table content in template, parsing...")
+                    table_data = parse_table_content(processed_content)
+                
+                # Fallback to default table if no table content found
+                if not table_data:
+                    print(f"No table content found, using default purchase agreement table with {selected_plan} plan")
+                    table_data = create_purchase_agreement_table(template_data, selected_plan)
+                
+                if table_data:
+                    table = Table(table_data, colWidths=[2.5*inch, 2.5*inch, 1.5*inch])
+                    table.setStyle(TableStyle([
+                        # Header row - white background
+                        ('BACKGROUND', (0, 0), (-1, 0), colors.white),
+                        ('TEXTCOLOR', (0, 0), (-1, 0), colors.black),
+                        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                        ('FONTSIZE', (0, 0), (-1, 0), 11),
+                        # Data rows - light blue background like template preview
+                        ('BACKGROUND', (0, 1), (-1, -2), colors.HexColor('#E3F2FD')),  # Light blue
+                        ('TEXTCOLOR', (0, 1), (-1, -2), colors.black),
+                        ('FONTNAME', (0, 1), (-1, -2), 'Helvetica'),
+                        ('FONTSIZE', (0, 1), (-1, -2), 10),
+                        # Total row - white background
+                        ('BACKGROUND', (0, -1), (-1, -1), colors.white),
+                        ('TEXTCOLOR', (0, -1), (-1, -1), colors.black),
+                        ('FONTNAME', (0, -1), (-1, -1), 'Helvetica-Bold'),
+                        ('FONTSIZE', (0, -1), (-1, -1), 10),
+                        # Alignment - left for job/description, right for price
+                        ('ALIGN', (0, 0), (0, -1), 'LEFT'),   # job column
+                        ('ALIGN', (1, 0), (1, -1), 'LEFT'),   # description column  
+                        ('ALIGN', (2, 0), (2, -1), 'RIGHT'),  # price column
+                        # Padding
+                        ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
+                        ('TOPPADDING', (0, 0), (-1, -1), 8),
+                        ('LEFTPADDING', (0, 0), (-1, -1), 8),
+                        ('RIGHTPADDING', (0, 0), (-1, -1), 8),
+                        # Borders
+                        ('GRID', (0, 0), (-1, -1), 1, colors.black),
+                    ]))
+                    story.append(table)
+                    story.append(Spacer(1, 20))
+        
+        # Build PDF
+        doc.build(story)
+        buffer.seek(0)
+        
+        # Save PDF to documents directory
+        client = quote_data.get('client', {})
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        filename = f"quote_{client.get('name', 'client')}_{timestamp}.pdf"
+        file_path = os.path.join('documents', filename)
+        
+        # Ensure documents directory exists
+        os.makedirs('documents', exist_ok=True)
+        
+        # Save PDF file
+        with open(file_path, 'wb') as f:
+            f.write(buffer.getvalue())
+        
+        # Store PDF metadata in MongoDB
+        pdf_metadata = {
+            'quote_id': str(quote_data.get('_id')),
+            'template_id': template_id,
+            'filename': filename,
+            'file_path': file_path,
+            'client_name': client.get('name', 'N/A'),
+            'company_name': client.get('company', 'N/A')
+        }
+        
+        from mongodb_collections.generated_pdf_collection import GeneratedPDFCollection
+        pdf_collection = GeneratedPDFCollection()
+        pdf_collection.store_pdf_metadata(pdf_metadata)
+        
+        print(f"PDF generated successfully: {filename}")
+        return send_file(
+            buffer,
+            as_attachment=True,
+            download_name=filename,
+            mimetype='application/pdf'
+        )
+        
+    except Exception as e:
+        print(f"Error generating PDF from template: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'message': f'PDF generation failed: {str(e)}'}), 500
+
+def replace_placeholders_in_content(content, template_data):
+    """Replace placeholders in content with actual data"""
+    try:
+        import re
+        
+        print(f"Replacing placeholders in content: {content[:100]}...")
+        print(f"Available template data: {list(template_data.keys())}")
+        
+        # Replace placeholders in format {{placeholder_name}} and [placeholder_name]
+        for key, value in template_data.items():
+            # Replace {{key}} format (case insensitive)
+            old_content = content
+            content = re.sub(r'\{\{' + re.escape(key) + r'\}\}', str(value), content, flags=re.IGNORECASE)
+            if content != old_content:
+                print(f"Replaced {{{{{key}}}}} with {value}")
+            
+            # Replace [key] format (case insensitive)
+            old_content = content
+            content = re.sub(r'\[' + re.escape(key) + r'\]', str(value), content, flags=re.IGNORECASE)
+            if content != old_content:
+                print(f"Replaced [{key}] with {value}")
+            
+            # Replace {key} format (case insensitive)
+            old_content = content
+            content = re.sub(r'\{' + re.escape(key) + r'\}', str(value), content, flags=re.IGNORECASE)
+            if content != old_content:
+                print(f"Replaced {{{key}}} with {value}")
+        
+        # Special handling for common placeholders
+        special_replacements = {
+            '[Client.Company]': template_data.get('client_company', 'Client Company'),
+            '[Client Company]': template_data.get('client_company', 'Client Company'),
+            '[client_company]': template_data.get('client_company', 'Client Company'),
+            '[Client.Name]': template_data.get('client_name', 'Client Name'),
+            '[Client Name]': template_data.get('client_name', 'Client Name'),
+            '[client_name]': template_data.get('client_name', 'Client Name'),
+        }
+        
+        for placeholder, value in special_replacements.items():
+            if placeholder in content:
+                content = content.replace(placeholder, str(value))
+                print(f"Replaced {placeholder} with {value}")
+        
+        # Handle special formatting for currency values
+        content = re.sub(r'\$(\d+(?:\.\d{2})?)', r'$\1', content)  # Ensure proper currency formatting
+        
+        print(f"Final content after replacement: {content[:200]}...")
+        return content
+    except Exception as e:
+        print(f"Error replacing placeholders: {str(e)}")
+        return content
+
+def parse_html_content(content, styles):
+    """Parse HTML content and convert to ReportLab elements"""
+    try:
+        import re
+        from reportlab.platypus import Paragraph, Spacer, Image
+        from reportlab.lib.units import inch
+        
+        elements = []
+        
+        # Split content by HTML tags to process each section
+        # First, let's handle common HTML patterns
+        
+        # Extract title/heading text
+        title_match = re.search(r'<h[1-6][^>]*>(.*?)</h[1-6]>', content, re.IGNORECASE | re.DOTALL)
+        if title_match:
+            title_text = re.sub(r'<[^>]+>', '', title_match.group(1)).strip()
+            if title_text:
+                elements.append(Paragraph(title_text, styles['Title']))
+                elements.append(Spacer(1, 20))
+        
+        # Extract paragraph text
+        paragraphs = re.findall(r'<p[^>]*>(.*?)</p>', content, re.IGNORECASE | re.DOTALL)
+        for para in paragraphs:
+            para_text = re.sub(r'<[^>]+>', '', para).strip()
+            if para_text:
+                elements.append(Paragraph(para_text, styles['Normal']))
+                elements.append(Spacer(1, 12))
+        
+        # Extract div content
+        divs = re.findall(r'<div[^>]*>(.*?)</div>', content, re.IGNORECASE | re.DOTALL)
+        for div in divs:
+            div_text = re.sub(r'<[^>]+>', '', div).strip()
+            if div_text and not any(tag in div_text.lower() for tag in ['<table', '<tr', '<td', '<th']):
+                elements.append(Paragraph(div_text, styles['Normal']))
+                elements.append(Spacer(1, 12))
+        
+        # Extract table content
+        tables = re.findall(r'<table[^>]*>(.*?)</table>', content, re.IGNORECASE | re.DOTALL)
+        for table_html in tables:
+            table_data = parse_html_table(table_html)
+            if table_data:
+                from reportlab.platypus import Table, TableStyle
+                from reportlab.lib import colors
+                
+                table = Table(table_data, colWidths=[2*inch, 2*inch, 1.5*inch])
+                table.setStyle(TableStyle([
+                    ('BACKGROUND', (0, 0), (-1, 0), colors.blue),
+                    ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+                    ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+                    ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                    ('FONTSIZE', (0, 0), (-1, -1), 10),
+                    ('BOTTOMPADDING', (0, 0), (-1, -1), 12),
+                    ('GRID', (0, 0), (-1, -1), 1, colors.black)
+                ]))
+                elements.append(table)
+                elements.append(Spacer(1, 12))
+        
+        # If no structured content found, treat as plain text
+        if not elements:
+            plain_text = re.sub(r'<[^>]+>', '', content).strip()
+            if plain_text:
+                elements.append(Paragraph(plain_text, styles['Normal']))
+        
+        return elements
+    except Exception as e:
+        print(f"Error parsing HTML content: {str(e)}")
+        # Fallback to plain text
+        plain_text = re.sub(r'<[^>]+>', '', content).strip()
+        if plain_text:
+            return [Paragraph(plain_text, styles['Normal'])]
+        return []
+
+def parse_html_table(table_html):
+    """Parse HTML table and return table data for ReportLab"""
+    try:
+        import re
+        
+        # Extract table rows
+        rows = re.findall(r'<tr[^>]*>(.*?)</tr>', table_html, re.IGNORECASE | re.DOTALL)
+        table_data = []
+        
+        for row in rows:
+            # Extract table cells (both th and td)
+            cells = re.findall(r'<(?:th|td)[^>]*>(.*?)</(?:th|td)>', row, re.IGNORECASE | re.DOTALL)
+            if cells:
+                # Clean cell content
+                clean_cells = []
+                for cell in cells:
+                    cell_text = re.sub(r'<[^>]+>', '', cell).strip()
+                    clean_cells.append(cell_text)
+                table_data.append(clean_cells)
+        
+        return table_data if table_data else None
+    except Exception as e:
+        print(f"Error parsing HTML table: {str(e)}")
+        return None
+
+def parse_table_content(content):
+    """Parse table content and return table data for ReportLab"""
+    try:
+        import re
+        
+        # First try to parse HTML table
+        if '<table' in content.lower():
+            return parse_html_table(content)
+        
+        # If not HTML, try to parse structured text
+        lines = content.split('\n')
+        table_data = []
+        
+        # Look for common table patterns
+        for line in lines:
+            line = line.strip()
+            if not line:
+                continue
+                
+            # Check if line contains table-like structure
+            if '|' in line or '\t' in line or '  ' in line:
+                # Split by common separators
+                row = re.split(r'[|\t]+|\s{2,}', line)
+                if len(row) >= 2:  # At least 2 columns
+                    clean_row = [cell.strip() for cell in row if cell.strip()]
+                    if clean_row:
+                        table_data.append(clean_row)
+            elif any(keyword in line.lower() for keyword in ['job', 'description', 'price', 'amount', 'total']):
+                # This might be a header or data row
+                if 'job' in line.lower() and 'description' in line.lower() and 'price' in line.lower():
+                    # This is likely a header row
+                    table_data.append(['Job', 'Description', 'Price'])
+                elif any(keyword in line.lower() for keyword in ['cloudfuze', 'migration', 'managed', 'total']):
+                    # This might be a data row, try to extract meaningful content
+                    # For now, add as a single cell row
+                    table_data.append([line])
+        
+        # If we found structured data, return it
+        if table_data:
+            return table_data
+        
+        # Fallback: create a simple table from the content
+        # Look for lines that might be table rows
+        for line in lines:
+            line = line.strip()
+            if line and not line.startswith('<') and not line.startswith('{'):
+                # This might be table content
+                if any(keyword in line.lower() for keyword in ['cloudfuze', 'migration', 'managed', 'total', 'amount']):
+                    table_data.append([line])
+        
+        return table_data if table_data else None
+    except Exception as e:
+        print(f"Error parsing table content: {str(e)}")
+        return None
+
+def create_purchase_agreement_table(template_data, selected_plan='standard'):
+    """Create a professional purchase agreement table based on template data and selected plan"""
+    try:
+        # Extract relevant data based on selected plan
+        client_company = template_data.get('client_company', 'Client Company')
+        config_users = template_data.get('config_users', 1)
+        config_duration = template_data.get('config_duration_months', 1)
+        
+        # Get pricing based on selected plan
+        if selected_plan == 'basic':
+            total_cost = template_data.get('basic_total_cost_formatted', '$0.00')
+            migration_cost = template_data.get('basic_migration_cost_formatted', '$300.00')
+        elif selected_plan == 'advanced':
+            total_cost = template_data.get('advanced_total_cost_formatted', '$0.00')
+            migration_cost = template_data.get('advanced_migration_cost_formatted', '$300.00')
+        else:  # standard
+            total_cost = template_data.get('standard_total_cost_formatted', '$0.00')
+            migration_cost = template_data.get('standard_migration_cost_formatted', '$300.00')
+        
+        # Get migration type, default to "slack to teams" to match template preview
+        config_migration_type = template_data.get('config_migration_type', 'slack to teams')
+        if config_migration_type == 'content':
+            config_migration_type = 'slack to teams'  # Map content to slack to teams
+        
+        print(f"Creating table with {selected_plan} plan:")
+        print(f"  Client company: {client_company}")
+        print(f"  Total cost: {total_cost}")
+        print(f"  Migration cost: {migration_cost}")
+        print(f"  Migration type: {config_migration_type}")
+        print(f"  Duration: {config_duration} months")
+        
+        # Create table data exactly as shown in template preview
+        table_data = [
+            ['job', 'Description', 'price'],
+            [
+                'CloudFuze X-Change Data Migration',
+                f'{config_migration_type} (Up to {config_users} users)',  # Include user count
+                migration_cost  # Use migration cost instead of total
+            ],
+            [
+                'Managed Migration Service',
+                f'valid for {config_duration} month{"s" if config_duration > 1 else ""}',
+                'Included'  # Show "Included" instead of "amount"
+            ],
+            [
+                'total',
+                'price',
+                total_cost  # Use total cost for the total row
+            ]
+        ]
+        
+        print(f"Table data: {table_data}")
+        return table_data
+    except Exception as e:
+        print(f"Error creating purchase agreement table: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return None
+
+@app.route('/api/test-placeholder-replacement', methods=['POST'])
+def test_placeholder_replacement():
+    """Test endpoint to verify placeholder replacement works"""
+    try:
+        data = request.json
+        quote_id = data.get('quote_id')
+        template_id = data.get('template_id')
+        
+        if not quote_id or not template_id:
+            return jsonify({'success': False, 'message': 'Quote ID and Template ID required'}), 400
+        
+        # Get quote data
+        from mongodb_collections.quote_collection import QuoteCollection
+        quote_collection = QuoteCollection()
+        quote_data = quote_collection.get_quote_by_id(quote_id)
+        
+        if not quote_data:
+            return jsonify({'success': False, 'message': 'Quote not found'}), 404
+        
+        # Get template data
+        from mongodb_collections.template_builder_collection import TemplateBuilderCollection
+        template_collection = TemplateBuilderCollection()
+        template = template_collection.get_document_by_id(template_id)
+        
+        if not template:
+            return jsonify({'success': False, 'message': 'Template not found'}), 404
+        
+        # Build template data
+        template_data = _build_template_data_from_quote(quote_data)
+        template_data.update({
+            'current_date': datetime.now().strftime('%B %d, %Y'),
+            'current_time': datetime.now().strftime('%H:%M:%S'),
+            'quote_id': str(quote_data.get('_id', 'N/A')),
+            'generation_timestamp': datetime.now().isoformat()
+        })
+        
+        # Test placeholder replacement on template blocks
+        processed_blocks = []
+        for block in template.get('blocks', []):
+            original_content = block.get('content', '')
+            processed_content = replace_placeholders_in_content(original_content, template_data)
+            
+            processed_blocks.append({
+                'type': block.get('type', 'text'),
+                'original_content': original_content,
+                'processed_content': processed_content,
+                'placeholders_found': original_content != processed_content
+            })
+        
+        return jsonify({
+            'success': True,
+            'template_data': template_data,
+            'processed_blocks': processed_blocks,
+            'message': 'Placeholder replacement test completed'
+        })
+        
+    except Exception as e:
+        print(f"Error in placeholder replacement test: {str(e)}")
+        return jsonify({'success': False, 'message': f'Test failed: {str(e)}'}), 500
+
+@app.route('/test-placeholder-pdf')
+def test_placeholder_pdf_page():
+    """Serve the test page for placeholder PDF generation"""
+    return send_file('test_placeholder_pdf.html')
+
+@app.route('/api/debug-template-data/<quote_id>')
+def debug_template_data(quote_id):
+    """Debug endpoint to see template data for a specific quote"""
+    try:
+        from mongodb_collections.quote_collection import QuoteCollection
+        quote_collection = QuoteCollection()
+        quote_data = quote_collection.get_quote_by_id(quote_id)
+        
+        if not quote_data:
+            return jsonify({'success': False, 'message': 'Quote not found'}), 404
+        
+        # Build template data
+        template_data = _build_template_data_from_quote(quote_data)
+        
+        return jsonify({
+            'success': True,
+            'quote_data': quote_data,
+            'template_data': template_data,
+            'client_company': template_data.get('client_company', 'NOT FOUND'),
+            'client_name': template_data.get('client_name', 'NOT FOUND')
+        })
+        
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
+
 @app.route('/api/generate-pdf-by-lookup', methods=['POST'])
 def generate_pdf_by_lookup():
     """Generate PDF from quote lookup and store it"""
     try:
+        print("=" * 50)
+        print("🚀 PDF GENERATION ROUTE CALLED")
+        print("=" * 50)
+        
         data = request.json
         lookup_type = data.get('lookup_type')
         lookup_value = data.get('lookup_value')
+        template_id = data.get('template_id')  # New parameter for template support
+
+        print(f"📊 PDF Generation Request:")
+        print(f"  Lookup type: {lookup_type}")
+        print(f"  Lookup value: {lookup_value}")
+        print(f"  Template ID: {template_id}")
+        print(f"  Full request data: {data}")
 
         if not lookup_type or not lookup_value:
+            print("❌ Missing lookup parameters")
             return jsonify({'success': False, 'message': 'Missing lookup parameters'}), 400
 
         # Import quote collection to fetch real data
@@ -1387,6 +2132,19 @@ def generate_pdf_by_lookup():
         if not quote_data:
             return jsonify({'success': False, 'message': f'No quote found for {lookup_type}: {lookup_value}'}), 404
 
+        # If template_id is provided, use template-based generation
+        if template_id:
+            selected_plan = data.get('selected_plan', 'standard')  # Default to standard
+            print(f"✅ Template ID provided: {template_id}")
+            print(f"📋 Selected plan: {selected_plan}")
+            print(f"📞 Calling generate_pdf_from_template with quote_data, template_id, and selected_plan")
+            print(f"📋 Quote data keys: {list(quote_data.keys()) if quote_data else 'None'}")
+            result = generate_pdf_from_template(quote_data, template_id, selected_plan)
+            print(f"📄 Template PDF generation result: {type(result)}")
+            return result
+        else:
+            print("⚠️ No template ID provided, using standard PDF generation")
+        
         # Create professional PDF with real quote data
         from reportlab.lib.pagesizes import letter
         from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
@@ -1715,7 +2473,7 @@ def generate_agreement_from_quote():
             try:
                 from mongodb_collections.template_builder_collection import TemplateBuilderCollection
                 template_collection = TemplateBuilderCollection()
-                template = template_collection.get_template_by_id(template_id)
+                template = template_collection.get_document_by_id(template_id)
                 
                 if template and template.get('blocks'):
                     # Build template content from blocks
@@ -2047,7 +2805,7 @@ def create_template():
 def get_template(template_id):
     """Get a specific template by ID"""
     try:
-        template = template_collection.get_template_by_id(template_id)
+        template = template_collection.get_document_by_id(template_id)
         
         if template:
             # Convert ObjectId to string for JSON serialization
@@ -2076,7 +2834,7 @@ def get_template(template_id):
 def get_template_as_html(template_id):
     """For DOCX templates: convert to HTML for in-app editing"""
     try:
-        template = template_collection.get_template_by_id(template_id)
+        template = template_collection.get_document_by_id(template_id)
         if not template:
             return jsonify({'success': False, 'message': 'Template not found'}), 404
         if template.get('type') != 'docx':
@@ -2194,7 +2952,7 @@ def get_templates_by_category(category):
 @app.route('/api/templates/<template_id>/download-docx', methods=['GET'])
 def download_docx_template(template_id):
     try:
-        template = template_collection.get_template_by_id(template_id)
+        template = template_collection.get_document_by_id(template_id)
         if not template or template.get('type') != 'docx':
             return jsonify({'success': False, 'message': 'DOCX template not found'}), 404
         file_path = template.get('file_path')
@@ -2220,7 +2978,7 @@ def export_template_as_docx(template_id):
             }), 400
         
         # Get the template
-        template = template_collection.get_template_by_id(template_id)
+        template = template_collection.get_document_by_id(template_id)
         if not template:
             return jsonify({
                 'success': False,
@@ -6137,6 +6895,157 @@ def resubmit_workflow(workflow_id):
             'success': False,
             'message': f'Error resubmitting workflow: {str(e)}'
         }), 500
+
+@app.route('/api/debug-template-structure/<template_id>')
+def debug_template_structure(template_id):
+    """Debug endpoint to inspect template structure"""
+    try:
+        from mongodb_collections.template_builder_collection import TemplateBuilderCollection
+        template_collection = TemplateBuilderCollection()
+        template = template_collection.get_document_by_id(template_id)
+        
+        if not template:
+            return jsonify({'error': 'Template not found'}), 404
+        
+        # Show the structure of each block
+        blocks_info = []
+        for i, block in enumerate(template.get('blocks', [])):
+            content = block.get('content', '')
+            block_info = {
+                'index': i,
+                'type': block.get('type'),
+                'content_length': len(content),
+                'content_preview': content[:500] + '...' if len(content) > 500 else content,
+                'has_placeholders': '[Client.Company]' in content or '{{' in content or '{' in content,
+                'has_cloudfuze': 'CloudFuze' in content,
+                'has_microsoft': 'Microsoft' in content,
+                'has_logo_content': 'logo' in content.lower() or 'brand' in content.lower()
+            }
+            blocks_info.append(block_info)
+        
+        return jsonify({
+            'template_id': template_id,
+            'template_name': template.get('name', 'Unknown'),
+            'total_blocks': len(template.get('blocks', [])),
+            'blocks': blocks_info
+        })
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/example-placeholder-replacement')
+def example_placeholder_replacement():
+    """Example endpoint to show placeholder replacement"""
+    try:
+        # Sample template content with placeholders
+        sample_template_content = """
+        <table>
+        <tr>
+            <th>job</th>
+            <th>Description</th>
+            <th>price</th>
+        </tr>
+        <tr>
+            <td>CloudFuze X-Change Data Migration</td>
+            <td>slack to teams {Up to i want to keep here no of users}</td>
+            <td>{i want to mention here cost of migration only}</td>
+        </tr>
+        <tr>
+            <td>Managed Migration Service</td>
+            <td>Fully Managed Migration | Dedicated Project Manager</td>
+            <td>{i want to mention here cost of service here}</td>
+        </tr>
+        <tr>
+            <td>total</td>
+            <td>price</td>
+            <td>{i want to mention here total amount}</td>
+        </tr>
+        </table>
+        """
+        
+        # Sample quote data
+        sample_quote_data = {
+            'client': {'company': 'Acme Corp', 'name': 'John Doe'},
+            'config_users': 5,
+            'basic_migration_cost_formatted': '$500.00',
+            'total_cost_formatted': '$500.00'  # Fixed: should match migration cost since service is included
+        }
+        
+        # Build template data
+        template_data = _build_template_data_from_quote(sample_quote_data)
+        
+        # Show before and after replacement
+        before_replacement = sample_template_content
+        after_replacement = sample_template_content
+        
+        # Apply placeholder replacements
+        for key, value in template_data.items():
+            after_replacement = after_replacement.replace(f'[{key}]', str(value))
+            after_replacement = after_replacement.replace(f'{{{{{key}}}}}', str(value))
+            after_replacement = after_replacement.replace(f'{{{key}}}', str(value))
+        
+        # Special replacements
+        after_replacement = after_replacement.replace('{Up to i want to keep here no of users}', str(template_data.get('config_users', 1)))
+        after_replacement = after_replacement.replace('{i want to mention here cost of migration only}', template_data.get('basic_migration_cost_formatted', '$300.00'))
+        after_replacement = after_replacement.replace('{i want to mention here cost of service here}', 'Included')
+        after_replacement = after_replacement.replace('{i want to mention here total amount}', template_data.get('total_cost_formatted', '$0.00'))
+        
+        return jsonify({
+            'example': {
+                'before_replacement': before_replacement,
+                'after_replacement': after_replacement,
+                'template_data': template_data,
+                'sample_quote_data': sample_quote_data
+            }
+        })
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/test-plan-selection')
+def test_plan_selection():
+    """Test endpoint to show plan selection functionality"""
+    try:
+        # Sample quote data with all plan pricing
+        sample_quote_data = {
+            'client': {'company': 'Test Corp', 'name': 'Test User'},
+            'config_users': 10,
+            'config_duration_months': 6,
+            'config_migration_type': 'content',
+            # Basic plan pricing
+            'basic_total_cost_formatted': '$1,200.00',
+            'basic_migration_cost_formatted': '$300.00',
+            # Standard plan pricing  
+            'standard_total_cost_formatted': '$1,500.00',
+            'standard_migration_cost_formatted': '$300.00',
+            # Advanced plan pricing
+            'advanced_total_cost_formatted': '$1,800.00',
+            'advanced_migration_cost_formatted': '$300.00'
+        }
+        
+        # Build template data
+        template_data = _build_template_data_from_quote(sample_quote_data)
+        
+        # Test all three plans
+        plans = ['basic', 'standard', 'advanced']
+        results = {}
+        
+        for plan in plans:
+            table_data = create_purchase_agreement_table(template_data, plan)
+            results[plan] = {
+                'table_data': table_data,
+                'total_cost': template_data.get(f'{plan}_total_cost_formatted', '$0.00'),
+                'migration_cost': template_data.get(f'{plan}_migration_cost_formatted', '$300.00')
+            }
+        
+        return jsonify({
+            'test_results': results,
+            'template_data': template_data,
+            'sample_quote_data': sample_quote_data
+        })
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':
     # Log environment detection on startup

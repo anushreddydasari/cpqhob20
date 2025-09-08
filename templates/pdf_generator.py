@@ -11,8 +11,8 @@ class PDFGenerator:
     def __init__(self):
         self.styles = PDFStyles()
     
-    def create_quote_pdf(self, client_data, quote_data, configuration):
-        """Create a professional PDF quote"""
+    def create_quote_pdf(self, client_data, quote_data, configuration, selected_plan='standard'):
+        """Create a professional PDF quote with selected plan"""
         
         # Create buffer for PDF
         buffer = io.BytesIO()
@@ -58,39 +58,51 @@ class PDFGenerator:
         story.append(quote_table)
         story.append(Spacer(1, 20))
         
-        # Pricing Table
+        # Pricing Table - Show only selected plan
         story.append(Paragraph("Pricing Breakdown", self.styles.get_heading_style()))
         
         if quote_data:
+            # Get selected plan data
+            selected_plan_data = quote_data.get(selected_plan, quote_data.get('standard', {}))
+            plan_name = selected_plan.replace('_', ' ').title() + ' Plan'
+            
+            # Create single-column table for selected plan only
             pricing_data = [
-                ['Service Details', 'Basic Plan', 'Standard Plan', 'Advanced Plan']
+                ['Service Details', plan_name]
             ]
             
-            # Add pricing rows
-            if 'basic' in quote_data:
+            # Add pricing rows for selected plan only
+            if selected_plan_data:
                 pricing_data.extend([
-                    ['Per User Cost', f"${quote_data['basic'].get('perUserCost', 0):.2f}", 
-                     f"${quote_data['standard'].get('perUserCost', 0):.2f}", 
-                     f"${quote_data['advanced'].get('perUserCost', 0):.2f}"],
-                    ['Total User Cost', f"${quote_data['basic'].get('totalUserCost', 0):.2f}", 
-                     f"${quote_data['standard'].get('totalUserCost', 0):.2f}", 
-                     f"${quote_data['advanced'].get('totalUserCost', 0):.2f}"],
-                    ['Data Cost', f"${quote_data['basic'].get('dataCost', 0):.2f}", 
-                     f"${quote_data['standard'].get('dataCost', 0):.2f}", 
-                     f"${quote_data['advanced'].get('dataCost', 0):.2f}"],
-                    ['Migration Cost', f"${quote_data['basic'].get('migrationCost', 0):.2f}", 
-                     f"${quote_data['standard'].get('migrationCost', 0):.2f}", 
-                     f"${quote_data['advanced'].get('migrationCost', 0):.2f}"],
-                    ['Instance Cost', f"${quote_data['basic'].get('instanceCost', 0):.2f}", 
-                     f"${quote_data['standard'].get('instanceCost', 0):.2f}", 
-                     f"${quote_data['advanced'].get('instanceCost', 0):.2f}"],
-                    ['TOTAL COST', f"${quote_data['basic'].get('totalCost', 0):.2f}", 
-                     f"${quote_data['standard'].get('totalCost', 0):.2f}", 
-                     f"${quote_data['advanced'].get('totalCost', 0):.2f}"]
+                    ['Per User Cost', f"${selected_plan_data.get('perUserCost', 0):.2f}"],
+                    ['Per GB Cost', f"${selected_plan_data.get('perGBCost', 0):.2f}"],
+                    ['Total User Cost', f"${selected_plan_data.get('totalUserCost', 0):.2f}"],
+                    ['Data Cost', f"${selected_plan_data.get('dataCost', 0):.2f}"],
+                    ['Migration Cost', f"${selected_plan_data.get('migrationCost', 0):.2f}"],
+                    ['Instance Cost', f"${selected_plan_data.get('instanceCost', 0):.2f}"],
+                    ['TOTAL COST', f"${selected_plan_data.get('totalCost', 0):.2f}"]
                 ])
             
-            pricing_table = Table(pricing_data, colWidths=[2*inch, 1.5*inch, 1.5*inch, 1.5*inch])
-            pricing_table.setStyle(TableStyle(self.styles.get_pricing_table_style()))
+            pricing_table = Table(pricing_data, colWidths=[3*inch, 2*inch])
+            
+            # Create table style for single plan
+            table_style = [
+                ('BACKGROUND', (0, 0), (-1, 0), '#667eea'),  # Header background
+                ('TEXTCOLOR', (0, 0), (-1, 0), 'white'),      # Header text color
+                ('ALIGN', (0, 0), (-1, -1), 'LEFT'),          # Left align all
+                ('ALIGN', (1, 0), (1, -1), 'RIGHT'),          # Right align prices
+                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),  # Header font
+                ('FONTNAME', (0, 1), (0, -1), 'Helvetica'),   # Service details font
+                ('FONTNAME', (1, 1), (1, -1), 'Helvetica-Bold'),  # Price font
+                ('FONTSIZE', (0, 0), (-1, -1), 10),           # Font size
+                ('GRID', (0, 0), (-1, -1), 1, 'black'),       # Grid lines
+                ('ROWBACKGROUNDS', (0, 1), (-1, -2), ['white', '#f8f9fa']),  # Alternating rows
+                ('BACKGROUND', (0, -1), (-1, -1), '#28a745'),  # Total row background
+                ('TEXTCOLOR', (0, -1), (-1, -1), 'white'),     # Total row text color
+                ('FONTSIZE', (0, -1), (-1, -1), 12),          # Total row font size
+            ]
+            
+            pricing_table.setStyle(TableStyle(table_style))
             story.append(pricing_table)
         
         story.append(Spacer(1, 20))
