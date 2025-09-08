@@ -278,10 +278,8 @@
 
         <div class="controls">
             <button class="btn" onclick="fetchHubSpotDeals()">Fetch Deal Data</button>
-            <button class="btn btn-secondary" onclick="clearDealData()">Clear Deal Data</button>
             <button class="btn btn-secondary" onclick="clearSelectedDeal()">Clear Selected Deal</button>
             <button class="btn btn-secondary" onclick="checkStoredDeal()">Check Stored Deal</button>
-            <button class="btn btn-secondary" onclick="window.location.href='/hubspot-data'">View Contacts</button>
         </div>
 
         <!-- SELECTED DEAL SECTION (from HubSpot) -->
@@ -300,9 +298,6 @@
             <div class="section-header">
                 <h2>📚 Deal History</h2>
                 <p>All deals you've selected from HubSpot (click to view details)</p>
-                <button class="btn btn-secondary" onclick="clearAllDealHistory()" style="margin-top: 10px;">
-                    🗑️ Clear All History
-                </button>
             </div>
             <div id="dealHistoryData">
                 <!-- Deal history will be displayed here -->
@@ -418,15 +413,6 @@
             `;
         }
 
-        function clearDealData() {
-            hubspotDeals = [];
-            const dealDataDiv = document.getElementById('dealData');
-            dealDataDiv.innerHTML = `
-                <div class="loading">
-                    <p>Deal data cleared</p>
-                </div>
-            `;
-        }
 
         function clearSelectedDeal() {
             // Hide the selected deal section
@@ -440,19 +426,6 @@
             console.log('Current selected deal cleared');
         }
 
-        function clearAllDealHistory() {
-            if (confirm('Are you sure you want to clear all deal history? This cannot be undone.')) {
-                // Clear all deal history
-                localStorage.removeItem('hubspotDealHistory');
-                
-                // Hide the deal history section
-                const dealHistorySection = document.getElementById('dealHistorySection');
-                dealHistorySection.style.display = 'none';
-                
-                console.log('All deal history cleared');
-                alert('All deal history has been cleared');
-            }
-        }
 
         function removeDealFromHistory(dealId) {
             if (confirm('Remove this deal from history?')) {

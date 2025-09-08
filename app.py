@@ -296,9 +296,6 @@ def serve_template_builder():
 def serve_client_management():
     return send_from_directory('cpq', 'client-management.html')
 
-@app.route('/hubspot-data')
-def serve_hubspot_data():
-    return send_from_directory('deal_pages', 'hubspot-data.html')
 
 @app.route('/hubspot-cpq-setup')
 def serve_hubspot_cpq_setup():
@@ -4402,7 +4399,23 @@ def download_document(document_id):
                 if file_handler.file_exists(filename):
                     return send_file(correct_path, as_attachment=True, download_name=pdf.get('filename', 'document.pdf'))
                 else:
-                    return jsonify({'success': False, 'message': f'PDF file not found: {filename}'}), 404
+                    # Try to regenerate the PDF from stored data
+                    try:
+                        pdf_data = pdf.get('pdf_data')
+                        if pdf_data:
+                            import base64
+                            pdf_bytes = base64.b64decode(pdf_data)
+                            
+                            file_handler.ensure_documents_directory()
+                            
+                            with open(correct_path, 'wb') as f:
+                                f.write(pdf_bytes)
+                            
+                            return send_file(correct_path, as_attachment=True, download_name=pdf.get('filename', 'document.pdf'))
+                        else:
+                            return jsonify({'success': False, 'message': f'PDF file not found and no data available for regeneration: {filename}'}), 404
+                    except Exception as regen_error:
+                        return jsonify({'success': False, 'message': f'PDF file not found and regeneration failed: {str(regen_error)}'}), 404
         
         # Try to find in agreements
         agreement = generated_agreements.get_agreement_by_id(document_id)
@@ -4413,9 +4426,22 @@ def download_document(document_id):
                 correct_path = file_handler.get_document_path(filename)
                 
                 if file_handler.file_exists(filename):
-                    return send_file(correct_path, as_attachment=True, download_name=agreement.get('filename', 'document.pdf'))
+                    return send_file(correct_path, as_attachment=True, download_name=agreement.get('filename', 'document.txt'))
                 else:
-                    return jsonify({'success': False, 'message': f'Agreement file not found: {filename}'}), 404
+                    # Try to regenerate the agreement from stored data
+                    try:
+                        agreement_content = agreement.get('content') or agreement.get('agreement_content')
+                        if agreement_content:
+                            file_handler.ensure_documents_directory()
+                            
+                            with open(correct_path, 'w', encoding='utf-8') as f:
+                                f.write(agreement_content)
+                            
+                            return send_file(correct_path, as_attachment=True, download_name=agreement.get('filename', 'document.txt'))
+                        else:
+                            return jsonify({'success': False, 'message': f'Agreement file not found and no content available for regeneration: {filename}'}), 404
+                    except Exception as regen_error:
+                        return jsonify({'success': False, 'message': f'Agreement file not found and regeneration failed: {str(regen_error)}'}), 404
         
         return jsonify({'success': False, 'message': 'Document not found'}), 404
         
@@ -4450,17 +4476,44 @@ def preview_document(document_id):
                     print(f"🔍 Documents directory: {file_handler.documents_dir}")
                     print(f"🔍 Available files: {file_handler.list_documents()}")
                     
+                    # On Render, files might be lost due to ephemeral file system
+                    # Try to regenerate the PDF from stored data
+                    try:
+                        print(f"🔄 Attempting to regenerate PDF from stored data...")
+                        
+                        # Get the PDF data from the database
+                        pdf_data = pdf.get('pdf_data')  # Base64 encoded PDF data
+                        if pdf_data:
+                            # Decode and save the PDF
+                            import base64
+                            pdf_bytes = base64.b64decode(pdf_data)
+                            
+                            # Ensure documents directory exists
+                            file_handler.ensure_documents_directory()
+                            
+                            # Save the regenerated PDF
+                            with open(correct_path, 'wb') as f:
+                                f.write(pdf_bytes)
+                            
+                            print(f"✅ PDF regenerated successfully: {correct_path}")
+                            return send_file(correct_path, mimetype='application/pdf')
+                        else:
+                            print(f"❌ No PDF data stored in database for regeneration")
+                    except Exception as regen_error:
+                        print(f"❌ Error regenerating PDF: {regen_error}")
+                    
                     # Return helpful error with file handler info
                     return jsonify({
                         'success': False, 
-                        'message': f'PDF file not found: {filename}',
+                        'message': f'PDF file not found and could not be regenerated: {filename}',
                         'debug_info': {
                             'filename': filename,
                             'original_path': file_path,
                             'documents_directory': file_handler.documents_dir,
                             'available_files': file_handler.list_documents(),
                             'current_working_dir': os.getcwd(),
-                            'project_root': file_handler.project_root
+                            'project_root': file_handler.project_root,
+                            'has_pdf_data': bool(pdf.get('pdf_data'))
                         }
                     }), 404
             else:
@@ -4541,21 +4594,97 @@ def preview_document(document_id):
                         # For other file types, try to serve as-is
                         return send_file(correct_path)
                 else:
-                    # If no file found, return error with file handler info
+                    # If no file found, try to regenerate from stored data
                     print(f"⚠️ Agreement file not found: {filename}")
                     print(f"🔍 Documents directory: {file_handler.documents_dir}")
                     print(f"🔍 Available files: {file_handler.list_documents()}")
                     
+                    # On Render, files might be lost due to ephemeral file system
+                    # Try to regenerate the agreement from stored data
+                    try:
+                        print(f"🔄 Attempting to regenerate agreement from stored data...")
+                        
+                        # Get the agreement content from the database
+                        agreement_content = agreement.get('content') or agreement.get('agreement_content')
+                        if agreement_content:
+                            # Ensure documents directory exists
+                            file_handler.ensure_documents_directory()
+                            
+                            # Save the regenerated agreement
+                            with open(correct_path, 'w', encoding='utf-8') as f:
+                                f.write(agreement_content)
+                            
+                            print(f"✅ Agreement regenerated successfully: {correct_path}")
+                            
+                            # Now serve the regenerated file
+                            file_extension = os.path.splitext(filename)[1].lower()
+                            
+                            if file_extension == '.pdf':
+                                return send_file(correct_path, mimetype='application/pdf')
+                            elif file_extension == '.txt':
+                                try:
+                                    with open(correct_path, 'r', encoding='utf-8') as f:
+                                        content = f.read()
+                                    
+                                    # Create a formatted HTML page for text content
+                                    html_content = f"""
+                                    <!DOCTYPE html>
+                                    <html>
+                                    <head>
+                                        <meta charset="UTF-8">
+                                        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                                        <title>Agreement Preview - {agreement.get('filename', 'Document')}</title>
+                                        <style>
+                                            body {{ font-family: Arial, sans-serif; margin: 40px; line-height: 1.6; }}
+                                            .header {{ border-bottom: 2px solid #667eea; padding-bottom: 20px; margin-bottom: 30px; }}
+                                            .content {{ white-space: pre-wrap; font-size: 14px; }}
+                                            .footer {{ margin-top: 40px; padding-top: 20px; border-top: 1px solid #ddd; color: #666; }}
+                                            .document-info {{ background: #f8f9fa; padding: 15px; border-radius: 5px; margin-bottom: 20px; }}
+                                            .document-info strong {{ color: #667eea; }}
+                                        </style>
+                                    </head>
+                                    <body>
+                                        <div class="header">
+                                            <h1>📋 Agreement Preview</h1>
+                                            <div class="document-info">
+                                                <strong>Filename:</strong> {agreement.get('filename', 'N/A')}<br>
+                                                <strong>Client:</strong> {agreement.get('client_name', 'N/A')}<br>
+                                                <strong>Company:</strong> {agreement.get('company_name', 'N/A')}<br>
+                                                <strong>Service Type:</strong> {agreement.get('service_type', 'N/A')}<br>
+                                                <strong>Generated:</strong> {agreement.get('generated_at', 'N/A')}
+                                            </div>
+                                        </div>
+                                        <div class="content">{content}</div>
+                                        <div class="footer">
+                                            <p>This is a text-based agreement document. For PDF version, please contact the system administrator.</p>
+                                        </div>
+                                    </body>
+                                    </html>
+                                    """
+                                    
+                                    return html_content, 200, {'Content-Type': 'text/html; charset=utf-8'}
+                                    
+                                except Exception as read_error:
+                                    print(f"❌ Error reading regenerated agreement file: {read_error}")
+                                    return jsonify({'success': False, 'message': f'Error reading agreement file: {str(read_error)}'}), 500
+                            else:
+                                return send_file(correct_path)
+                        else:
+                            print(f"❌ No agreement content stored in database for regeneration")
+                    except Exception as regen_error:
+                        print(f"❌ Error regenerating agreement: {regen_error}")
+                    
                     return jsonify({
                         'success': False, 
-                        'message': f'Agreement file not found: {filename}',
+                        'message': f'Agreement file not found and could not be regenerated: {filename}',
                         'debug_info': {
                             'filename': filename,
                             'original_path': file_path,
                             'documents_directory': file_handler.documents_dir,
                             'available_files': file_handler.list_documents(),
                             'current_working_dir': os.getcwd(),
-                            'project_root': file_handler.project_root
+                            'project_root': file_handler.project_root,
+                            'has_content': bool(agreement.get('content') or agreement.get('agreement_content'))
                         }
                     }), 404
             else:

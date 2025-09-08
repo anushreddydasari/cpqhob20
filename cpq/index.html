@@ -153,16 +153,6 @@
                 <button class="action-btn">Manage Clients</button>
             </div>
 
-            <div class="action-card" onclick="goToHubSpotData()">
-                <div class="action-icon">🔗</div>
-                <div class="action-title">HubSpot Integration</div>
-                <div class="action-description">
-                    View and manage your HubSpot client data. Test connections, 
-                    fetch contacts, and integrate with your CPQ system.
-                </div>
-                <button class="action-btn">View HubSpot Data</button>
-            </div>
-
             <div class="action-card" onclick="goToHubSpotDeals()">
                 <div class="action-icon">💼</div>
                 <div class="action-title">HubSpot Deals</div>
@@ -220,10 +210,6 @@
 
             function goToClientManagement() {
                 window.location.href = '/client-management';
-            }
-
-            function goToHubSpotData() {
-                window.location.href = '/hubspot-data';
             }
 
             function goToHubSpotDeals() {
