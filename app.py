@@ -297,9 +297,6 @@ def serve_client_management():
     return send_from_directory('cpq', 'client-management.html')
 
 
-@app.route('/hubspot-cpq-setup')
-def serve_hubspot_cpq_setup():
-    return send_from_directory('deal_pages', 'hubspot-cpq-setup.html')
 
 @app.route('/hubspot-deals')
 def serve_hubspot_deals():

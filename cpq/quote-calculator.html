@@ -286,6 +286,7 @@
     // Load and display client information
     window.onload = function() {
       loadClientsForSelection();
+      loadHubSpotDealData();
     };
 
     // Load clients from MongoDB and populate dropdown
@@ -310,6 +311,180 @@
         console.error('Error loading clients:', error);
         showClientError('Error loading clients: ' + error.message);
       }
+    }
+
+    // Load HubSpot deal data and populate form
+    function loadHubSpotDealData() {
+      try {
+        console.log('🔍 Checking for HubSpot deal data...');
+        const dealData = localStorage.getItem('hubspotDealForCPQ');
+        console.log('Raw localStorage data:', dealData);
+        
+        if (dealData) {
+          const deal = JSON.parse(dealData);
+          console.log('✅ HubSpot deal data found:', deal);
+          
+          // Show a notification that deal data was loaded
+          showDealDataNotification(deal);
+          
+          // Populate form fields with deal data
+          console.log('🚀 Starting form population...');
+          populateFormWithDealData(deal);
+          
+          // Clear the localStorage after using it
+          localStorage.removeItem('hubspotDealForCPQ');
+          console.log('🧹 localStorage cleared');
+        } else {
+          console.log('❌ No HubSpot deal data found in localStorage');
+        }
+      } catch (error) {
+        console.error('❌ Error loading HubSpot deal data:', error);
+      }
+    }
+
+    // Populate form with HubSpot deal data
+    async function populateFormWithDealData(deal) {
+      try {
+        // First, create a client from the HubSpot deal data
+        const clientData = {
+          clientName: deal.dealName || 'HubSpot Deal Client',
+          companyName: deal.company || 'HubSpot Company',
+          email: 'hubspot-deal@example.com', // Default email since we don't have it
+          phoneNumber: 'N/A', // Required field - use N/A since we don't have phone from deal
+          serviceType: 'Migration Services'
+        };
+        
+        console.log('Creating client from HubSpot deal data:', clientData);
+        
+        // Create the client in the database
+        console.log('Sending client data to API:', clientData);
+        const response = await fetch('/api/clients', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(clientData)
+        });
+        
+        console.log('Client creation response status:', response.status);
+        const result = await response.json();
+        console.log('Client creation response:', result);
+        
+        if (response.ok && result.success) {
+          console.log('Client created successfully:', result.client_id);
+          
+          // Reload clients to include the new one
+          console.log('Reloading clients...');
+          await loadClientsForSelection();
+          
+          // Select the newly created client
+          setTimeout(() => {
+            const clientSelect = document.getElementById('clientSelect');
+            if (clientSelect) {
+              console.log('Selecting client:', result.client_id);
+              clientSelect.value = result.client_id;
+              // Trigger the change event to load client info
+              clientSelect.dispatchEvent(new Event('change'));
+              console.log('Client selected and change event triggered');
+            } else {
+              console.error('Client select dropdown not found');
+            }
+          }, 1000); // Increased timeout to ensure clients are loaded
+        } else {
+          console.error('Failed to create client:', result.message || 'Unknown error');
+          alert('Failed to create client from HubSpot deal: ' + (result.message || 'Unknown error'));
+        }
+        
+        // Set default values based on deal amount if available
+        if (deal.amount && !isNaN(parseFloat(deal.amount))) {
+          const amount = parseFloat(deal.amount);
+          
+          // Estimate users based on deal amount (rough calculation)
+          const estimatedUsers = Math.max(10, Math.min(1000, Math.round(amount / 100)));
+          const usersField = document.getElementById('users');
+          if (usersField) {
+            usersField.value = estimatedUsers;
+          }
+          
+          // Estimate instances based on deal amount
+          const estimatedInstances = Math.max(1, Math.min(10, Math.round(amount / 1000)));
+          const instancesField = document.getElementById('instances');
+          if (instancesField) {
+            instancesField.value = estimatedInstances;
+          }
+        }
+        
+        // Set default duration to 3 months
+        const durationField = document.getElementById('duration');
+        if (durationField) {
+          durationField.value = 3;
+        }
+        
+        // Set default migration type
+        const migrationTypeField = document.getElementById('migrationType');
+        if (migrationTypeField) {
+          migrationTypeField.value = 'Full Migration';
+        }
+        
+        // Set default data size
+        const dataSizeField = document.getElementById('dataSize');
+        if (dataSizeField) {
+          dataSizeField.value = 100;
+        }
+        
+        console.log('Form populated with HubSpot deal data');
+      } catch (error) {
+        console.error('Error populating form with deal data:', error);
+      }
+    }
+
+    // Show notification that deal data was loaded
+    function showDealDataNotification(deal) {
+      // Create a notification element
+      const notification = document.createElement('div');
+      notification.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 15px 20px;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        z-index: 1000;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        font-size: 14px;
+        max-width: 300px;
+        animation: slideIn 0.3s ease-out;
+      `;
+      
+      notification.innerHTML = `
+        <div style="font-weight: 600; margin-bottom: 5px;">🎯 HubSpot Deal Loaded</div>
+        <div style="font-size: 12px; opacity: 0.9;">
+          <strong>Deal:</strong> ${deal.dealName || 'N/A'}<br>
+          <strong>Company:</strong> ${deal.company || 'N/A'}<br>
+          <strong>Amount:</strong> $${deal.amount || 'N/A'}
+        </div>
+      `;
+      
+      // Add CSS animation
+      const style = document.createElement('style');
+      style.textContent = `
+        @keyframes slideIn {
+          from { transform: translateX(100%); opacity: 0; }
+          to { transform: translateX(0); opacity: 1; }
+        }
+      `;
+      document.head.appendChild(style);
+      
+      document.body.appendChild(notification);
+      
+      // Remove notification after 5 seconds
+      setTimeout(() => {
+        if (notification.parentNode) {
+          notification.parentNode.removeChild(notification);
+        }
+      }, 5000);
     }
 
     // Populate the client dropdown

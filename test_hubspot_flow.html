@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test HubSpot Flow</title>
+</head>
+<body>
+    <h1>Test HubSpot Deal to Quote Flow</h1>
+    
+    <button onclick="testClientCreation()">Test Client Creation</button>
+    <button onclick="testLocalStorage()">Test LocalStorage</button>
+    <button onclick="testAPI()">Test API Connection</button>
+    
+    <div id="results"></div>
+    
+    <script>
+        function log(message) {
+            const results = document.getElementById('results');
+            results.innerHTML += '<p>' + message + '</p>';
+            console.log(message);
+        }
+        
+        async function testClientCreation() {
+            log('🧪 Testing client creation...');
+            
+            const clientData = {
+                clientName: 'Test HubSpot Client',
+                companyName: 'Test Company',
+                email: 'test@example.com',
+                phoneNumber: 'N/A',
+                serviceType: 'Migration Services'
+            };
+            
+            try {
+                const response = await fetch('/api/clients', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(clientData)
+                });
+                
+                const result = await response.json();
+                log('✅ Client creation response: ' + JSON.stringify(result));
+            } catch (error) {
+                log('❌ Client creation error: ' + error.message);
+            }
+        }
+        
+        function testLocalStorage() {
+            log('🧪 Testing localStorage...');
+            
+            const testDeal = {
+                dealId: 'test123',
+                dealName: 'Test Deal',
+                company: 'Test Company',
+                amount: 5000,
+                source: 'hubspot-deal'
+            };
+            
+            localStorage.setItem('hubspotDealForCPQ', JSON.stringify(testDeal));
+            const retrieved = localStorage.getItem('hubspotDealForCPQ');
+            log('✅ LocalStorage test: ' + retrieved);
+            
+            localStorage.removeItem('hubspotDealForCPQ');
+        }
+        
+        async function testAPI() {
+            log('🧪 Testing API connection...');
+            
+            try {
+                const response = await fetch('/api/clients');
+                const result = await response.json();
+                log('✅ API connection test: ' + JSON.stringify(result));
+            } catch (error) {
+                log('❌ API connection error: ' + error.message);
+            }
+        }
+    </script>
+</body>
+</html>

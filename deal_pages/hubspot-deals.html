@@ -587,7 +587,7 @@
         }
 
         function generateCPQFromDeal(dealId, dealName, company, amount) {
-            // Store deal data in localStorage for the CPQ setup page
+            // Store deal data in localStorage for the quote calculator
             const dealData = {
                 dealId: dealId,
                 dealName: dealName,
@@ -598,8 +598,8 @@
             
             localStorage.setItem('hubspotDealForCPQ', JSON.stringify(dealData));
             
-            // Redirect to CPQ setup page
-            window.location.href = '/hubspot-cpq-setup';
+            // Redirect directly to quote calculator
+            window.location.href = '/quote-calculator';
         }
 
         // Check if we have deal data from URL parameters (when coming from HubSpot)
@@ -834,7 +834,7 @@
             };
             
             localStorage.setItem('hubspotDealForCPQ', JSON.stringify(dealData));
-            window.location.href = '/hubspot-cpq-setup';
+            window.location.href = '/quote-calculator';
         }
 
         // Generate CPQ from history deal
@@ -848,7 +848,7 @@
             };
             
             localStorage.setItem('hubspotDealForCPQ', JSON.stringify(dealData));
-            window.location.href = '/hubspot-cpq-setup';
+            window.location.href = '/quote-calculator';
         }
 
         // Check for deal data when page loads
