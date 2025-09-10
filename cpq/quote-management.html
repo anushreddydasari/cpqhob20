@@ -318,6 +318,14 @@
             background: #4caf50;
         }
 
+        .quote-action-btn.use {
+            background: #ff9800;
+        }
+
+        .quote-action-btn.use:hover {
+            background: #f57c00;
+        }
+
         /* Templates table styles */
         .templates-table-container {
             overflow-x: auto;
@@ -1302,6 +1310,7 @@
                         <td>$${quote.total_amount || '0.00'}</td>
                         <td><span class="status-badge ${quote.status || 'pending'}">${quote.status || 'Pending'}</span></td>
                         <td>
+                            <button class="quote-action-btn use" onclick="useThisQuote('${quote.id}')" title="Use This Quote">✅ Use</button>
                             <button class="quote-action-btn pdf" onclick="generatePDFFromQuote('${quote.id}')" title="Generate Agreement PDF">📄</button>
                             <button class="quote-action-btn agreement" onclick="generateAgreementFromQuote('${quote.id}')" title="Generate Agreement">📋</button>
                         </td>
@@ -1707,6 +1716,62 @@
                 a.click();
                 document.body.removeChild(a);
                 window.URL.revokeObjectURL(url);
+            }
+        }
+
+        // Use this quote function
+        async function useThisQuote(quoteId) {
+            console.log('🚀 useThisQuote called with quoteId:', quoteId);
+            
+            try {
+                // Fetch the quote data
+                const response = await fetch(`/api/quotes/${quoteId}`);
+                const result = await response.json();
+                
+                if (result.success && result.quote) {
+                    const quote = result.quote;
+                    
+                    // Store the quote data globally for use in other functions
+                    window.selectedQuoteData = quote;
+                    window.selectedQuoteId = quoteId;
+                    
+                    // Show success message
+                    showStatus('pdfStatus', `✅ Quote selected: ${quote.client?.name || 'N/A'} - ${quote.client?.company || 'N/A'}`, 'success');
+                    showStatus('agreementStatus', `✅ Quote selected: ${quote.client?.name || 'N/A'} - ${quote.client?.company || 'N/A'}`, 'success');
+                    
+                    // Auto-fill the quote ID field
+                    document.getElementById('quoteId').value = quoteId;
+                    document.getElementById('lookupType').value = 'quoteId';
+                    toggleLookupFields();
+                    
+                    // Show quote details
+                    console.log('📋 Selected Quote Data:', quote);
+                    
+                    // Display quote summary
+                    const summary = `
+                        <div class="status success" style="margin: 10px 0; padding: 15px; border-radius: 8px;">
+                            <h4>✅ Quote Selected Successfully!</h4>
+                            <p><strong>Client:</strong> ${quote.client?.name || 'N/A'}</p>
+                            <p><strong>Company:</strong> ${quote.client?.company || 'N/A'}</p>
+                            <p><strong>Service Type:</strong> ${quote.client?.serviceType || 'N/A'}</p>
+                            <p><strong>Quote ID:</strong> ${quoteId}</p>
+                            <p><strong>Status:</strong> ${quote.status || 'Draft'}</p>
+                            <p style="margin-top: 10px; font-size: 0.9rem; color: #666;">
+                                💡 You can now generate PDF or Agreement using this quote data.
+                            </p>
+                        </div>
+                    `;
+                    
+                    // Add summary to both status areas
+                    document.getElementById('pdfStatus').innerHTML = summary;
+                    document.getElementById('agreementStatus').innerHTML = summary;
+                    
+                } else {
+                    showStatus('pdfStatus', `❌ Failed to load quote: ${result.message || 'Unknown error'}`, 'error');
+                }
+            } catch (error) {
+                console.error('Error loading quote:', error);
+                showStatus('pdfStatus', `❌ Error loading quote: ${error.message}`, 'error');
             }
         }
 

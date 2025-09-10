@@ -521,15 +521,9 @@ def generate_quote():
             instances = int(data.get('instances', 0))
             duration = int(data.get('duration', 0))
             data_size = int(data.get('dataSize', 0))
-            selected_plan = data.get('selectedPlan', 'standard')  # Get selected plan from frontend
-            # Normalize plan casing for consistency across the stack
-            if isinstance(selected_plan, str):
-                selected_plan = selected_plan.strip().lower()
-            if selected_plan not in ('basic', 'standard', 'advanced'):
-                selected_plan = 'standard'
             
             # Debug logging for numeric values
-            print(f"Parsed values - users: {users}, instances: {instances}, duration: {duration}, data_size: {data_size}, selected_plan: {selected_plan}")
+            print(f"Parsed values - users: {users}, instances: {instances}, duration: {duration}, data_size: {data_size}")
             
         except (ValueError, TypeError) as e:
             print(f"Validation error: {e}")
@@ -595,7 +589,7 @@ def generate_quote():
         # Use the pricing logic from separate file
         results = calculate_quote(users, instance_type, instances, duration, migration_type, data_size)
 
-        # Save quote to MongoDB using collection
+        # Save quote to MongoDB using collection (without selected plan)
         try:
             quote_data = {
                 "client": {
@@ -612,10 +606,10 @@ def generate_quote():
                     "instances": instances,
                     "duration": duration,
                     "migrationType": migration_type,
-                    "dataSize": data_size,
-                    "selectedPlan": selected_plan  # Store the selected plan
-                },
-                "quote": results
+                    "dataSize": data_size
+                    # Note: selectedPlan will be added later when PDF is generated
+                }
+                # Note: quote pricing data will be added later when plan is selected
             }
             result = quotes.create_quote(quote_data)
             
@@ -1415,7 +1409,9 @@ def generate_pdf_from_template(quote_data, template_id, selected_plan='standard'
             return jsonify({'success': False, 'message': 'Template not found or has no blocks'}), 404
         
         # Build template data from quote
+        print(f"🔍 DEBUG: Building template data from quote_data: {quote_data}")
         template_data = _build_template_data_from_quote(quote_data)
+        print(f"🔍 DEBUG: Template data built: {template_data}")
         
         # Ensure we have the right client company
         client_company = quote_data.get('client', {}).get('company', 'Client Company')
@@ -2167,15 +2163,41 @@ def update_quote_selected_plan(quote_id):
     try:
         data = request.get_json() or {}
         selected_plan = (data.get('selectedPlan') or data.get('selected_plan') or '').strip().lower()
+        quote_data = data.get('quote', {})
+        client_data = data.get('client', {})
+        configuration_data = data.get('configuration', {})
+        
         if selected_plan not in ('basic', 'standard', 'advanced'):
             return jsonify({'success': False, 'message': 'Invalid plan'}), 400
 
         from mongodb_collections.quote_collection import QuoteCollection
         from bson import ObjectId
         quote_collection = QuoteCollection()
+        
+        # Update with complete data including selected plan and quote
+        update_data = {
+            'updated_at': datetime.now()
+        }
+        
+        # Add quote data if provided
+        if quote_data:
+            update_data['quote'] = quote_data
+            
+        # Add client data if provided (for complete record)
+        if client_data:
+            update_data['client'] = client_data
+            
+        # Handle configuration data - merge with existing or replace
+        if configuration_data:
+            # If we have full configuration data, replace it
+            update_data['configuration'] = configuration_data
+        else:
+            # Otherwise just update the selectedPlan
+            update_data['configuration.selectedPlan'] = selected_plan
+        
         result = quote_collection.collection.update_one(
             {'_id': ObjectId(quote_id)},
-            {'$set': {'configuration.selectedPlan': selected_plan, 'updated_at': datetime.now()}}
+            {'$set': update_data}
         )
 
         if result.matched_count == 0:
@@ -2346,21 +2368,117 @@ def generate_pdf_by_lookup():
                 print(f"WeasyPrint failed: {e}, falling back to ReportLab")
                 # Fallback to ReportLab if WeasyPrint fails
                 from reportlab.lib.pagesizes import letter
-                from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
+                from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
                 from reportlab.lib.styles import getSampleStyleSheet
+                from reportlab.lib import colors
                 from io import BytesIO
                 
+                # Get selected plan from request data
+                selected_plan = data.get('selected_plan', data.get('selectedPlan', 'standard'))
+                if selected_plan not in ['basic', 'standard', 'advanced']:
+                    selected_plan = 'standard'
+                
+                # Get quote data for selected plan
+                print(f"🔍 DEBUG: quote_data structure: {quote_data}")
+                print(f"🔍 DEBUG: selected_plan: {selected_plan}")
+                print(f"🔍 DEBUG: quote field: {quote_data.get('quote', {})}")
+                
+                quote_data_plan = quote_data.get('quote', {}).get(selected_plan, {})
+                print(f"🔍 DEBUG: quote_data_plan: {quote_data_plan}")
+                
+                # If no quote data found, try to calculate it
+                if not quote_data_plan:
+                    print("⚠️ No quote data found, calculating pricing...")
+                    from cpq.pricing_logic import calculate_quote
+                    config = quote_data.get('configuration', {})
+                    users = config.get('users', 10)
+                    instance_type = config.get('instanceType', 'standard')
+                    instances = config.get('instances', 2)
+                    duration = config.get('duration', 6)
+                    migration_type = config.get('migrationType', 'content')
+                    data_size = config.get('dataSize', 500)
+                    
+                    # Calculate all plans
+                    all_quotes = calculate_quote(
+                        users, instance_type, instances, duration, migration_type, data_size
+                    )
+                    
+                    # Get the selected plan data
+                    quote_data_plan = all_quotes.get(selected_plan, all_quotes.get('standard', {}))
+                    
+                    print(f"✅ Calculated quote_data_plan: {quote_data_plan}")
+                else:
+                    print(f"✅ Using stored quote_data_plan: {quote_data_plan}")
+                
+                # Validate quote_data_plan
+                if not quote_data_plan or not isinstance(quote_data_plan, dict):
+                    print(f"❌ Invalid quote_data_plan: {quote_data_plan}")
+                    return jsonify({'success': False, 'message': 'Failed to calculate quote data'}), 500
+                
+                config = quote_data.get('configuration', {})
+                
+                try:
                 buffer = BytesIO()
                 doc = SimpleDocTemplate(buffer, pagesize=letter)
                 styles = getSampleStyleSheet()
                 story = []
                 
-                # Add content
-                story.append(Paragraph(f"CloudFuze Purchase Agreement for {client_company}", styles['Title']))
+                    # Add header
+                    story.append(Paragraph(f"CloudFuze Quote for {client_company}", styles['Title']))
                 story.append(Spacer(1, 20))
-                story.append(Paragraph(f"This agreement provides {company_name}. with pricing for use of the CloudFuze's X-Change Enterprise Data", styles['Normal']))
-                story.append(Spacer(1, 10))
-                story.append(Paragraph("Cloud-Hosted SaaS Solution | Managed Migration | Dedicated Migration Manager", styles['Normal']))
+                    
+                    # Add client information
+                    story.append(Paragraph(f"Client: {client_name}", styles['Heading2']))
+                    story.append(Paragraph(f"Company: {client_company}", styles['Normal']))
+                    story.append(Paragraph(f"Email: {client_data.get('email', 'N/A')}", styles['Normal']))
+                    story.append(Paragraph(f"Phone: {client_data.get('phone', 'N/A')}", styles['Normal']))
+                    story.append(Spacer(1, 20))
+                    
+                    # Add configuration details
+                    story.append(Paragraph("Configuration Details:", styles['Heading2']))
+                    story.append(Paragraph(f"Users: {config.get('users', 'N/A')}", styles['Normal']))
+                    story.append(Paragraph(f"Instance Type: {config.get('instanceType', 'N/A')}", styles['Normal']))
+                    story.append(Paragraph(f"Instances: {config.get('instances', 'N/A')}", styles['Normal']))
+                    story.append(Paragraph(f"Duration: {config.get('duration', 'N/A')} months", styles['Normal']))
+                    story.append(Paragraph(f"Migration Type: {config.get('migrationType', 'N/A')}", styles['Normal']))
+                    story.append(Paragraph(f"Data Size: {config.get('dataSize', 'N/A')} GB", styles['Normal']))
+                    story.append(Spacer(1, 20))
+                    
+                    # Add pricing table
+                    story.append(Paragraph(f"Pricing - {selected_plan.title()} Plan:", styles['Heading2']))
+                    
+                    # Create pricing table
+                    pricing_data = [
+                        ['Service Details', 'Cost'],
+                        ['Per User Cost', f"${quote_data_plan.get('perUserCost', 0):.2f}"],
+                        ['Per GB Cost', f"${quote_data_plan.get('perGBCost', 0):.2f}"],
+                        ['Total User Cost', f"${quote_data_plan.get('totalUserCost', 0):.2f}"],
+                        ['Data Cost', f"${quote_data_plan.get('dataCost', 0):.2f}"],
+                        ['Migration Cost', f"${quote_data_plan.get('migrationCost', 0):.2f}"],
+                        ['Instance Cost', f"${quote_data_plan.get('instanceCost', 0):.2f}"],
+                        ['TOTAL COST', f"${quote_data_plan.get('totalCost', 0):.2f}"]
+                    ]
+                    
+                    table = Table(pricing_data)
+                    table.setStyle(TableStyle([
+                        ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+                        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+                        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                        ('FONTSIZE', (0, 0), (-1, 0), 14),
+                        ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+                        ('BACKGROUND', (0, 1), (-1, -2), colors.beige),
+                        ('BACKGROUND', (0, -1), (-1, -1), colors.lightgreen),
+                        ('FONTNAME', (0, -1), (-1, -1), 'Helvetica-Bold'),
+                        ('FONTSIZE', (0, -1), (-1, -1), 16),
+                    ]))
+                    
+                    story.append(table)
+                    story.append(Spacer(1, 20))
+                    
+                    # Add footer
+                    story.append(Paragraph("Thank you for considering CloudFuze for your migration needs!", styles['Normal']))
+                    story.append(Paragraph(f"Generated on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}", styles['Normal']))
                 
                 doc.build(story)
                 buffer.seek(0)
@@ -2368,9 +2486,14 @@ def generate_pdf_by_lookup():
                 return send_file(
                     buffer,
                     as_attachment=True,
-                    download_name=f"agreement_{client_company}_{datetime.now().strftime('%Y%m%d')}.pdf",
+                        download_name=f"quote_{client_company}_{selected_plan}_{datetime.now().strftime('%Y%m%d')}.pdf",
                     mimetype='application/pdf'
                 )
+                except Exception as pdf_error:
+                    print(f"❌ PDF generation error: {pdf_error}")
+                    import traceback
+                    traceback.print_exc()
+                    return jsonify({'success': False, 'message': f'PDF generation failed: {str(pdf_error)}'}), 500
         
         # Create professional PDF with real quote data
         from reportlab.lib.pagesizes import letter
@@ -2544,6 +2667,37 @@ def list_quotes():
         
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)})
+
+@app.route('/api/quotes/<quote_id>')
+def get_quote_by_id(quote_id):
+    """Get a specific quote by ID"""
+    try:
+        from mongodb_collections.quote_collection import QuoteCollection
+        from bson import ObjectId
+        
+        quote_collection = QuoteCollection()
+        
+        # Get the quote by ID
+        quote = quote_collection.get_quote_by_id(quote_id)
+        
+        if quote:
+            # Convert ObjectId to string for JSON serialization
+            quote['_id'] = str(quote['_id'])
+            return jsonify({
+                'success': True,
+                'quote': quote
+            }), 200
+        else:
+            return jsonify({
+                'success': False,
+                'message': 'Quote not found'
+            }), 404
+            
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': f'Error fetching quote: {str(e)}'
+        }), 500
 
 @app.route('/api/agreements/generate-from-quote', methods=['POST'])
 def generate_agreement_from_quote():

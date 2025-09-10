@@ -79,5 +79,5 @@ class QuoteCollection:
     
     def _validate_quote_data(self, data):
         """Validate quote data before saving"""
-        required_fields = ["client", "configuration", "quote"]
+        required_fields = ["client", "configuration"]
         return all(field in data for field in required_fields)
