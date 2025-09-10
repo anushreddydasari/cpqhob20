@@ -107,6 +107,53 @@ class PDFGenerator:
         
         story.append(Spacer(1, 20))
         
+        # Service Details Table - Matching your template structure
+        story.append(Paragraph("Service Details", self.styles.get_heading_style()))
+        
+        if quote_data and selected_plan_data:
+            # Get configuration data
+            users = configuration.get('users', 0)
+            duration = configuration.get('duration', 0)
+            migration_cost = selected_plan_data.get('migrationCost', 0)
+            instance_cost = selected_plan_data.get('instanceCost', 0)
+            total_cost = selected_plan_data.get('totalCost', 0)
+            
+            # Create service details table matching your template
+            service_data = [
+                ['Job', 'Description', 'Price']
+            ]
+            
+            # Add service rows
+            service_data.extend([
+                ['CloudFuze X-Change Data Migration', f'slack to teams (Up to {users} users)', f'${migration_cost + instance_cost:.2f}'],
+                ['Managed Migration Service', f'Fully Managed Migration | Dedicated Project Manager Valid for {duration} months', f'${migration_cost:.2f}'],
+                ['Total', 'Total Amount', f'${total_cost:.2f}']
+            ])
+            
+            service_table = Table(service_data, colWidths=[2*inch, 3*inch, 1.5*inch])
+            
+            # Create table style for service details
+            service_table_style = [
+                ('BACKGROUND', (0, 0), (-1, 0), '#007BFF'),  # Header background
+                ('TEXTCOLOR', (0, 0), (-1, 0), 'white'),      # Header text color
+                ('ALIGN', (0, 0), (-1, -1), 'LEFT'),          # Left align all
+                ('ALIGN', (2, 0), (2, -1), 'RIGHT'),          # Right align prices
+                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),  # Header font
+                ('FONTNAME', (0, 1), (0, -1), 'Helvetica'),   # Service details font
+                ('FONTNAME', (2, 1), (2, -1), 'Helvetica-Bold'),  # Price font
+                ('FONTSIZE', (0, 0), (-1, -1), 10),           # Font size
+                ('GRID', (0, 0), (-1, -1), 1, 'black'),       # Grid lines
+                ('ROWBACKGROUNDS', (0, 1), (-1, -2), ['white', '#f8f9fa']),  # Alternating rows
+                ('BACKGROUND', (0, -1), (-1, -1), '#28a745'),  # Total row background
+                ('TEXTCOLOR', (0, -1), (-1, -1), 'white'),     # Total row text color
+                ('FONTSIZE', (0, -1), (-1, -1), 12),          # Total row font size
+            ]
+            
+            service_table.setStyle(TableStyle(service_table_style))
+            story.append(service_table)
+        
+        story.append(Spacer(1, 20))
+        
         # Terms and Conditions
         story.append(Paragraph("Terms & Conditions", self.styles.get_heading_style()))
         terms = [

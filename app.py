@@ -144,11 +144,22 @@ def _build_template_data_from_quote(quote: dict) -> dict:
         'client_email': client.get('email', 'N/A'),
         'client_phone': client.get('phone', 'N/A'),
         'client_title': client.get('title', client.get('job_title', '')),  # support HubSpot job title
-        'company_name': 'Your Company LLC',
-        'company_email': 'contact@yourcompany.com',
+        'company_name': 'CloudFuze',
+        'company_email': 'contact@cloudfuze.com',
         'company_phone': '+1-555-0123',
         'company_address': '123 Business St, City, State 12345',
-        'service_type': client.get('serviceType', 'Services'),
+        'service_type': client.get('serviceType', 'Migration Services'),
+        
+        # Additional placeholders for PDF template
+        'Client.Company': client.get('company', 'N/A'),
+        'Client Company': client.get('company', 'N/A'),
+        'client_company': client.get('company', 'N/A'),
+        'company name': 'CloudFuze',
+        'company_name': 'CloudFuze',
+        
+        # Service description placeholders
+        'service_description': 'CloudFuze X-Change Enterprise Data Migration Services',
+        'requirements': 'Migration from Slack to Microsoft Teams with full data preservation',
         'total_cost': standard_total,
         'amount': standard_total,
         'total_cost_formatted': _money(standard_total),
@@ -510,9 +521,15 @@ def generate_quote():
             instances = int(data.get('instances', 0))
             duration = int(data.get('duration', 0))
             data_size = int(data.get('dataSize', 0))
+            selected_plan = data.get('selectedPlan', 'standard')  # Get selected plan from frontend
+            # Normalize plan casing for consistency across the stack
+            if isinstance(selected_plan, str):
+                selected_plan = selected_plan.strip().lower()
+            if selected_plan not in ('basic', 'standard', 'advanced'):
+                selected_plan = 'standard'
             
             # Debug logging for numeric values
-            print(f"Parsed values - users: {users}, instances: {instances}, duration: {duration}, data_size: {data_size}")
+            print(f"Parsed values - users: {users}, instances: {instances}, duration: {duration}, data_size: {data_size}, selected_plan: {selected_plan}")
             
         except (ValueError, TypeError) as e:
             print(f"Validation error: {e}")
@@ -546,8 +563,24 @@ def generate_quote():
                 "message": "Data size cannot be negative"
             }), 400
         
-        instance_type = data.get('instanceType', 'standard').lower()
-        migration_type = data.get('migrationType', 'content').lower()
+        instance_type = data.get('instanceType', 'Standard').lower()
+        migration_type = data.get('migrationType', 'Standard').lower()
+        
+        # Map frontend instance types to pricing logic types
+        instance_type_mapping = {
+            'standard': 'standard',
+            'high-performance': 'large',
+            'enterprise': 'extra_large'
+        }
+        instance_type = instance_type_mapping.get(instance_type, 'standard')
+        
+        # Map frontend migration types to pricing logic types
+        migration_type_mapping = {
+            'standard': 'content',
+            'express': 'email', 
+            'premium': 'messaging'
+        }
+        migration_type = migration_type_mapping.get(migration_type, 'content')
         
         # Validate instance type
         valid_instance_types = ['small', 'standard', 'large', 'extra_large']
@@ -579,7 +612,8 @@ def generate_quote():
                     "instances": instances,
                     "duration": duration,
                     "migrationType": migration_type,
-                    "dataSize": data_size
+                    "dataSize": data_size,
+                    "selectedPlan": selected_plan  # Store the selected plan
                 },
                 "quote": results
             }
@@ -1388,8 +1422,12 @@ def generate_pdf_from_template(quote_data, template_id, selected_plan='standard'
         template_data['client_company'] = client_company
         template_data['Client.Company'] = client_company  # Add alternative format
         
-        print(f"Client company: {client_company}")
-        print(f"Template data: {template_data}")
+        print(f"🔍 PDF Template Debug:")
+        print(f"  Client company: {client_company}")
+        print(f"  Company name: {template_data.get('company_name', 'NOT FOUND')}")
+        print(f"  Template data keys: {list(template_data.keys())}")
+        print(f"  [Client.Company] value: {template_data.get('Client.Company', 'NOT FOUND')}")
+        print(f"  [company name] value: {template_data.get('company name', 'NOT FOUND')}")
         
         # Create PDF buffer
         buffer = BytesIO()
@@ -1582,6 +1620,15 @@ def generate_pdf_from_template(quote_data, template_id, selected_plan='standard'
             
             # Replace ALL placeholders in content
             processed_content = actual_content
+            
+            # First do special replacements for common placeholders
+            processed_content = processed_content.replace('[Client.Company]', client_company)
+            processed_content = processed_content.replace('[Client Company]', client_company)
+            processed_content = processed_content.replace('[client_company]', client_company)
+            processed_content = processed_content.replace('[company name]', template_data.get('company_name', 'CloudFuze'))
+            processed_content = processed_content.replace('[company_name]', template_data.get('company_name', 'CloudFuze'))
+            
+            # Then do general replacements
             for key, value in template_data.items():
                 # Replace [key] format
                 processed_content = processed_content.replace(f'[{key}]', str(value))
@@ -1590,16 +1637,52 @@ def generate_pdf_from_template(quote_data, template_id, selected_plan='standard'
                 # Replace {key} format
                 processed_content = processed_content.replace(f'{{{key}}}', str(value))
             
-            # Special replacements
-            processed_content = processed_content.replace('[Client.Company]', client_company)
-            processed_content = processed_content.replace('[Client Company]', client_company)
-            processed_content = processed_content.replace('[client_company]', client_company)
+            print(f"🔍 Placeholder replacement debug:")
+            print(f"  Original content: {actual_content[:200]}...")
+            print(f"  Processed content: {processed_content[:200]}...")
+            print(f"  Client company: {client_company}")
+            print(f"  Company name: {template_data.get('company_name', 'NOT FOUND')}")
+            print(f"  Template data keys: {list(template_data.keys())}")
+            
+            # Check if placeholders are still in the content
+            if '[Client.Company]' in processed_content:
+                print("❌ [Client.Company] placeholder still present!")
+            else:
+                print("✅ [Client.Company] placeholder replaced")
+                
+            if '[company name]' in processed_content:
+                print("❌ [company name] placeholder still present!")
+            else:
+                print("✅ [company name] placeholder replaced")
             
             # Replace specific template placeholders with actual data
             processed_content = processed_content.replace('{Up to i want to keep here no of users}', str(template_data.get('config_users', 1)))
-            processed_content = processed_content.replace('{i want to mention here cost of migration only}', template_data.get('basic_migration_cost_formatted', '$300.00'))
-            processed_content = processed_content.replace('{i want to mention here cost of service here}', 'Included')
-            processed_content = processed_content.replace('{i want to mention here total amount}', template_data.get('total_cost_formatted', '$0.00'))
+
+            # Determine plan prefix based on selected plan to pull matching values
+            plan_prefix = 'standard'
+            if selected_plan == 'basic':
+                plan_prefix = 'basic'
+            elif selected_plan == 'advanced':
+                plan_prefix = 'advanced'
+
+            # Compute combined (migration + instance) for the selected plan
+            try:
+                mig_val = float(template_data.get(f'{plan_prefix}_migration_cost', 0) or 0)
+                inst_val = float(template_data.get(f'{plan_prefix}_instance_cost', 0) or 0)
+            except Exception:
+                mig_val = 0.0
+                inst_val = 0.0
+            combined_val = mig_val + inst_val
+            combined_formatted = f"${combined_val:,.2f}"
+
+            # Replace placeholders for costs
+            processed_content = processed_content.replace('{i want to mention here cost of migration only}', template_data.get(f'{plan_prefix}_migration_cost_formatted', '$0.00'))
+            processed_content = processed_content.replace('{i want to mention here cost of service here}', template_data.get(f'{plan_prefix}_migration_cost_formatted', '$0.00'))
+            processed_content = processed_content.replace('{i want to mention here total amount}', template_data.get(f'{plan_prefix}_total_cost_formatted', '$0.00'))
+
+            # Handle the custom placeholder for combined cost
+            processed_content = processed_content.replace('{i want to mention total cost - (migration cost+if instance cost)}', combined_formatted)
+            processed_content = processed_content.replace('i want to mention total cost - (migration cost+if instance cost)', combined_formatted)
             
             print(f"Processed content: {processed_content[:100]}...")
             
@@ -1766,6 +1849,8 @@ def replace_placeholders_in_content(content, template_data):
             '[Client.Name]': template_data.get('client_name', 'Client Name'),
             '[Client Name]': template_data.get('client_name', 'Client Name'),
             '[client_name]': template_data.get('client_name', 'Client Name'),
+            '[company name]': template_data.get('company_name', 'CloudFuze'),
+            '[company_name]': template_data.get('company_name', 'CloudFuze'),
         }
         
         for placeholder, value in special_replacements.items():
@@ -1944,14 +2029,32 @@ def create_purchase_agreement_table(template_data, selected_plan='standard'):
         
         # Get pricing based on selected plan
         if selected_plan == 'basic':
-            total_cost = template_data.get('basic_total_cost_formatted', '$0.00')
-            migration_cost = template_data.get('basic_migration_cost_formatted', '$300.00')
+            plan_prefix = 'basic'
         elif selected_plan == 'advanced':
-            total_cost = template_data.get('advanced_total_cost_formatted', '$0.00')
-            migration_cost = template_data.get('advanced_migration_cost_formatted', '$300.00')
-        else:  # standard
-            total_cost = template_data.get('standard_total_cost_formatted', '$0.00')
-            migration_cost = template_data.get('standard_migration_cost_formatted', '$300.00')
+            plan_prefix = 'advanced'
+        else:
+            plan_prefix = 'standard'
+
+        # Totals for table (both numeric and formatted)
+        total_cost_num = float(template_data.get(f'{plan_prefix}_total_cost', 0) or 0)
+        total_cost = template_data.get(f'{plan_prefix}_total_cost_formatted', '$0.00')
+
+        # Compute combined (migration + instance) for the selected plan
+        try:
+            mig_val = float(template_data.get(f'{plan_prefix}_migration_cost', 0) or 0)
+            inst_val = float(template_data.get(f'{plan_prefix}_instance_cost', 0) or 0)
+        except Exception:
+            mig_val = 0.0
+            inst_val = 0.0
+        combined_val = (mig_val + inst_val)
+        combined_formatted = f"${combined_val:,.2f}"
+
+        # Formatted single migration cost for row 2
+        migration_formatted = template_data.get(f'{plan_prefix}_migration_cost_formatted', '$0.00')
+
+        # Row 1 amount: total cost - (migration + instance)
+        row1_val = max(0.0, total_cost_num - combined_val)
+        row1_formatted = f"${row1_val:,.2f}"
         
         # Get migration type, default to "slack to teams" to match template preview
         config_migration_type = template_data.get('config_migration_type', 'slack to teams')
@@ -1961,7 +2064,7 @@ def create_purchase_agreement_table(template_data, selected_plan='standard'):
         print(f"Creating table with {selected_plan} plan:")
         print(f"  Client company: {client_company}")
         print(f"  Total cost: {total_cost}")
-        print(f"  Migration cost: {migration_cost}")
+        print(f"  Migration cost: {mig_val}")
         print(f"  Migration type: {config_migration_type}")
         print(f"  Duration: {config_duration} months")
         
@@ -1971,12 +2074,12 @@ def create_purchase_agreement_table(template_data, selected_plan='standard'):
             [
                 'CloudFuze X-Change Data Migration',
                 f'{config_migration_type} (Up to {config_users} users)',  # Include user count
-                migration_cost  # Use migration cost instead of total
+                row1_formatted  # total - (migration + instance)
             ],
             [
                 'Managed Migration Service',
                 f'valid for {config_duration} month{"s" if config_duration > 1 else ""}',
-                'Included'  # Show "Included" instead of "amount"
+                migration_formatted  # migration cost only
             ],
             [
                 'total',
@@ -2058,6 +2161,30 @@ def test_placeholder_pdf_page():
     """Serve the test page for placeholder PDF generation"""
     return send_file('test_placeholder_pdf.html')
 
+@app.route('/api/quotes/<quote_id>/selected-plan', methods=['POST'])
+def update_quote_selected_plan(quote_id):
+    """Update the stored selected plan for a quote so downstream agreements use it."""
+    try:
+        data = request.get_json() or {}
+        selected_plan = (data.get('selectedPlan') or data.get('selected_plan') or '').strip().lower()
+        if selected_plan not in ('basic', 'standard', 'advanced'):
+            return jsonify({'success': False, 'message': 'Invalid plan'}), 400
+
+        from mongodb_collections.quote_collection import QuoteCollection
+        from bson import ObjectId
+        quote_collection = QuoteCollection()
+        result = quote_collection.collection.update_one(
+            {'_id': ObjectId(quote_id)},
+            {'$set': {'configuration.selectedPlan': selected_plan, 'updated_at': datetime.now()}}
+        )
+
+        if result.matched_count == 0:
+            return jsonify({'success': False, 'message': 'Quote not found'}), 404
+
+        return jsonify({'success': True, 'updated': True, 'selectedPlan': selected_plan})
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
+
 @app.route('/api/debug-template-data/<quote_id>')
 def debug_template_data(quote_id):
     """Debug endpoint to see template data for a specific quote"""
@@ -2131,19 +2258,119 @@ def generate_pdf_by_lookup():
 
         if not quote_data:
             return jsonify({'success': False, 'message': f'No quote found for {lookup_type}: {lookup_value}'}), 404
+        
+        # Debug: Print quote data structure
+        print(f"🔍 Quote Data Structure:")
+        print(f"  Quote data keys: {list(quote_data.keys()) if quote_data else 'None'}")
+        print(f"  Client data: {quote_data.get('client', {})}")
+        print(f"  Client company: {quote_data.get('client', {}).get('company', 'NOT FOUND')}")
+        print(f"  Client name: {quote_data.get('client', {}).get('name', 'NOT FOUND')}")
+        
+        # Ensure client data is properly structured
+        if not quote_data.get('client'):
+            print("⚠️ No client data found, creating default client structure")
+            quote_data['client'] = {
+                'name': 'Default Client',
+                'company': 'Default Company',
+                'email': 'client@example.com',
+                'phone': 'N/A',
+                'serviceType': 'Migration Services'
+            }
+        elif not quote_data.get('client', {}).get('company'):
+            print("⚠️ No client company found, setting default")
+            quote_data['client']['company'] = 'Default Company'
+        elif not quote_data.get('client', {}).get('name'):
+            print("⚠️ No client name found, setting default")
+            quote_data['client']['name'] = 'Default Client'
 
         # If template_id is provided, use template-based generation
-        if template_id:
-            selected_plan = data.get('selected_plan', 'standard')  # Default to standard
+        if template_id and template_id != 'default':
+            # First try to get selected plan from request data
+            selected_plan = data.get('selected_plan', data.get('selectedPlan', None))
+
+            # If not provided in request, get from stored quote data
+            if not selected_plan:
+                selected_plan = quote_data.get('configuration', {}).get('selectedPlan', 'standard')
+                print(f"📋 Using stored plan from quote data: {selected_plan}")
+            else:
+                print(f"📋 Using plan from request: {selected_plan}")
+
+            # Normalize and validate plan to avoid accidental fallback to standard due to casing
+            try:
+                selected_plan = (selected_plan or 'standard').strip().lower()
+            except Exception:
+                selected_plan = 'standard'
+            if selected_plan not in ('basic', 'standard', 'advanced'):
+                selected_plan = 'standard'
+
             print(f"✅ Template ID provided: {template_id}")
-            print(f"📋 Selected plan: {selected_plan}")
+            print(f"📋 Final selected plan: {selected_plan}")
             print(f"📞 Calling generate_pdf_from_template with quote_data, template_id, and selected_plan")
             print(f"📋 Quote data keys: {list(quote_data.keys()) if quote_data else 'None'}")
             result = generate_pdf_from_template(quote_data, template_id, selected_plan)
             print(f"📄 Template PDF generation result: {type(result)}")
             return result
         else:
-            print("⚠️ No template ID provided, using standard PDF generation")
+            print("⚠️ No template ID provided, using hardcoded template generation")
+            
+            # Use hardcoded template with proper placeholder replacement
+            client_data = quote_data.get('client', {})
+            company_name = 'CloudFuze'
+            client_company = client_data.get('company', 'Client Company')
+            client_name = client_data.get('name', 'Client Name')
+            
+            # Create hardcoded template content
+            template_content = f"""
+            <div style="text-align: center; font-family: Arial, sans-serif;">
+                <h1>CloudFuze Purchase Agreement for {client_company}</h1>
+                <p>This agreement provides {company_name}. with pricing for use of the CloudFuze's X-Change Enterprise Data</p>
+                <p>Cloud-Hosted SaaS Solution | Managed Migration | Dedicated Migration Manager</p>
+            </div>
+            """
+            
+            # Generate PDF using WeasyPrint or ReportLab
+            try:
+                from weasyprint import HTML
+                from io import BytesIO
+                
+                html_doc = HTML(string=template_content)
+                pdf_bytes = html_doc.write_pdf()
+                
+                return send_file(
+                    BytesIO(pdf_bytes),
+                    as_attachment=True,
+                    download_name=f"agreement_{client_company}_{datetime.now().strftime('%Y%m%d')}.pdf",
+                    mimetype='application/pdf'
+                )
+            except Exception as e:
+                print(f"WeasyPrint failed: {e}, falling back to ReportLab")
+                # Fallback to ReportLab if WeasyPrint fails
+                from reportlab.lib.pagesizes import letter
+                from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
+                from reportlab.lib.styles import getSampleStyleSheet
+                from io import BytesIO
+                
+                buffer = BytesIO()
+                doc = SimpleDocTemplate(buffer, pagesize=letter)
+                styles = getSampleStyleSheet()
+                story = []
+                
+                # Add content
+                story.append(Paragraph(f"CloudFuze Purchase Agreement for {client_company}", styles['Title']))
+                story.append(Spacer(1, 20))
+                story.append(Paragraph(f"This agreement provides {company_name}. with pricing for use of the CloudFuze's X-Change Enterprise Data", styles['Normal']))
+                story.append(Spacer(1, 10))
+                story.append(Paragraph("Cloud-Hosted SaaS Solution | Managed Migration | Dedicated Migration Manager", styles['Normal']))
+                
+                doc.build(story)
+                buffer.seek(0)
+                
+                return send_file(
+                    buffer,
+                    as_attachment=True,
+                    download_name=f"agreement_{client_company}_{datetime.now().strftime('%Y%m%d')}.pdf",
+                    mimetype='application/pdf'
+                )
         
         # Create professional PDF with real quote data
         from reportlab.lib.pagesizes import letter
@@ -3369,19 +3596,55 @@ def generate_agreement_pdf_from_template():
     try:
         data = request.get_json()
         
-        # Extract all the template data
-        company_name = data.get('companyName', 'CloudFuze')
-        company_address = data.get('companyAddress', '2500 Regency Parkway, Cary, NC 27518')
-        client_company = data.get('clientCompany', 'Client Company')
-        client_name = data.get('clientName', 'Client Name')
-        service_type = data.get('serviceType', 'Migration Service')
-        service_description = data.get('serviceDescription', 'Service description')
-        total_price = data.get('totalPrice', 0)
-        currency = data.get('currency', 'USD')
-        start_date = data.get('startDate', datetime.now().strftime('%Y-%m-%d'))
-        end_date = data.get('endDate', (datetime.now() + timedelta(days=30)).strftime('%Y-%m-%d'))
-        ceo_signature = data.get('ceoSignature', {})
-        client_signature = data.get('clientSignature', {})
+        # Check if quote_id is provided (from quote calculator)
+        if 'quote_id' in data:
+            quote_id = data.get('quote_id')
+            if not quote_id:
+                return jsonify({'success': False, 'message': 'Quote ID is required'}), 400
+            
+            # Get quote data
+            quote = quotes.get_quote_by_id(quote_id)
+            if not quote:
+                return jsonify({'success': False, 'message': 'Quote not found'}), 404
+            
+            # Build template data from quote
+            template_data = _build_template_data_from_quote(quote)
+            
+            # Extract data from template_data
+            company_name = template_data.get('company_name', 'CloudFuze')
+            company_address = template_data.get('company_address', '2500 Regency Parkway, Cary, NC 27518')
+            client_company = template_data.get('client_company', 'Client Company')
+            client_name = template_data.get('client_name', 'Client Name')
+            service_type = template_data.get('service_type', 'Migration Service')
+            service_description = template_data.get('service_description', 'CloudFuze X-Change Enterprise Data Migration Services')
+            total_price = float(template_data.get('total_cost', 0))
+            currency = 'USD'
+            start_date = template_data.get('start_date', datetime.now().strftime('%Y-%m-%d'))
+            end_date = template_data.get('end_date', (datetime.now() + timedelta(days=30)).strftime('%Y-%m-%d'))
+            ceo_signature = {}
+            client_signature = {}
+            
+            # Debug logging
+            print(f"🔍 PDF Template Data:")
+            print(f"  company_name: {company_name}")
+            print(f"  client_company: {client_company}")
+            print(f"  service_description: {service_description}")
+            print(f"  total_price: {total_price}")
+            print(f"  template_data keys: {list(template_data.keys())}")
+        else:
+            # Extract all the template data from direct input
+            company_name = data.get('companyName', 'CloudFuze')
+            company_address = data.get('companyAddress', '2500 Regency Parkway, Cary, NC 27518')
+            client_company = data.get('clientCompany', 'Client Company')
+            client_name = data.get('clientName', 'Client Name')
+            service_type = data.get('serviceType', 'Migration Service')
+            service_description = data.get('serviceDescription', 'Service description')
+            total_price = data.get('totalPrice', 0)
+            currency = data.get('currency', 'USD')
+            start_date = data.get('startDate', datetime.now().strftime('%Y-%m-%d'))
+            end_date = data.get('endDate', (datetime.now() + timedelta(days=30)).strftime('%Y-%m-%d'))
+            ceo_signature = data.get('ceoSignature', {})
+            client_signature = data.get('clientSignature', {})
         
         # Create 3-page HTML content for the complete agreement
         html_content = f"""

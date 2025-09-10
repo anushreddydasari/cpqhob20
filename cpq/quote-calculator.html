@@ -688,6 +688,10 @@
         document.getElementById('resultContent').innerHTML = html;
         document.getElementById('result').style.display = 'block';
 
+        // Get selected plan from radio buttons
+        const selectedPlanRadio = document.querySelector('input[name="selectedPlan"]:checked');
+        const selectedPlan = selectedPlanRadio ? selectedPlanRadio.value : 'standard';
+        
         // Store quote data for template
         const templateData = {
           users: data.users,
@@ -696,12 +700,48 @@
           duration: data.duration,
           migrationType: data.migrationType,
           dataSize: data.dataSize,
-          quote: quoteData
+          quote: quoteData,
+          selectedPlan: selectedPlan  // Store the selected plan
         };
         localStorage.setItem('quoteData', JSON.stringify(templateData));
         
+        // Store selected plan separately as well
+        localStorage.setItem('selectedPlan', selectedPlan);
+        
         // Store quote data globally for plan display updates
         window.currentQuoteData = quoteData;
+        
+        // Store quote ID for PDF generation and persist selected plan to DB
+        if (result.quote_id) {
+          localStorage.setItem('currentQuoteId', result.quote_id);
+          console.log('Stored quote ID:', result.quote_id);
+
+          // Helper to persist selected plan on the server so Quote Management uses it
+          const persistSelectedPlan = async (plan) => {
+            try {
+              await fetch(`/api/quotes/${result.quote_id}/selected-plan`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ selectedPlan: plan })
+              });
+              console.log('Persisted selected plan:', plan);
+            } catch (e) {
+              console.warn('Failed to persist selected plan:', e);
+            }
+          };
+
+          // Persist the initial plan immediately
+          persistSelectedPlan(selectedPlan);
+
+          // Also persist whenever the user changes the radio selection
+          document.querySelectorAll('input[name="selectedPlan"]').forEach(el => {
+            el.addEventListener('change', () => {
+              const plan = document.querySelector('input[name="selectedPlan"]:checked')?.value || 'standard';
+              localStorage.setItem('selectedPlan', plan);
+              persistSelectedPlan(plan);
+            });
+          });
+        }
         
         // Debug logging
         console.log('Stored template data:', templateData);
@@ -765,10 +805,15 @@
         pdfBtn.disabled = true;
 
         // Call PDF generation endpoint
-        const response = await fetch('/api/generate-pdf', {
+        const response = await fetch('/api/generate-pdf-by-lookup', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(pdfData)
+          body: JSON.stringify({ 
+            lookup_type: 'quoteId', 
+            lookup_value: localStorage.getItem('currentQuoteId'),
+            template_id: null, // Let the system use the default template
+            selected_plan: 'standard'
+          })
         });
 
         if (!response.ok) {
@@ -810,6 +855,9 @@
       const planData = quoteData[selectedPlan];
       
       if (!planData) return;
+      
+      // Store selected plan in localStorage for template
+      localStorage.setItem('selectedPlan', selectedPlan);
       
       // Update the pricing table to show only selected plan
       const tableHtml = `
@@ -907,10 +955,15 @@
         pdfBtn.disabled = true;
 
         // Call PDF generation endpoint with plan
-        const response = await fetch('/api/generate-pdf', {
+        const response = await fetch('/api/generate-pdf-by-lookup', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(pdfData)
+          body: JSON.stringify({ 
+            lookup_type: 'quoteId', 
+            lookup_value: localStorage.getItem('currentQuoteId'),
+            template_id: null, // Let the system use the default template
+            selected_plan: selectedPlan.value
+          })
         });
 
         if (!response.ok) {

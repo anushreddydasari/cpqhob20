@@ -902,7 +902,7 @@
                     </div>
 
                     <div style="margin-top: 15px;">
-                        <button class="btn btn-info" onclick="generatePDF()">📄 Generate PDF</button>
+                        <button class="btn btn-info" onclick="generatePDF()">📄 Generate Agreement PDF</button>
                         <button class="btn btn-info" onclick="generateAgreement()">📋 Generate Agreement</button>
                         <button class="btn btn-secondary" onclick="debugTemplateSelection()">🔍 Debug Template</button>
                     </div>
@@ -1021,7 +1021,7 @@
 
                     <!-- Action Buttons -->
                     <div style="margin-top: 20px;">
-                        <button class="btn btn-primary" onclick="generateAndSendPDF()">🚀 Generate PDF & Send Email</button>
+                        <button class="btn btn-primary" onclick="generateAndSendPDF()">🚀 Generate Agreement PDF & Send Email</button>
                         <button class="btn btn-info" onclick="loadStoredDocuments()">📋 Load Available Documents</button>
                         <button class="btn btn-success" onclick="sendEmailWithAttachments()">📧 Send Email with Attachments</button>
                     </div>
@@ -1302,7 +1302,7 @@
                         <td>$${quote.total_amount || '0.00'}</td>
                         <td><span class="status-badge ${quote.status || 'pending'}">${quote.status || 'Pending'}</span></td>
                         <td>
-                            <button class="quote-action-btn pdf" onclick="generatePDFFromQuote('${quote.id}')" title="Generate PDF">📄</button>
+                            <button class="quote-action-btn pdf" onclick="generatePDFFromQuote('${quote.id}')" title="Generate Agreement PDF">📄</button>
                             <button class="quote-action-btn agreement" onclick="generateAgreementFromQuote('${quote.id}')" title="Generate Agreement">📋</button>
                         </td>
                     </tr>
@@ -1724,12 +1724,28 @@
             showStatus('pdfStatus', '📄 Generating PDF...', 'info');
             
             try {
+                // Attempt to fetch the stored selected plan for this quote
+                let selectedPlanForQuote = '';
+                try {
+                    const planResp = await fetch(`/api/debug-template-data/${quoteId}`);
+                    const planJson = await planResp.json();
+                    if (planJson && planJson.success) {
+                        const cfg = (planJson.quote_data && planJson.quote_data.configuration) || {};
+                        selectedPlanForQuote = (cfg.selectedPlan || '').toLowerCase();
+                        console.log('🧭 Stored selectedPlan for quote:', selectedPlanForQuote);
+                    }
+                } catch (e) { /* non-blocking */ }
+
                 const requestBody = {
                     lookup_type: 'quoteId',
                     lookup_value: quoteId,
-                    template_id: window.selectedTemplateId,
-                    selected_plan: 'standard'  // Default to standard plan
+                    template_id: window.selectedTemplateId
                 };
+
+                // If we successfully found a stored plan, include it explicitly
+                if (selectedPlanForQuote === 'basic' || selectedPlanForQuote === 'standard' || selectedPlanForQuote === 'advanced') {
+                    requestBody.selected_plan = selectedPlanForQuote;
+                }
                 
                 console.log('📤 Sending request body:', requestBody);
                 
@@ -1893,12 +1909,29 @@
             showStatus('pdfStatus', '📄 Generating PDF...', 'info');
             
             try {
+                let selectedPlanForQuote = '';
+                // Only attempt plan lookup when using quoteId
+                if (lookupType === 'quoteId') {
+                    try {
+                        const planResp = await fetch(`/api/debug-template-data/${lookupValue}`);
+                        const planJson = await planResp.json();
+                        if (planJson && planJson.success) {
+                            const cfg = (planJson.quote_data && planJson.quote_data.configuration) || {};
+                            selectedPlanForQuote = (cfg.selectedPlan || '').toLowerCase();
+                            console.log('🧭 Stored selectedPlan for quote:', selectedPlanForQuote);
+                        }
+                    } catch (e) { /* non-blocking */ }
+                }
+
                 const requestBody = {
                     lookup_type: lookupType,
                     lookup_value: lookupValue,
-                    template_id: window.selectedTemplateId,
-                    selected_plan: 'standard'  // Default to standard plan
+                    template_id: window.selectedTemplateId
                 };
+
+                if (selectedPlanForQuote === 'basic' || selectedPlanForQuote === 'standard' || selectedPlanForQuote === 'advanced') {
+                    requestBody.selected_plan = selectedPlanForQuote;
+                }
                 
                 console.log('📤 Sending request body:', requestBody);
                 

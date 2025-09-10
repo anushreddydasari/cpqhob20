@@ -90,14 +90,14 @@
       font-size: 24px;
     }
     
-    .pricing-table {
+    .pricing-table, .service-table {
       width: 100%;
       border-collapse: collapse;
       margin-bottom: 30px;
       box-shadow: 0 2px 8px rgba(0,0,0,0.1);
     }
     
-    .pricing-table th {
+    .pricing-table th, .service-table th {
       background: #007BFF;
       color: white;
       padding: 15px;
@@ -105,13 +105,21 @@
       font-weight: 600;
     }
     
-    .pricing-table td {
+    .pricing-table td, .service-table td {
       padding: 12px 15px;
       text-align: center;
       border-bottom: 1px solid #e9ecef;
     }
     
-    .pricing-table tr:nth-child(even) {
+    .service-table td {
+      text-align: left;
+    }
+    
+    .service-table td:last-child {
+      text-align: right;
+    }
+    
+    .pricing-table tr:nth-child(even), .service-table tr:nth-child(even) {
       background: #f8f9fa;
     }
     
@@ -123,6 +131,14 @@
     
     .total-row td {
       color: #007BFF;
+    }
+    
+    .service-table .total-row {
+      background: #28a745 !important;
+    }
+    
+    .service-table .total-row td {
+      color: white;
     }
     
     .terms-section {
@@ -278,52 +294,67 @@
           <tr>
             <th>Service Details</th>
             <th>Basic Plan</th>
-            <th>Standard Plan</th>
-            <th>Advanced Plan</th>
           </tr>
         </thead>
         <tbody>
           <tr>
             <td><strong>Per User Cost</strong></td>
             <td id="basicPerUser">$0.00</td>
-            <td id="standardPerUser">$0.00</td>
-            <td id="advancedPerUser">$0.00</td>
           </tr>
           <tr>
             <td><strong>Per GB Cost</strong></td>
             <td id="basicPerGB">$0.00</td>
-            <td id="standardPerGB">$0.00</td>
-            <td id="advancedPerGB">$0.00</td>
           </tr>
           <tr>
             <td><strong>Total User Cost</strong></td>
             <td id="basicUserTotal">$0.00</td>
-            <td id="standardUserTotal">$0.00</td>
-            <td id="advancedUserTotal">$0.00</td>
           </tr>
           <tr>
             <td><strong>Data Cost</strong></td>
             <td id="basicDataCost">$0.00</td>
-            <td id="standardDataCost">$0.00</td>
-            <td id="advancedDataCost">$0.00</td>
           </tr>
           <tr>
             <td><strong>Migration Cost</strong></td>
             <td id="basicMigration">$0.00</td>
-            <td id="standardMigration">$0.00</td>
-            <td id="advancedMigration">$0.00</td>
           </tr>
           <tr>
             <td><strong>Instance Cost</strong></td>
             <td id="basicInstance">$0.00</td>
-            <td id="standardInstance">$0.00</td>
-            <td id="advancedInstance">$0.00</td>
           </tr>
           <tr class="total-row">
             <td><strong>TOTAL COST</strong></td>
             <td id="basicTotal">$0.00</td>
-            <td id="standardTotal">$0.00</td>
-            <td id="advancedTotal">$0.00</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Service Details Section -->
+    <div class="pricing-section">
+      <h2>Service Details</h2>
+      <table class="service-table">
+        <thead>
+          <tr>
+            <th>Job</th>
+            <th>Description</th>
+            <th>Price</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>CloudFuze X-Change Data Migration</strong></td>
+            <td id="migrationDescription">slack to teams {Up to <span id="userCount">0</span> users}</td>
+            <td id="migrationTotalPrice">$<span id="calculatedTotal">0.00</span></td>
+          </tr>
+          <tr>
+            <td><strong>Managed Migration Service</strong></td>
+            <td id="managedServiceDescription">Fully Managed Migration | Dedicated Project Manager Valid for <span id="durationMonths">0</span> months</td>
+            <td id="managedServicePrice">$<span id="migrationCostOnly">0.00</span></td>
+          </tr>
+          <tr class="total-row">
+            <td><strong>Total</strong></td>
+            <td>Total Amount</td>
+            <td id="finalTotalAmount">$<span id="totalAmount">0.00</span></td>
           </tr>
         </tbody>
       </table>
@@ -385,8 +416,9 @@
     <button class="back-btn" onclick="goBack()">Back to Calculator</button>
     <button class="back-btn" onclick="refreshData()" style="background-color: #17a2b8;">Refresh Data</button>
     <button class="back-btn" onclick="testDataPopulation()" style="background-color: #ffc107; color: #000;">Test Data</button>
+    <button class="back-btn" onclick="testPlaceholders()" style="background-color: #28a745; color: white;">Test Placeholders</button>
     <button class="back-btn" onclick="testPDFGeneration()" style="background-color: #6f42c1; color: white;">Test PDF</button>
-    <button class="download-btn" onclick="downloadPDF()">Download PDF Quote</button>
+    <button class="download-btn" onclick="downloadPDF()">Generate Agreement PDF</button>
   </div>
 
   <!-- Debug Information (remove in production) -->
@@ -608,7 +640,7 @@
       
       // Enable download button after successful data population
       document.querySelector('.download-btn').disabled = false;
-      document.querySelector('.download-btn').textContent = 'Download PDF Quote';
+      document.querySelector('.download-btn').textContent = 'Generate Agreement PDF';
       document.getElementById('templateStatus').textContent = '✅ Template populated successfully - Ready for PDF generation';
       
       console.log('Template populated successfully');
@@ -616,39 +648,68 @@
     
     // Populate pricing table
     function populatePricing(quote) {
-      if (quote.basic) {
-        document.getElementById('basicPerUser').textContent = '$' + quote.basic.perUserCost.toFixed(2);
-        document.getElementById('basicPerGB').textContent = '$' + quote.basic.perGBCost.toFixed(2);
-        document.getElementById('basicUserTotal').textContent = '$' + quote.basic.totalUserCost.toFixed(2);
-        document.getElementById('basicDataCost').textContent = '$' + quote.basic.dataCost.toFixed(2);
-        document.getElementById('basicMigration').textContent = '$' + quote.basic.migrationCost.toFixed(2);
-        document.getElementById('basicInstance').textContent = '$' + quote.basic.instanceCost.toFixed(2);
-        document.getElementById('basicTotal').textContent = '$' + quote.basic.totalCost.toFixed(2);
-      }
+      // Get the selected plan or default to basic
+      const selectedPlan = localStorage.getItem('selectedPlan') || 'basic';
+      const planData = quote[selectedPlan] || quote.basic;
       
-      if (quote.standard) {
-        document.getElementById('standardPerUser').textContent = '$' + quote.standard.perUserCost.toFixed(2);
-        document.getElementById('standardPerGB').textContent = '$' + quote.standard.perGBCost.toFixed(2);
-        document.getElementById('standardUserTotal').textContent = '$' + quote.standard.totalUserCost.toFixed(2);
-        document.getElementById('standardDataCost').textContent = '$' + quote.standard.dataCost.toFixed(2);
-        document.getElementById('standardMigration').textContent = '$' + quote.standard.migrationCost.toFixed(2);
-        document.getElementById('standardInstance').textContent = '$' + quote.standard.instanceCost.toFixed(2);
-        document.getElementById('standardTotal').textContent = '$' + quote.standard.totalCost.toFixed(2);
-      }
-      
-      if (quote.advanced) {
-        document.getElementById('advancedPerUser').textContent = '$' + quote.advanced.perUserCost.toFixed(2);
-        document.getElementById('advancedPerGB').textContent = '$' + quote.advanced.perGBCost.toFixed(2);
-        document.getElementById('advancedUserTotal').textContent = '$' + quote.advanced.totalUserCost.toFixed(2);
-        document.getElementById('advancedDataCost').textContent = '$' + quote.advanced.dataCost.toFixed(2);
-        document.getElementById('advancedMigration').textContent = '$' + quote.advanced.migrationCost.toFixed(2);
-        document.getElementById('advancedInstance').textContent = '$' + quote.advanced.instanceCost.toFixed(2);
-        document.getElementById('advancedTotal').textContent = '$' + quote.advanced.totalCost.toFixed(2);
+      if (planData) {
+        // Populate basic pricing table
+        document.getElementById('basicPerUser').textContent = '$' + planData.perUserCost.toFixed(2);
+        document.getElementById('basicPerGB').textContent = '$' + planData.perGBCost.toFixed(2);
+        document.getElementById('basicUserTotal').textContent = '$' + planData.totalUserCost.toFixed(2);
+        document.getElementById('basicDataCost').textContent = '$' + planData.dataCost.toFixed(2);
+        document.getElementById('basicMigration').textContent = '$' + planData.migrationCost.toFixed(2);
+        document.getElementById('basicInstance').textContent = '$' + planData.instanceCost.toFixed(2);
+        document.getElementById('basicTotal').textContent = '$' + planData.totalCost.toFixed(2);
+        
+        // Populate service details placeholders
+        populateServiceDetails(planData);
       }
       
       // Enable download button after data is populated
       document.querySelector('.download-btn').disabled = false;
-      document.querySelector('.download-btn').textContent = 'Download PDF Quote';
+      document.querySelector('.download-btn').textContent = 'Generate Agreement PDF';
+    }
+    
+    // Populate service details placeholders
+    function populateServiceDetails(planData) {
+      // Get additional data from localStorage
+      const quoteData = JSON.parse(localStorage.getItem('quoteData') || '{}');
+      const clientData = JSON.parse(localStorage.getItem('clientData') || '{}');
+      
+      // Populate user count
+      const userCount = quoteData.users || 0;
+      document.getElementById('userCount').textContent = userCount;
+      
+      // Populate duration in months
+      const durationMonths = quoteData.duration || 0;
+      document.getElementById('durationMonths').textContent = durationMonths;
+      
+      // Populate migration cost
+      document.getElementById('migrationCost').textContent = planData.migrationCost.toFixed(2);
+      document.getElementById('migrationCostOnly').textContent = planData.migrationCost.toFixed(2);
+      
+      // Populate instance cost
+      document.getElementById('instanceCost').textContent = planData.instanceCost.toFixed(2);
+      
+      // Calculate and populate total amount
+      const totalAmount = planData.totalCost;
+      document.getElementById('totalAmount').textContent = totalAmount.toFixed(2);
+      
+      // Update migration description with actual migration type
+      const migrationType = quoteData.migrationType || 'Standard';
+      const migrationDescription = `slack to teams {Up to ${userCount} users}`;
+      document.getElementById('migrationDescription').innerHTML = migrationDescription;
+      
+      // Update managed service description
+      const managedServiceDescription = `Fully Managed Migration | Dedicated Project Manager Valid for ${durationMonths} months`;
+      document.getElementById('managedServiceDescription').innerHTML = managedServiceDescription;
+      
+      // Update price displays with actual values
+      const calculatedTotal = planData.migrationCost + planData.instanceCost;
+      document.getElementById('calculatedTotal').textContent = calculatedTotal.toFixed(2);
+      document.getElementById('migrationCostOnly').textContent = planData.migrationCost.toFixed(2);
+      document.getElementById('totalAmount').textContent = totalAmount.toFixed(2);
     }
 
     // Embed signatures into PDF by drawing them into the DOM (already previewed) so html2pdf picks them up.
@@ -666,8 +727,8 @@
       } catch (e) { /* non-blocking */ }
     }
     
-    // Download PDF function with improved error handling
-    function downloadPDF() {
+    // Generate Agreement PDF function
+    async function downloadPDF() {
       try {
         // First, ensure data is populated
         populateTemplate();
@@ -682,49 +743,70 @@
         }
         
         // Show loading message
-        document.querySelector('.download-btn').textContent = 'Generating PDF...';
+        document.querySelector('.download-btn').textContent = 'Generating Agreement PDF...';
         document.querySelector('.download-btn').disabled = true;
         
-        // Wait for data to be fully populated, then generate PDF
-        setTimeout(() => {
-          try {
-            const element = document.querySelector('.quote-container');
-            if (!element) {
-              throw new Error('Quote container not found');
-            }
-            
-            const opt = {
-              margin: 1,
-              filename: 'quote.pdf',
-              image: { type: 'jpeg', quality: 0.98 },
-              html2canvas: { scale: 2 },
-              jsPDF: { unit: 'in', format: 'a4', orientation: 'portrait' }
-            };
-            
-            html2pdf().set(opt).from(element).save().then(() => {
-              // Success - Reset button after PDF is generated
-              document.querySelector('.download-btn').textContent = 'Download PDF Quote';
-              document.querySelector('.download-btn').disabled = false;
-              console.log('PDF generated successfully');
-            }).catch((error) => {
-              console.error('PDF generation failed:', error);
-              alert('PDF generation failed: ' + error.message);
-              document.querySelector('.download-btn').textContent = 'Download PDF Quote';
-              document.querySelector('.download-btn').disabled = false;
-            });
-            
-          } catch (error) {
-            console.error('Error in PDF generation:', error);
-            alert('Error generating PDF: ' + error.message);
-            document.querySelector('.download-btn').textContent = 'Download PDF Quote';
-            document.querySelector('.download-btn').disabled = false;
-          }
-        }, 2000); // Increased to 2 seconds for better reliability
+        // Get the selected plan
+        const selectedPlan = localStorage.getItem('selectedPlan') || 'standard';
+        
+        // Get quote ID from URL or localStorage
+        const urlParams = new URLSearchParams(window.location.search);
+        const quoteId = urlParams.get('quoteId') || localStorage.getItem('currentQuoteId');
+        
+        if (!quoteId) {
+          alert('Quote ID not found. Please generate a quote first.');
+          document.querySelector('.download-btn').textContent = 'Generate Agreement PDF';
+          document.querySelector('.download-btn').disabled = false;
+          return;
+        }
+        
+        // Update the stored plan for this quote
+        try {
+          await fetch(`/api/quotes/${quoteId}/selected-plan`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ selectedPlan: selectedPlan })
+          });
+        } catch (e) {
+          console.log('Could not update stored plan:', e);
+        }
+        
+        // Generate Purchase Agreement PDF
+        const response = await fetch('/api/generate-pdf-by-lookup', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            lookup_type: 'quoteId',
+            lookup_value: quoteId,
+            template_id: 'new_document_1757400255209_6vn909', // Default template ID
+            selected_plan: selectedPlan
+          })
+        });
+        
+        if (!response.ok) {
+          throw new Error('Failed to generate agreement PDF');
+        }
+        
+        // Download the PDF
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `agreement_${clientData.clientName || 'client'}_${selectedPlan}_${new Date().toISOString().split('T')[0]}.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+        
+        // Success - Reset button
+        document.querySelector('.download-btn').textContent = 'Generate Agreement PDF';
+        document.querySelector('.download-btn').disabled = false;
+        console.log('Agreement PDF generated successfully');
         
       } catch (error) {
         console.error('Error in downloadPDF function:', error);
-        alert('Error: ' + error.message);
-        document.querySelector('.download-btn').textContent = 'Download PDF Quote';
+        alert('Error generating agreement PDF: ' + error.message);
+        document.querySelector('.download-btn').textContent = 'Generate Agreement PDF';
         document.querySelector('.download-btn').disabled = false;
       }
     }
@@ -796,6 +878,65 @@
       document.getElementById('templateStatus').textContent = 'Populated with test data';
       console.log('Test data populated successfully');
       populateTemplate(); // Re-populate to show test data in template
+    }
+
+    // Function to test placeholders with sample data
+    function testPlaceholders() {
+      try {
+        console.log('Testing placeholders with sample data...');
+        
+        // Create sample quote data
+        const sampleQuoteData = {
+          basic: {
+            perUserCost: 30.00,
+            perGBCost: 1.00,
+            totalUserCost: 300.00,
+            dataCost: 500.00,
+            migrationCost: 300.00,
+            instanceCost: 12000.00,
+            totalCost: 13100.00
+          }
+        };
+        
+        const sampleConfigData = {
+          users: 10,
+          duration: 6,
+          migrationType: 'Standard',
+          dataSize: 500
+        };
+        
+        // Store sample data in localStorage
+        localStorage.setItem('quoteData', JSON.stringify(sampleConfigData));
+        localStorage.setItem('selectedPlan', 'basic');
+        
+        // Create sample client data
+        const sampleClientData = {
+          clientName: 'Test Client',
+          companyName: 'Test Company',
+          email: 'test@example.com',
+          phoneNumber: '123-456-7890',
+          serviceType: 'Migration Services'
+        };
+        localStorage.setItem('clientData', JSON.stringify(sampleClientData));
+        
+        // Update the quote data with sample data
+        const updatedQuoteData = { ...sampleConfigData, quote: sampleQuoteData };
+        localStorage.setItem('quoteData', JSON.stringify(updatedQuoteData));
+        
+        // Populate the template
+        populateTemplate();
+        
+        // Show success message
+        alert('✅ Placeholders populated with test data! Check the template to see the populated values.');
+        
+        // Update debug info
+        document.getElementById('debugInfo').textContent = `Test Data Loaded:\nClient: ${JSON.stringify(sampleClientData)}\nQuote: ${JSON.stringify(updatedQuoteData)}`;
+        document.getElementById('templateStatus').textContent = '✅ Test data loaded - Placeholders populated';
+        
+      } catch (error) {
+        console.error('Error testing placeholders:', error);
+        alert('❌ Error testing placeholders: ' + error.message);
+      }
     }
 
     // Function to test PDF generation with simple content
