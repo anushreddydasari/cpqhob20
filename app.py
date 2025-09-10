@@ -1653,6 +1653,8 @@ def generate_pdf_from_template(quote_data, template_id, selected_plan='standard'
             
             # Replace specific template placeholders with actual data
             processed_content = processed_content.replace('{Up to i want to keep here no of users}', str(template_data.get('config_users', 1)))
+            processed_content = processed_content.replace('{up to i want to keep here no of users}', str(template_data.get('config_users', 1)))
+            processed_content = processed_content.replace('{UP TO I WANT TO KEEP HERE NO OF USERS}', str(template_data.get('config_users', 1)))
 
             # Determine plan prefix based on selected plan to pull matching values
             plan_prefix = 'standard'
@@ -1675,10 +1677,50 @@ def generate_pdf_from_template(quote_data, template_id, selected_plan='standard'
             processed_content = processed_content.replace('{i want to mention here cost of migration only}', template_data.get(f'{plan_prefix}_migration_cost_formatted', '$0.00'))
             processed_content = processed_content.replace('{i want to mention here cost of service here}', template_data.get(f'{plan_prefix}_migration_cost_formatted', '$0.00'))
             processed_content = processed_content.replace('{i want to mention here total amount}', template_data.get(f'{plan_prefix}_total_cost_formatted', '$0.00'))
+            
+            # Replace the specific placeholders from your template
+            processed_content = processed_content.replace('{i want to mention total cost - (migration cost+if instance cost)}', template_data.get(f'{plan_prefix}_total_cost_formatted', '$0.00'))
+            processed_content = processed_content.replace('{I WANT TO MENTION TOTAL COST - (MIGRATION COST+IF INSTANCE COST)}', template_data.get(f'{plan_prefix}_total_cost_formatted', '$0.00'))
+            processed_content = processed_content.replace('{i want to mention total cost}', template_data.get(f'{plan_prefix}_total_cost_formatted', '$0.00'))
+            
+            # Replace migration cost placeholders
+            processed_content = processed_content.replace('{migration cost}', template_data.get(f'{plan_prefix}_migration_cost_formatted', '$0.00'))
+            processed_content = processed_content.replace('{MIGRATION COST}', template_data.get(f'{plan_prefix}_migration_cost_formatted', '$0.00'))
+            
+            # Replace instance cost placeholders
+            processed_content = processed_content.replace('{instance cost}', template_data.get(f'{plan_prefix}_instance_cost_formatted', '$0.00'))
+            processed_content = processed_content.replace('{INSTANCE COST}', template_data.get(f'{plan_prefix}_instance_cost_formatted', '$0.00'))
+            
+            # Replace duration placeholders
+            processed_content = processed_content.replace('{Valid for how m,any Months i want tomention here}', str(template_data.get('config_duration_months', '3')))
+            processed_content = processed_content.replace('{valid for how many months i want to mention here}', str(template_data.get('config_duration_months', '3')))
+            processed_content = processed_content.replace('{VALID FOR HOW MANY MONTHS I WANT TO MENTION HERE}', str(template_data.get('config_duration_months', '3')))
+            
+            # Replace the specific placeholder from your template (with the typo)
+            processed_content = processed_content.replace('Valid for how m,any Months i want tomention here', str(template_data.get('config_duration_months', '3')))
 
-            # Handle the custom placeholder for combined cost
-            processed_content = processed_content.replace('{i want to mention total cost - (migration cost+if instance cost)}', combined_formatted)
-            processed_content = processed_content.replace('i want to mention total cost - (migration cost+if instance cost)', combined_formatted)
+            # Add debugging for placeholder replacement
+            print(f"🔍 Final placeholder replacement debug:")
+            print(f"  Client company: {client_company}")
+            print(f"  Config users: {template_data.get('config_users', 'NOT FOUND')}")
+            print(f"  Plan prefix: {plan_prefix}")
+            print(f"  Migration cost: {template_data.get(f'{plan_prefix}_migration_cost_formatted', 'NOT FOUND')}")
+            print(f"  Total cost: {template_data.get(f'{plan_prefix}_total_cost_formatted', 'NOT FOUND')}")
+            print(f"  Processed content preview: {processed_content[:300]}...")
+            
+            # Check if any placeholders are still present
+            remaining_placeholders = []
+            if '[Client.Company]' in processed_content:
+                remaining_placeholders.append('[Client.Company]')
+            if '{Up to i want to keep here no of users}' in processed_content:
+                remaining_placeholders.append('{Up to i want to keep here no of users}')
+            if '{i want to mention total cost' in processed_content:
+                remaining_placeholders.append('{i want to mention total cost...}')
+            
+            if remaining_placeholders:
+                print(f"⚠️ Remaining placeholders: {remaining_placeholders}")
+            else:
+                print("✅ All placeholders replaced successfully")
             
             print(f"Processed content: {processed_content[:100]}...")
             
@@ -2418,14 +2460,15 @@ def generate_pdf_by_lookup():
                 config = quote_data.get('configuration', {})
                 
                 try:
-                buffer = BytesIO()
-                doc = SimpleDocTemplate(buffer, pagesize=letter)
-                styles = getSampleStyleSheet()
-                story = []
-                
+
+                    buffer = BytesIO()
+                    doc = SimpleDocTemplate(buffer, pagesize=letter)
+                    styles = getSampleStyleSheet()
+                    story = []
+                    
                     # Add header
                     story.append(Paragraph(f"CloudFuze Quote for {client_company}", styles['Title']))
-                story.append(Spacer(1, 20))
+                    story.append(Spacer(1, 20))
                     
                     # Add client information
                     story.append(Paragraph(f"Client: {client_name}", styles['Heading2']))
@@ -2479,16 +2522,16 @@ def generate_pdf_by_lookup():
                     # Add footer
                     story.append(Paragraph("Thank you for considering CloudFuze for your migration needs!", styles['Normal']))
                     story.append(Paragraph(f"Generated on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}", styles['Normal']))
-                
-                doc.build(story)
-                buffer.seek(0)
-                
-                return send_file(
-                    buffer,
-                    as_attachment=True,
+                    
+                    doc.build(story)
+                    buffer.seek(0)
+                    
+                    return send_file(
+                        buffer,
+                        as_attachment=True,
                         download_name=f"quote_{client_company}_{selected_plan}_{datetime.now().strftime('%Y%m%d')}.pdf",
-                    mimetype='application/pdf'
-                )
+                        mimetype='application/pdf'
+                    )
                 except Exception as pdf_error:
                     print(f"❌ PDF generation error: {pdf_error}")
                     import traceback
@@ -2755,7 +2798,7 @@ def generate_agreement_from_quote():
             
             # Pricing Breakdown - Basic Plan
             'basic_per_user_cost': str(quote_data.get('basic', {}).get('perUserCost', 0)),
-            'basic_user_total': str(quote_data.get('basic', {}).get('userCost', 0)),
+            'basic_user_total': str(quote_data.get('basic', {}).get('totalUserCost', 0)),  # Fixed: was 'userCost'
             'basic_data_cost': str(quote_data.get('basic', {}).get('dataCost', 0)),
             'basic_migration_cost': str(quote_data.get('basic', {}).get('migrationCost', 0)),
             'basic_instance_cost': str(quote_data.get('basic', {}).get('instanceCost', 0)),
@@ -2763,7 +2806,7 @@ def generate_agreement_from_quote():
             
             # Pricing Breakdown - Standard Plan
             'standard_per_user_cost': str(quote_data.get('standard', {}).get('perUserCost', 0)),
-            'standard_user_total': str(quote_data.get('standard', {}).get('userCost', 0)),
+            'standard_user_total': str(quote_data.get('standard', {}).get('totalUserCost', 0)),  # Fixed: was 'userCost'
             'standard_data_cost': str(quote_data.get('standard', {}).get('dataCost', 0)),
             'standard_migration_cost': str(quote_data.get('standard', {}).get('migrationCost', 0)),
             'standard_instance_cost': str(quote_data.get('standard', {}).get('instanceCost', 0)),
@@ -2771,19 +2814,19 @@ def generate_agreement_from_quote():
             
             # Pricing Breakdown - Advanced Plan
             'advanced_per_user_cost': str(quote_data.get('advanced', {}).get('perUserCost', 0)),
-            'advanced_user_total': str(quote_data.get('advanced', {}).get('userCost', 0)),
+            'advanced_user_total': str(quote_data.get('advanced', {}).get('totalUserCost', 0)),  # Fixed: was 'userCost'
             'advanced_data_cost': str(quote_data.get('advanced', {}).get('dataCost', 0)),
             'advanced_migration_cost': str(quote_data.get('advanced', {}).get('migrationCost', 0)),
             'advanced_instance_cost': str(quote_data.get('advanced', {}).get('instanceCost', 0)),
             'advanced_plan_total': str(quote_data.get('advanced', {}).get('totalCost', 0)),
             
-            # Company Information (you can customize these)
-            'company_name': 'Your Company Name',
-            'company_address': 'Your Company Address',
-            'company_website': 'www.yourcompany.com',
-            'company_email': 'info@yourcompany.com',
-            'company_phone': '+1-555-0123',
-            'provider_representative': 'Your Name',
+            # Company Information (CloudFuze details)
+            'company_name': 'CloudFuze',
+            'company_address': '2500 Regency Parkway, Cary, NC 27518',
+            'company_website': 'www.cloudfuze.com',
+            'company_email': 'contact@cloudfuze.com',
+            'company_phone': '+1-919-678-0900',
+            'provider_representative': 'CloudFuze Team',
             'provider_title': 'Project Manager',
             
             # Agreement Details
@@ -2871,18 +2914,81 @@ def generate_agreement_from_quote():
                         else:
                             template_content += f"<div class='block'>{block.get('content', '')}</div>"
                     
-                    # Replace placeholders in template content
+                    # Debug: Print template content before replacement
+                    print(f"🔍 DEBUG: Template content before replacement:")
+                    print(f"  Template ID: {template_id}")
+                    print(f"  Client Company: {agreement_data.get('client_company', 'N/A')}")
+                    print(f"  Number of Users: {agreement_data.get('number_of_users', 'N/A')}")
+                    print(f"  Standard Plan Total: {agreement_data.get('standard_plan_total', '0')}")
+                    print(f"  Template content preview: {template_content[:500]}...")
+                    
+                    # Replace placeholders in template content with comprehensive mapping
+                    # First, replace all agreement_data placeholders
                     for key, value in agreement_data.items():
-                        placeholder = f'[{key}]'
-                        template_content = template_content.replace(placeholder, str(value))
-                        
-                    # Replace common placeholders
+                        # Handle different placeholder formats
+                        template_content = template_content.replace(f'[{key}]', str(value))
+                        template_content = template_content.replace(f'{{{key}}}', str(value))
+                        template_content = template_content.replace(f'{{{{{key}}}}}', str(value))
+                    
+                    # Replace specific template placeholders that appear in the image
+                    template_content = template_content.replace('[Client.Company]', agreement_data.get('client_company', 'N/A'))
                     template_content = template_content.replace('[client_name]', agreement_data.get('client_name', 'N/A'))
                     template_content = template_content.replace('[client_company]', agreement_data.get('client_company', 'N/A'))
+                    template_content = template_content.replace('[company name]', agreement_data.get('company_name', 'CloudFuze'))
                     template_content = template_content.replace('[service_type]', agreement_data.get('service_type', 'N/A'))
                     template_content = template_content.replace('[quote_total]', f"${agreement_data.get('standard_plan_total', '0')}")
                     template_content = template_content.replace('[agreement_id]', agreement_data.get('agreement_id', 'N/A'))
                     template_content = template_content.replace('[effective_date]', agreement_data.get('effective_date', 'N/A'))
+                    
+                    # Replace user count placeholders
+                    user_count = agreement_data.get('number_of_users', 'N/A')
+                    template_content = template_content.replace('{Up to i want to keep here no of users}', str(user_count))
+                    template_content = template_content.replace('{Up to i want to keep here no of users}', str(user_count))
+                    template_content = template_content.replace('{up to i want to keep here no of users}', str(user_count))
+                    template_content = template_content.replace('{UP TO I WANT TO KEEP HERE NO OF USERS}', str(user_count))
+                    
+                    # Replace total cost placeholders
+                    total_cost = agreement_data.get('standard_plan_total', '0')
+                    template_content = template_content.replace('{i want to mention total cost - (migration cost+if instance cost)}', f"${total_cost}")
+                    template_content = template_content.replace('{I WANT TO MENTION TOTAL COST - (MIGRATION COST+IF INSTANCE COST)}', f"${total_cost}")
+                    template_content = template_content.replace('{i want to mention total cost}', f"${total_cost}")
+                    
+                    # Replace migration cost placeholders
+                    migration_cost = agreement_data.get('standard_migration_cost', '0')
+                    template_content = template_content.replace('{migration cost}', f"${migration_cost}")
+                    template_content = template_content.replace('{MIGRATION COST}', f"${migration_cost}")
+                    
+                    # Replace instance cost placeholders
+                    instance_cost = agreement_data.get('standard_instance_cost', '0')
+                    template_content = template_content.replace('{instance cost}', f"${instance_cost}")
+                    template_content = template_content.replace('{INSTANCE COST}', f"${instance_cost}")
+                    
+                    # Replace data size placeholders
+                    data_size = agreement_data.get('data_size', 'N/A')
+                    template_content = template_content.replace('{data size}', str(data_size))
+                    template_content = template_content.replace('{DATA SIZE}', str(data_size))
+                    
+                    # Replace duration placeholders
+                    duration = agreement_data.get('project_duration', 'N/A')
+                    template_content = template_content.replace('{duration}', str(duration))
+                    template_content = template_content.replace('{DURATION}', str(duration))
+                    
+                    # Replace service description placeholders
+                    service_desc = agreement_data.get('service_description', 'CloudFuze X-Change Enterprise Data Migration Services')
+                    template_content = template_content.replace('{service description}', service_desc)
+                    template_content = template_content.replace('{SERVICE DESCRIPTION}', service_desc)
+                    
+                    # Replace any remaining generic placeholders
+                    template_content = template_content.replace('{N/A}', 'N/A')
+                    template_content = template_content.replace('{n/a}', 'N/A')
+                    template_content = template_content.replace('{na}', 'N/A')
+                    
+                    # Debug: Print template content after replacement
+                    print(f"🔍 DEBUG: Template content after replacement:")
+                    print(f"  Template content preview: {template_content[:500]}...")
+                    print(f"  Contains [Client.Company]: {'[Client.Company]' in template_content}")
+                    print(f"  Contains {{Up to i want to keep here no of users}}: {'{Up to i want to keep here no of users}' in template_content}")
+                    print(f"  Contains {{i want to mention total cost}}: {'{i want to mention total cost' in template_content}")
                     
             except Exception as e:
                 print(f"Warning: Failed to load template {template_id}: {e}")
