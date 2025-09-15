@@ -78,7 +78,16 @@ def oauth_callback():
         return jsonify({'success': True, 'message': 'OAuth token saved.', 'token_path': token_path})
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)}), 500
-CORS(app)
+CORS(app, origins=["*"], allow_headers=["Content-Type", "Authorization"])
+
+# Global error handler for JSON parsing errors
+@app.errorhandler(400)
+def bad_request(error):
+    return jsonify({'success': False, 'message': 'Bad request - Invalid JSON or missing data'}), 400
+
+@app.errorhandler(500)
+def internal_error(error):
+    return jsonify({'success': False, 'message': 'Internal server error'}), 500
 UPLOAD_FOLDER = os.path.join(os.getcwd(), 'uploaded_docs')
 ALLOWED_DOCX_EXTENSIONS = {'docx'}
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
@@ -6785,11 +6794,33 @@ def get_denied_workflows():
             'message': f'Error retrieving denied workflows: {str(e)}'
         }), 500
 
+@app.route('/api/test', methods=['GET'])
+def test_endpoint():
+    """Simple test endpoint to check if server is working"""
+    return jsonify({
+        'success': True,
+        'message': 'Server is working',
+        'timestamp': datetime.now().isoformat()
+    })
+
 @app.route('/api/approval/start-workflow', methods=['POST'])
 def start_approval_workflow():
     """Start a new approval workflow for a document"""
     try:
+        print(f"🔍 DEBUG: Received request to start workflow")
+        print(f"🔍 DEBUG: Request headers: {dict(request.headers)}")
+        print(f"🔍 DEBUG: Request content type: {request.content_type}")
+        
         data = request.get_json()
+        print(f"🔍 DEBUG: Parsed JSON data: {data}")
+        
+        if not data:
+            print(f"❌ DEBUG: No JSON data received")
+            return jsonify({
+                'success': False,
+                'message': 'Invalid JSON data received'
+            }), 400
+            
         document_id = data.get('document_id')
         document_type = data.get('document_type', 'PDF')
         manager_email = data.get('manager_email')
