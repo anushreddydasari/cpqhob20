@@ -1174,7 +1174,8 @@ def send_quote_email():
                 }
                 
                 try:
-                    generated_pdfs.store_pdf_metadata(pdf_metadata)
+                    # Store PDF metadata with content for regeneration
+                    generated_pdfs.store_pdf_metadata(pdf_metadata, pdf_buffer.getvalue())
                     pdf_path = file_path
                 except Exception as e:
                     print(f"Warning: Failed to store PDF metadata: {e}")
@@ -1835,7 +1836,8 @@ def generate_pdf_from_template(quote_data, template_id, selected_plan='standard'
         
         from mongodb_collections.generated_pdf_collection import GeneratedPDFCollection
         pdf_collection = GeneratedPDFCollection()
-        pdf_collection.store_pdf_metadata(pdf_metadata)
+        # Store PDF metadata with content for regeneration
+        pdf_collection.store_pdf_metadata(pdf_metadata, buffer.getvalue())
         
         print(f"PDF generated successfully: {filename}")
         return send_file(
@@ -3193,7 +3195,8 @@ def generate_agreement_pdf():
             }
             
             try:
-                generated_agreements.store_agreement_metadata(agreement_metadata)
+                # Store agreement metadata with content for regeneration
+                generated_agreements.store_agreement_metadata(agreement_metadata, pdf_bytes)
             except Exception as e:
                 print(f"Warning: Failed to store agreement metadata: {e}")
             
@@ -5777,6 +5780,24 @@ def preview_document(document_id):
                             return send_file(correct_path, mimetype='application/pdf')
                         else:
                             print(f"❌ No PDF data stored in database for regeneration")
+                            
+                            # Try to regenerate from quote data
+                            quote_id = pdf.get('quote_id')
+                            if quote_id:
+                                print(f"🔄 Attempting to regenerate PDF from quote data...")
+                                from mongodb_collections.quote_collection import QuoteCollection
+                                quotes = QuoteCollection()
+                                quote_data = quotes.get_quote_by_id(quote_id)
+                                
+                                if quote_data:
+                                    regenerated_path, message = generated_pdfs.regenerate_pdf_from_quote(document_id, quote_data)
+                                    if regenerated_path:
+                                        print(f"✅ PDF regenerated from quote data: {message}")
+                                        return send_file(regenerated_path, mimetype='application/pdf')
+                                    else:
+                                        print(f"❌ Failed to regenerate from quote data: {message}")
+                                else:
+                                    print(f"❌ Quote data not found for ID: {quote_id}")
                     except Exception as regen_error:
                         print(f"❌ Error regenerating PDF: {regen_error}")
                     
@@ -5884,7 +5905,23 @@ def preview_document(document_id):
                         
                         # Get the agreement content from the database
                         agreement_content = agreement.get('content') or agreement.get('agreement_content')
-                        if agreement_content:
+                        agreement_data = agreement.get('agreement_data')  # Base64 encoded PDF data
+                        
+                        if agreement_data:
+                            # Decode and save the PDF agreement
+                            import base64
+                            agreement_bytes = base64.b64decode(agreement_data)
+                            
+                            # Ensure documents directory exists
+                            file_handler.ensure_documents_directory()
+                            
+                            # Save the regenerated agreement as PDF
+                            with open(correct_path, 'wb') as f:
+                                f.write(agreement_bytes)
+                            
+                            print(f"✅ Agreement PDF regenerated successfully: {correct_path}")
+                            return send_file(correct_path, mimetype='application/pdf')
+                        elif agreement_content:
                             # Ensure documents directory exists
                             file_handler.ensure_documents_directory()
                             
@@ -6223,7 +6260,8 @@ def generate_pdf_and_send_email():
             'generated_at': datetime.now()
         }
         
-        generated_pdfs.store_pdf_metadata(pdf_metadata)
+        # Store PDF metadata with content for regeneration
+        generated_pdfs.store_pdf_metadata(pdf_metadata, pdf_buffer.getvalue())
         print(f"✅ Debug: PDF metadata stored in MongoDB")
         
         # Send email with the generated PDF

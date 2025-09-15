@@ -8,14 +8,19 @@ class GeneratedAgreementCollection:
     def __init__(self):
         self.collection = db["storinggenratedaggremntfromquotemangnt"]
     
-    def store_agreement_metadata(self, agreement_data):
-        """Store agreement metadata after generation"""
+    def store_agreement_metadata(self, agreement_data, agreement_content=None):
+        """Store agreement metadata after generation with optional content for regeneration"""
         if not self._validate_agreement_data(agreement_data):
             raise ValueError("Invalid agreement data")
         
         agreement_data["generated_at"] = datetime.now()
         agreement_data["created_at"] = datetime.now()
         agreement_data["updated_at"] = datetime.now()
+        
+        # Store agreement content as base64 for regeneration if provided
+        if agreement_content:
+            import base64
+            agreement_data["agreement_data"] = base64.b64encode(agreement_content).decode('utf-8')
         
         return self.collection.insert_one(agreement_data)
     
